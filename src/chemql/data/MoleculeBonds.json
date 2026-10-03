@@ -1,0 +1,5708 @@
+{
+  "Water": {
+    "bonds": [
+      {
+        "elements": [
+          "H",
+          "O"
+        ],
+        "type": "single",
+        "count": 2
+      }
+    ]
+  },
+  "Glucose": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 5
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 12
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "single",
+        "count": 7
+      }
+    ]
+  },
+  "Fructose": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 4
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 12
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "single",
+        "count": 6
+      }
+    ]
+  },
+  "Sucrose": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 10
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 22
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "single",
+        "count": 14
+      }
+    ]
+  },
+  "Urea": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 4
+      },
+      {
+        "elements": [
+          "C",
+          "N"
+        ],
+        "type": "single",
+        "count": 2
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "double",
+        "count": 1
+      }
+    ]
+  },
+  "Citric acid": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 5
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 8
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "double",
+        "count": 3
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "single",
+        "count": 4
+      }
+    ]
+  },
+  "Cholesterol": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "double",
+        "count": 2
+      },
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 29
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 46
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "single",
+        "count": 1
+      }
+    ]
+  },
+  "Glycine": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 5
+      },
+      {
+        "elements": [
+          "C",
+          "N"
+        ],
+        "type": "single",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "double",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "single",
+        "count": 1
+      }
+    ]
+  },
+  "Alanine": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 2
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 7
+      },
+      {
+        "elements": [
+          "C",
+          "N"
+        ],
+        "type": "single",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "double",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "single",
+        "count": 1
+      }
+    ]
+  },
+  "Vitamin C": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "double",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 4
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 8
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "double",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "single",
+        "count": 6
+      }
+    ]
+  },
+  "Caproic acid": {
+    "bonds": []
+  },
+  "Caprylic acid": {
+    "bonds": []
+  },
+  "Capric acid": {
+    "bonds": []
+  },
+  "Behenic acid": {
+    "bonds": []
+  },
+  "Lignoceric acid": {
+    "bonds": []
+  },
+  "Cerotic acid": {
+    "bonds": []
+  },
+  "Montanic acid": {
+    "bonds": []
+  },
+  "Elaidic acid": {
+    "bonds": []
+  },
+  "Vaccenic acid": {
+    "bonds": []
+  },
+  "Ricinoleic acid": {
+    "bonds": []
+  },
+  "Alpha-linolenic acid": {
+    "bonds": []
+  },
+  "Gamma-linolenic acid": {
+    "bonds": []
+  },
+  "Eicosatrienoic acid": {
+    "bonds": []
+  },
+  "Docosapentaenoic acid": {
+    "bonds": []
+  },
+  "Stearidonic acid": {
+    "bonds": []
+  },
+  "Clupanodonic acid": {
+    "bonds": []
+  },
+  "Nervonic acid": {
+    "bonds": []
+  },
+  "Erucic acid": {
+    "bonds": []
+  },
+  "Gondoic acid": {
+    "bonds": []
+  },
+  "Heneicosanoic acid": {
+    "bonds": []
+  },
+  "Tricosanoic acid": {
+    "bonds": []
+  },
+  "Pentacosanoic acid": {
+    "bonds": []
+  },
+  "Heptacosanoic acid": {
+    "bonds": []
+  },
+  "Nonacosanoic acid": {
+    "bonds": []
+  },
+  "Hentriacontanoic acid": {
+    "bonds": []
+  },
+  "Tritriacontanoic acid": {
+    "bonds": []
+  },
+  "Pentatriacontanoic acid": {
+    "bonds": []
+  },
+  "Heptatriacontanoic acid": {
+    "bonds": []
+  },
+  "Nonatriacontanoic acid": {
+    "bonds": []
+  },
+  "Methyl oleate": {
+    "bonds": []
+  },
+  "Ethyl oleate": {
+    "bonds": []
+  },
+  "Methyl linoleate": {
+    "bonds": []
+  },
+  "Ethyl linoleate": {
+    "bonds": []
+  },
+  "Methyl palmitate": {
+    "bonds": []
+  },
+  "Ethyl palmitate": {
+    "bonds": []
+  },
+  "Methyl stearate": {
+    "bonds": []
+  },
+  "Ethyl stearate": {
+    "bonds": []
+  },
+  "Methyl laurate": {
+    "bonds": []
+  },
+  "Ethyl laurate": {
+    "bonds": []
+  },
+  "Methyl myristate": {
+    "bonds": []
+  },
+  "Ethyl myristate": {
+    "bonds": []
+  },
+  "Methyl caprylate": {
+    "bonds": []
+  },
+  "Ethyl caprylate": {
+    "bonds": []
+  },
+  "Methyl caprate": {
+    "bonds": []
+  },
+  "Ethyl caprate": {
+    "bonds": []
+  },
+  "Methyl citrate": {
+    "bonds": []
+  },
+  "Dimethyl citrate": {
+    "bonds": []
+  },
+  "Triethyl citrate": {
+    "bonds": []
+  },
+  "Methyl lactate": {
+    "bonds": []
+  },
+  "Ethyl lactate": {
+    "bonds": []
+  },
+  "Propyl lactate": {
+    "bonds": []
+  },
+  "Butyl lactate": {
+    "bonds": []
+  },
+  "Methyl malate": {
+    "bonds": []
+  },
+  "Diethyl malate": {
+    "bonds": []
+  },
+  "Methyl tartrate": {
+    "bonds": []
+  },
+  "Diethyl tartrate": {
+    "bonds": []
+  },
+  "Methyl gallate": {
+    "bonds": []
+  },
+  "Ethyl gallate": {
+    "bonds": []
+  },
+  "Propyl gallate": {
+    "bonds": []
+  },
+  "Butyl gallate": {
+    "bonds": []
+  },
+  "Methyl vanillate": {
+    "bonds": []
+  },
+  "Ethyl vanillate": {
+    "bonds": []
+  },
+  "Methyl caffeate": {
+    "bonds": []
+  },
+  "Ethyl caffeate": {
+    "bonds": []
+  },
+  "Methyl ferulate": {
+    "bonds": []
+  },
+  "Ethyl ferulate": {
+    "bonds": []
+  },
+  "Methyl salicylate": {
+    "bonds": []
+  },
+  "Ethyl salicylate": {
+    "bonds": []
+  },
+  "Methyl benzoate": {
+    "bonds": []
+  },
+  "Ethyl benzoate": {
+    "bonds": []
+  },
+  "Benzyl acetate": {
+    "bonds": []
+  },
+  "Ethyl cinnamate": {
+    "bonds": []
+  },
+  "Methyl cinnamate": {
+    "bonds": []
+  },
+  "Isoamyl acetate": {
+    "bonds": []
+  },
+  "Ethyl butyrate": {
+    "bonds": []
+  },
+  "Methyl butyrate": {
+    "bonds": []
+  },
+  "Ethyl hexanoate": {
+    "bonds": []
+  },
+  "Ethyl octanoate": {
+    "bonds": []
+  },
+  "Sodium citrate": {
+    "bonds": []
+  },
+  "Potassium citrate": {
+    "bonds": []
+  },
+  "Calcium citrate": {
+    "bonds": []
+  },
+  "Sodium malate": {
+    "bonds": []
+  },
+  "Potassium malate": {
+    "bonds": []
+  },
+  "Calcium malate": {
+    "bonds": []
+  },
+  "Sodium tartrate": {
+    "bonds": []
+  },
+  "Potassium tartrate": {
+    "bonds": []
+  },
+  "Calcium tartrate": {
+    "bonds": []
+  },
+  "Sodium lactobionate": {
+    "bonds": []
+  },
+  "Calcium lactobionate": {
+    "bonds": []
+  },
+  "Sodium ascorbate": {
+    "bonds": []
+  },
+  "Calcium ascorbate": {
+    "bonds": []
+  },
+  "Potassium ascorbate": {
+    "bonds": []
+  },
+  "Magnesium ascorbate": {
+    "bonds": []
+  },
+  "Myo-inositol": {
+    "bonds": []
+  },
+  "Scyllo-inositol": {
+    "bonds": []
+  },
+  "Chiro-inositol": {
+    "bonds": []
+  },
+  "Pinitol": {
+    "bonds": []
+  },
+  "Quercetin-3-glucoside": {
+    "bonds": []
+  },
+  "Kaempferol-3-glucoside": {
+    "bonds": []
+  },
+  "Apigenin": {
+    "bonds": []
+  },
+  "Luteolin": {
+    "bonds": []
+  },
+  "Chrysin": {
+    "bonds": []
+  },
+  "Genistein": {
+    "bonds": []
+  },
+  "Daidzein": {
+    "bonds": []
+  },
+  "Formononetin": {
+    "bonds": []
+  },
+  "Naringin": {
+    "bonds": []
+  },
+  "Hesperidin": {
+    "bonds": []
+  },
+  "Eriocitrin": {
+    "bonds": []
+  },
+  "Cyanidin": {
+    "bonds": []
+  },
+  "Delphinidin": {
+    "bonds": []
+  },
+  "Malvidin": {
+    "bonds": []
+  },
+  "Pelargonidin": {
+    "bonds": []
+  },
+  "Peonidin": {
+    "bonds": []
+  },
+  "Petunidin": {
+    "bonds": []
+  },
+  "Ellagic acid": {
+    "bonds": []
+  },
+  "Tannic acid": {
+    "bonds": []
+  },
+  "Theaflavin": {
+    "bonds": []
+  },
+  "Thearubigin basic unit": {
+    "bonds": []
+  },
+  "Chlorogenic acid": {
+    "bonds": []
+  },
+  "Rosmarinic acid": {
+    "bonds": []
+  },
+  "Caffeoylquinic acid": {
+    "bonds": []
+  },
+  "Salicin": {
+    "bonds": []
+  },
+  "Arbutin": {
+    "bonds": []
+  },
+  "Methyl arbutin": {
+    "bonds": []
+  },
+  "Aesculin": {
+    "bonds": []
+  },
+  "Amygdalin": {
+    "bonds": []
+  },
+  "Vanillyl alcohol": {
+    "bonds": []
+  },
+  "Vanillic acid": {
+    "bonds": []
+  },
+  "Syringic acid": {
+    "bonds": []
+  },
+  "Syringaldehyde": {
+    "bonds": []
+  },
+  "Gentisic acid": {
+    "bonds": []
+  },
+  "Homogentisic acid": {
+    "bonds": []
+  },
+  "Dihydrocaffeic acid": {
+    "bonds": []
+  },
+  "Dihydroferulic acid": {
+    "bonds": []
+  },
+  "Dihydrocoumaric acid": {
+    "bonds": []
+  },
+  "Mandelic acid": {
+    "bonds": []
+  },
+  "Phenylacetic acid": {
+    "bonds": []
+  },
+  "Phenylpropionic acid": {
+    "bonds": []
+  },
+  "Phenylpyruvic acid": {
+    "bonds": []
+  },
+  "Indole-3-acetic acid": {
+    "bonds": []
+  },
+  "Indole-3-butyric acid": {
+    "bonds": []
+  },
+  "Kojic acid": {
+    "bonds": []
+  },
+  "Mucic acid": {
+    "bonds": []
+  },
+  "Saccharic acid": {
+    "bonds": []
+  },
+  "Mannitol hexanitrate": {
+    "bonds": []
+  },
+  "Sodium alginate repeat unit": {
+    "bonds": []
+  },
+  "Agarose repeat unit": {
+    "bonds": []
+  },
+  "Dextran repeat unit": {
+    "bonds": []
+  },
+  "Pectin repeat unit": {
+    "bonds": []
+  },
+  "Inulin repeat unit": {
+    "bonds": []
+  },
+  "Raffinose": {
+    "bonds": []
+  },
+  "Stachyose": {
+    "bonds": []
+  },
+  "Melibiose": {
+    "bonds": []
+  },
+  "Isomaltose": {
+    "bonds": []
+  },
+  "Palatinose": {
+    "bonds": []
+  },
+  "Gentiobiose": {
+    "bonds": []
+  },
+  "Lactulose": {
+    "bonds": []
+  },
+  "Tagatose": {
+    "bonds": []
+  },
+  "Allulose": {
+    "bonds": []
+  },
+  "Sorbose": {
+    "bonds": []
+  },
+  "Glucuronic acid": {
+    "bonds": []
+  },
+  "Galacturonic acid": {
+    "bonds": []
+  },
+  "Mannuronic acid": {
+    "bonds": []
+  },
+  "Iduronic acid": {
+    "bonds": []
+  },
+  "Ribonic acid": {
+    "bonds": []
+  },
+  "Arabinonic acid": {
+    "bonds": []
+  },
+  "Xylonic acid": {
+    "bonds": []
+  },
+  "Lyxonic acid": {
+    "bonds": []
+  },
+  "Glyceric acid": {
+    "bonds": []
+  },
+  "Tartronic acid": {
+    "bonds": []
+  },
+  "Dihydroxyacetone": {
+    "bonds": []
+  },
+  "Glyceraldehyde": {
+    "bonds": []
+  },
+  "Erythrose": {
+    "bonds": []
+  },
+  "Threose": {
+    "bonds": []
+  },
+  "Ribulose": {
+    "bonds": []
+  },
+  "Xylulose": {
+    "bonds": []
+  },
+  "Sedopentulose": {
+    "bonds": []
+  },
+  "Sedoheptulose": {
+    "bonds": []
+  },
+  "Fructose-6-phosphate": {
+    "bonds": []
+  },
+  "Glucose-6-phosphate": {
+    "bonds": []
+  },
+  "Glucose-1-phosphate": {
+    "bonds": []
+  },
+  "Fructose-1,6-bisphosphate": {
+    "bonds": []
+  },
+  "Ribose-5-phosphate": {
+    "bonds": []
+  },
+  "Phosphoenolpyruvate": {
+    "bonds": []
+  },
+  "Oxaloacetate": {
+    "bonds": []
+  },
+  "Citrate": {
+    "bonds": []
+  },
+  "Isocitrate": {
+    "bonds": []
+  },
+  "Succinate": {
+    "bonds": []
+  },
+  "Fumarate": {
+    "bonds": []
+  },
+  "Malate": {
+    "bonds": []
+  },
+  "Alpha-ketoglutarate": {
+    "bonds": []
+  },
+  "Acetyl phosphate": {
+    "bonds": []
+  },
+  "Glycerol phosphate": {
+    "bonds": []
+  },
+  "Phosphatidylglycerol": {
+    "bonds": []
+  },
+  "Phosphatidylethanolamine": {
+    "bonds": []
+  },
+  "Phosphatidylserine": {
+    "bonds": []
+  },
+  "Sphingomyelin basic unit": {
+    "bonds": []
+  },
+  "Ceramide basic unit": {
+    "bonds": []
+  },
+  "Sphingosine": {
+    "bonds": []
+  },
+  "Phytosphingosine": {
+    "bonds": []
+  },
+  "Dihydrosphingosine": {
+    "bonds": []
+  },
+  "Ergosterol": {
+    "bonds": []
+  },
+  "Campesterol": {
+    "bonds": []
+  },
+  "Stigmasterol": {
+    "bonds": []
+  },
+  "Beta-sitosterol": {
+    "bonds": []
+  },
+  "Lanosterol": {
+    "bonds": []
+  },
+  "Brassicasterol": {
+    "bonds": []
+  },
+  "Cholestanol": {
+    "bonds": []
+  },
+  "Cholestenone": {
+    "bonds": []
+  },
+  "Bile acid basic unit": {
+    "bonds": []
+  },
+  "Chenodeoxycholic acid": {
+    "bonds": []
+  },
+  "Deoxycholic acid": {
+    "bonds": []
+  },
+  "Ursodeoxycholic acid": {
+    "bonds": []
+  },
+  "Lithocholic acid": {
+    "bonds": []
+  },
+  "Glycocholic acid": {
+    "bonds": []
+  },
+  "Taurocholic acid": {
+    "bonds": []
+  },
+  "Melatonin": {
+    "bonds": []
+  },
+  "Ubiquinone-10": {
+    "bonds": []
+  },
+  "Plastoquinone": {
+    "bonds": []
+  },
+  "Phylloquinone": {
+    "bonds": []
+  },
+  "Menadione": {
+    "bonds": []
+  },
+  "Menaquinone-4": {
+    "bonds": []
+  },
+  "All-trans-retinal": {
+    "bonds": []
+  },
+  "9-cis-retinal": {
+    "bonds": []
+  },
+  "Retinyl palmitate": {
+    "bonds": []
+  },
+  "Retinyl acetate": {
+    "bonds": []
+  },
+  "Tocopheryl acetate": {
+    "bonds": []
+  },
+  "Tocotrienol": {
+    "bonds": []
+  },
+  "Calcitriol": {
+    "bonds": []
+  },
+  "Cholecalciferol metabolite": {
+    "bonds": []
+  },
+  "Thiamine monophosphate": {
+    "bonds": []
+  },
+  "Riboflavin monophosphate": {
+    "bonds": []
+  },
+  "Nicotinamide riboside": {
+    "bonds": []
+  },
+  "Nicotinic acid riboside": {
+    "bonds": []
+  },
+  "Pantetheine": {
+    "bonds": []
+  },
+  "Pantothenate": {
+    "bonds": []
+  },
+  "Biocytin": {
+    "bonds": []
+  },
+  "Lipoic acid": {
+    "bonds": []
+  },
+  "Coenzyme M": {
+    "bonds": []
+  },
+  "Coenzyme Q0": {
+    "bonds": []
+  },
+  "Coenzyme Q10 basic unit": {
+    "bonds": []
+  },
+  "Glutathione disulfide": {
+    "bonds": []
+  },
+  "Cystine": {
+    "bonds": []
+  },
+  "Cystine dioxide": {
+    "bonds": []
+  },
+  "Homocysteine": {
+    "bonds": []
+  },
+  "Homocystine": {
+    "bonds": []
+  },
+  "Cysteinylglycine": {
+    "bonds": []
+  },
+  "Gamma-glutamylcysteine": {
+    "bonds": []
+  },
+  "Carbamoyl phosphate": {
+    "bonds": []
+  },
+  "Argininosuccinic acid": {
+    "bonds": []
+  },
+  "Ornithine phosphate": {
+    "bonds": []
+  },
+  "Phosphocreatine": {
+    "bonds": []
+  },
+  "Creatine phosphate": {
+    "bonds": []
+  },
+  "Inositol trisphosphate": {
+    "bonds": []
+  },
+  "Phosphatidic acid basic unit": {
+    "bonds": []
+  },
+  "Glycerol monooleate": {
+    "bonds": []
+  },
+  "Glycerol monostearate": {
+    "bonds": []
+  },
+  "Glycerol monopalmitate": {
+    "bonds": []
+  },
+  "Glycerol dilaurate": {
+    "bonds": []
+  },
+  "Glycerol trioctanoate": {
+    "bonds": []
+  },
+  "Triacetin": {
+    "bonds": []
+  },
+  "Tributyrin": {
+    "bonds": []
+  },
+  "Tricaproin": {
+    "bonds": []
+  },
+  "Tricaprylin": {
+    "bonds": []
+  },
+  "Tricaprin": {
+    "bonds": []
+  },
+  "Trilaurin": {
+    "bonds": []
+  },
+  "Trimyristin": {
+    "bonds": []
+  },
+  "Trilinolenin": {
+    "bonds": []
+  },
+  "D-glucose": {
+    "bonds": []
+  },
+  "L-glucose": {
+    "bonds": []
+  },
+  "D-fructose": {
+    "bonds": []
+  },
+  "L-fructose": {
+    "bonds": []
+  },
+  "D-galactose": {
+    "bonds": []
+  },
+  "L-galactose": {
+    "bonds": []
+  },
+  "D-ribose": {
+    "bonds": []
+  },
+  "L-ribose": {
+    "bonds": []
+  },
+  "D-xylose": {
+    "bonds": []
+  },
+  "L-xylose": {
+    "bonds": []
+  },
+  "D-arabinose": {
+    "bonds": []
+  },
+  "L-arabinose": {
+    "bonds": []
+  },
+  "D-mannose": {
+    "bonds": []
+  },
+  "L-mannose": {
+    "bonds": []
+  },
+  "D-sorbitol": {
+    "bonds": []
+  },
+  "L-sorbitol": {
+    "bonds": []
+  },
+  "D-mannitol": {
+    "bonds": []
+  },
+  "L-mannitol": {
+    "bonds": []
+  },
+  "D-xylitol": {
+    "bonds": []
+  },
+  "L-xylitol": {
+    "bonds": []
+  },
+  "D-galactonic acid": {
+    "bonds": []
+  },
+  "L-galactonic acid": {
+    "bonds": []
+  },
+  "D-gluconic acid": {
+    "bonds": []
+  },
+  "L-gluconic acid": {
+    "bonds": []
+  },
+  "D-malic acid": {
+    "bonds": []
+  },
+  "L-malic acid": {
+    "bonds": []
+  },
+  "D-tartaric acid": {
+    "bonds": []
+  },
+  "L-tartaric acid": {
+    "bonds": []
+  },
+  "D-lactic acid": {
+    "bonds": []
+  },
+  "L-lactic acid": {
+    "bonds": []
+  },
+  "D-glyceraldehyde": {
+    "bonds": []
+  },
+  "L-glyceraldehyde": {
+    "bonds": []
+  },
+  "D-erythrose": {
+    "bonds": []
+  },
+  "L-erythrose": {
+    "bonds": []
+  },
+  "D-threose": {
+    "bonds": []
+  },
+  "L-threose": {
+    "bonds": []
+  },
+  "D-ribulose": {
+    "bonds": []
+  },
+  "L-ribulose": {
+    "bonds": []
+  },
+  "D-xylulose": {
+    "bonds": []
+  },
+  "L-xylulose": {
+    "bonds": []
+  },
+  "D-glucuronic acid": {
+    "bonds": []
+  },
+  "D-galacturonic acid": {
+    "bonds": []
+  },
+  "D-mannuronic acid": {
+    "bonds": []
+  },
+  "D-iduronic acid": {
+    "bonds": []
+  },
+  "Maltotriose": {
+    "bonds": []
+  },
+  "Maltotetraose": {
+    "bonds": []
+  },
+  "Maltopentaose": {
+    "bonds": []
+  },
+  "Maltohexaose": {
+    "bonds": []
+  },
+  "Maltoheptaose": {
+    "bonds": []
+  },
+  "Cellotriose": {
+    "bonds": []
+  },
+  "Cellotetraose": {
+    "bonds": []
+  },
+  "Cellopentaose": {
+    "bonds": []
+  },
+  "Cellohexaose": {
+    "bonds": []
+  },
+  "Laminaribiose": {
+    "bonds": []
+  },
+  "Laminaritriose": {
+    "bonds": []
+  },
+  "Nigerose": {
+    "bonds": []
+  },
+  "Kojibiose": {
+    "bonds": []
+  },
+  "Oxygen": {
+    "bonds": [
+      {
+        "elements": [
+          "O",
+          "O"
+        ],
+        "type": "double",
+        "count": 1
+      }
+    ]
+  },
+  "Carbon dioxide": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "double",
+        "count": 2
+      }
+    ]
+  },
+  "Carbon monoxide": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "triple",
+        "count": 1
+      }
+    ]
+  },
+  "Hydrogen": {
+    "bonds": [
+      {
+        "elements": [
+          "H",
+          "H"
+        ],
+        "type": "single",
+        "count": 1
+      }
+    ]
+  },
+  "Nitrogen": {
+    "bonds": [
+      {
+        "elements": [
+          "N",
+          "N"
+        ],
+        "type": "triple",
+        "count": 1
+      }
+    ]
+  },
+  "Ozone": {
+    "bonds": [
+      {
+        "elements": [
+          "O",
+          "O"
+        ],
+        "type": "double",
+        "count": 1
+      },
+      {
+        "elements": [
+          "O",
+          "O"
+        ],
+        "type": "single",
+        "count": 1
+      }
+    ]
+  },
+  "Methane": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 4
+      }
+    ]
+  },
+  "Ammonia": {
+    "bonds": [
+      {
+        "elements": [
+          "H",
+          "N"
+        ],
+        "type": "single",
+        "count": 3
+      }
+    ]
+  },
+  "Sulfur dioxide": {
+    "bonds": [
+      {
+        "elements": [
+          "O",
+          "S"
+        ],
+        "type": "double",
+        "count": 2
+      }
+    ]
+  },
+  "Sulfur trioxide": {
+    "bonds": [
+      {
+        "elements": [
+          "O",
+          "S"
+        ],
+        "type": "double",
+        "count": 3
+      }
+    ]
+  },
+  "Nitric oxide": {
+    "bonds": [
+      {
+        "elements": [
+          "N",
+          "O"
+        ],
+        "type": "double",
+        "count": 1
+      }
+    ]
+  },
+  "Nitrogen dioxide": {
+    "bonds": [
+      {
+        "elements": [
+          "N",
+          "O"
+        ],
+        "type": "double",
+        "count": 2
+      }
+    ]
+  },
+  "Nitrous oxide": {
+    "bonds": [
+      {
+        "elements": [
+          "N",
+          "N"
+        ],
+        "type": "triple",
+        "count": 1
+      },
+      {
+        "elements": [
+          "N",
+          "O"
+        ],
+        "type": "single",
+        "count": 1
+      }
+    ]
+  },
+  "Hydrogen peroxide": {
+    "bonds": [
+      {
+        "elements": [
+          "H",
+          "O"
+        ],
+        "type": "single",
+        "count": 2
+      },
+      {
+        "elements": [
+          "O",
+          "O"
+        ],
+        "type": "single",
+        "count": 1
+      }
+    ]
+  },
+  "Hydrochloric acid": {
+    "bonds": [
+      {
+        "elements": [
+          "Cl",
+          "H"
+        ],
+        "type": "single",
+        "count": 1
+      }
+    ]
+  },
+  "Sodium chloride": {
+    "bonds": []
+  },
+  "Sodium hydroxide": {
+    "bonds": [
+      {
+        "elements": [
+          "H",
+          "O"
+        ],
+        "type": "single",
+        "count": 1
+      }
+    ]
+  },
+  "Potassium hydroxide": {
+    "bonds": [
+      {
+        "elements": [
+          "H",
+          "O"
+        ],
+        "type": "single",
+        "count": 1
+      }
+    ]
+  },
+  "Calcium carbonate": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "double",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "single",
+        "count": 2
+      }
+    ]
+  },
+  "Calcium oxide": {
+    "bonds": [
+      {
+        "elements": [
+          "Ca",
+          "O"
+        ],
+        "type": "double",
+        "count": 1
+      }
+    ]
+  },
+  "Calcium hydroxide": {
+    "bonds": [
+      {
+        "elements": [
+          "Ca",
+          "H"
+        ],
+        "type": "single",
+        "count": 2
+      }
+    ]
+  },
+  "Magnesium oxide": {
+    "bonds": [
+      {
+        "elements": [
+          "Mg",
+          "O"
+        ],
+        "type": "double",
+        "count": 1
+      }
+    ]
+  },
+  "Magnesium sulfate": {
+    "bonds": [
+      {
+        "elements": [
+          "O",
+          "S"
+        ],
+        "type": "double",
+        "count": 2
+      },
+      {
+        "elements": [
+          "O",
+          "S"
+        ],
+        "type": "single",
+        "count": 2
+      }
+    ]
+  },
+  "Sodium bicarbonate": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "double",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "single",
+        "count": 2
+      },
+      {
+        "elements": [
+          "H",
+          "Na"
+        ],
+        "type": "single",
+        "count": 1
+      }
+    ]
+  },
+  "Sodium carbonate": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "double",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "single",
+        "count": 2
+      }
+    ]
+  },
+  "Acetic acid": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 4
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "double",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "single",
+        "count": 1
+      }
+    ]
+  },
+  "Ethanol": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 6
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "single",
+        "count": 1
+      }
+    ]
+  },
+  "Ethane": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 6
+      }
+    ]
+  },
+  "Ethene": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "double",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 4
+      }
+    ]
+  },
+  "Propane": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 2
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 8
+      }
+    ]
+  },
+  "Butane": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 3
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 10
+      }
+    ]
+  },
+  "Benzene": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "aromatic",
+        "count": 5
+      },
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 6
+      }
+    ]
+  },
+  "Acetone": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 2
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 6
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "double",
+        "count": 1
+      }
+    ]
+  },
+  "Formaldehyde": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 2
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "double",
+        "count": 1
+      }
+    ]
+  },
+  "Phosphoric acid": {
+    "bonds": [
+      {
+        "elements": [
+          "H",
+          "O"
+        ],
+        "type": "single",
+        "count": 3
+      },
+      {
+        "elements": [
+          "O",
+          "P"
+        ],
+        "type": "double",
+        "count": 1
+      },
+      {
+        "elements": [
+          "O",
+          "P"
+        ],
+        "type": "single",
+        "count": 3
+      }
+    ]
+  },
+  "Nitric acid": {
+    "bonds": [
+      {
+        "elements": [
+          "H",
+          "O"
+        ],
+        "type": "single",
+        "count": 1
+      },
+      {
+        "elements": [
+          "N",
+          "O"
+        ],
+        "type": "double",
+        "count": 2
+      },
+      {
+        "elements": [
+          "N",
+          "O"
+        ],
+        "type": "single",
+        "count": 1
+      }
+    ]
+  },
+  "Sulfuric acid": {
+    "bonds": [
+      {
+        "elements": [
+          "H",
+          "O"
+        ],
+        "type": "single",
+        "count": 2
+      },
+      {
+        "elements": [
+          "O",
+          "S"
+        ],
+        "type": "double",
+        "count": 2
+      },
+      {
+        "elements": [
+          "O",
+          "S"
+        ],
+        "type": "single",
+        "count": 2
+      }
+    ]
+  },
+  "Chlorine": {
+    "bonds": [
+      {
+        "elements": [
+          "Cl",
+          "Cl"
+        ],
+        "type": "single",
+        "count": 1
+      }
+    ]
+  },
+  "Bromine": {
+    "bonds": [
+      {
+        "elements": [
+          "Br",
+          "Br"
+        ],
+        "type": "single",
+        "count": 1
+      }
+    ]
+  },
+  "Iodine": {
+    "bonds": [
+      {
+        "elements": [
+          "I",
+          "I"
+        ],
+        "type": "single",
+        "count": 1
+      }
+    ]
+  },
+  "Carbon tetrachloride": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "Cl"
+        ],
+        "type": "single",
+        "count": 4
+      }
+    ]
+  },
+  "Methanol": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 4
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "single",
+        "count": 1
+      }
+    ]
+  },
+  "Isopropanol": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 2
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 8
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "single",
+        "count": 1
+      }
+    ]
+  },
+  "Aspirin": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "aromatic",
+        "count": 5
+      },
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 3
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 8
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "aromatic",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "double",
+        "count": 2
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "single",
+        "count": 2
+      }
+    ]
+  },
+  "Caffeine": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "aromatic",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 10
+      },
+      {
+        "elements": [
+          "C",
+          "N"
+        ],
+        "type": "aromatic",
+        "count": 8
+      },
+      {
+        "elements": [
+          "C",
+          "N"
+        ],
+        "type": "single",
+        "count": 3
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "double",
+        "count": 2
+      }
+    ]
+  },
+  "Sodium nitrate": {
+    "bonds": [
+      {
+        "elements": [
+          "N",
+          "O"
+        ],
+        "type": "double",
+        "count": 2
+      },
+      {
+        "elements": [
+          "N",
+          "O"
+        ],
+        "type": "single",
+        "count": 1
+      }
+    ]
+  },
+  "Potassium nitrate": {
+    "bonds": [
+      {
+        "elements": [
+          "N",
+          "O"
+        ],
+        "type": "double",
+        "count": 2
+      },
+      {
+        "elements": [
+          "N",
+          "O"
+        ],
+        "type": "single",
+        "count": 1
+      }
+    ]
+  },
+  "Iron(III) oxide": {
+    "bonds": []
+  },
+  "Copper sulfate": {
+    "bonds": [
+      {
+        "elements": [
+          "O",
+          "S"
+        ],
+        "type": "double",
+        "count": 2
+      },
+      {
+        "elements": [
+          "O",
+          "S"
+        ],
+        "type": "single",
+        "count": 2
+      }
+    ]
+  },
+  "Ferrous sulfate": {
+    "bonds": [
+      {
+        "elements": [
+          "O",
+          "S"
+        ],
+        "type": "double",
+        "count": 2
+      },
+      {
+        "elements": [
+          "O",
+          "S"
+        ],
+        "type": "single",
+        "count": 2
+      }
+    ]
+  },
+  "Hydrofluoric acid": {
+    "bonds": [
+      {
+        "elements": [
+          "F",
+          "H"
+        ],
+        "type": "single",
+        "count": 1
+      }
+    ]
+  },
+  "Ethanoic acid": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 4
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "double",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "single",
+        "count": 1
+      }
+    ]
+  },
+  "Hydrogen sulfide": {
+    "bonds": [
+      {
+        "elements": [
+          "H",
+          "S"
+        ],
+        "type": "single",
+        "count": 2
+      }
+    ]
+  },
+  "Phosphine": {
+    "bonds": [
+      {
+        "elements": [
+          "H",
+          "P"
+        ],
+        "type": "single",
+        "count": 3
+      }
+    ]
+  },
+  "Chloromethane": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "Cl"
+        ],
+        "type": "single",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 3
+      }
+    ]
+  },
+  "Bromoethane": {
+    "bonds": [
+      {
+        "elements": [
+          "Br",
+          "C"
+        ],
+        "type": "single",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 5
+      }
+    ]
+  },
+  "Chloroethane": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "Cl"
+        ],
+        "type": "single",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 5
+      }
+    ]
+  },
+  "Ethanal": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 4
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "double",
+        "count": 1
+      }
+    ]
+  },
+  "Butanal": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 3
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 8
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "double",
+        "count": 1
+      }
+    ]
+  },
+  "Pentanal": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 4
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 10
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "double",
+        "count": 1
+      }
+    ]
+  },
+  "Hexanal": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 5
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 12
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "double",
+        "count": 1
+      }
+    ]
+  },
+  "Heptanal": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 6
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 14
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "double",
+        "count": 1
+      }
+    ]
+  },
+  "Octanal": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 7
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 16
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "double",
+        "count": 1
+      }
+    ]
+  },
+  "Nonanal": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 9
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 18
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "double",
+        "count": 1
+      }
+    ]
+  },
+  "Decanal": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 9
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 20
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "double",
+        "count": 1
+      }
+    ]
+  },
+  "Cellulose": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 3
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 10
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "single",
+        "count": 5
+      }
+    ]
+  },
+  "Acetylene": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "triple",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 2
+      }
+    ]
+  },
+  "Propyne": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "triple",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 4
+      }
+    ]
+  },
+  "Butyne": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 2
+      },
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "triple",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 6
+      }
+    ]
+  },
+  "Cyclohexane": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 6
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 12
+      }
+    ]
+  },
+  "Toluene": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "aromatic",
+        "count": 6
+      },
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 8
+      }
+    ]
+  },
+  "Xylene": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "aromatic",
+        "count": 6
+      },
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 2
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 10
+      }
+    ]
+  },
+  "Phenol": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "aromatic",
+        "count": 5
+      },
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "aromatic",
+        "count": 1
+      },
+      {
+        "elements": [
+          "H",
+          "O"
+        ],
+        "type": "single",
+        "count": 6
+      }
+    ]
+  },
+  "Aniline": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "aromatic",
+        "count": 5
+      },
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "N"
+        ],
+        "type": "aromatic",
+        "count": 1
+      },
+      {
+        "elements": [
+          "H",
+          "N"
+        ],
+        "type": "single",
+        "count": 7
+      }
+    ]
+  },
+  "Pyridine": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "aromatic",
+        "count": 3
+      },
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 5
+      },
+      {
+        "elements": [
+          "C",
+          "N"
+        ],
+        "type": "aromatic",
+        "count": 2
+      }
+    ]
+  },
+  "Acetonitrile": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 3
+      },
+      {
+        "elements": [
+          "C",
+          "N"
+        ],
+        "type": "triple",
+        "count": 1
+      }
+    ]
+  },
+  "Formic acid": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "double",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "single",
+        "count": 1
+      },
+      {
+        "elements": [
+          "H",
+          "O"
+        ],
+        "type": "single",
+        "count": 2
+      }
+    ]
+  },
+  "Propionic acid": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 2
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 6
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "double",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "single",
+        "count": 1
+      }
+    ]
+  },
+  "Butyric acid": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 3
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 8
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "double",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "single",
+        "count": 1
+      }
+    ]
+  },
+  "Linoleic acid": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "double",
+        "count": 2
+      },
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 14
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 32
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "double",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "single",
+        "count": 1
+      }
+    ]
+  },
+  "Sodium sulfate": {
+    "bonds": [
+      {
+        "elements": [
+          "O",
+          "S"
+        ],
+        "type": "double",
+        "count": 2
+      },
+      {
+        "elements": [
+          "O",
+          "S"
+        ],
+        "type": "single",
+        "count": 2
+      }
+    ]
+  },
+  "Potassium chloride": {
+    "bonds": []
+  },
+  "Magnesium chloride": {
+    "bonds": []
+  },
+  "Calcium chloride": {
+    "bonds": []
+  },
+  "Barium sulfate": {
+    "bonds": [
+      {
+        "elements": [
+          "O",
+          "S"
+        ],
+        "type": "double",
+        "count": 2
+      },
+      {
+        "elements": [
+          "O",
+          "S"
+        ],
+        "type": "single",
+        "count": 2
+      }
+    ]
+  },
+  "Silver nitrate": {
+    "bonds": [
+      {
+        "elements": [
+          "N",
+          "O"
+        ],
+        "type": "double",
+        "count": 2
+      },
+      {
+        "elements": [
+          "N",
+          "O"
+        ],
+        "type": "single",
+        "count": 1
+      }
+    ]
+  },
+  "Ammonium chloride": {
+    "bonds": [
+      {
+        "elements": [
+          "H",
+          "N"
+        ],
+        "type": "single",
+        "count": 4
+      }
+    ]
+  },
+  "Ammonium nitrate": {
+    "bonds": [
+      {
+        "elements": [
+          "H",
+          "N"
+        ],
+        "type": "single",
+        "count": 4
+      },
+      {
+        "elements": [
+          "N",
+          "O"
+        ],
+        "type": "double",
+        "count": 2
+      },
+      {
+        "elements": [
+          "N",
+          "O"
+        ],
+        "type": "single",
+        "count": 1
+      }
+    ]
+  },
+  "Lead(II) oxide": {
+    "bonds": [
+      {
+        "elements": [
+          "O",
+          "Pb"
+        ],
+        "type": "double",
+        "count": 1
+      }
+    ]
+  },
+  "Mercury(II) oxide": {
+    "bonds": [
+      {
+        "elements": [
+          "Hg",
+          "O"
+        ],
+        "type": "double",
+        "count": 1
+      }
+    ]
+  },
+  "Cobalt(II) chloride": {
+    "bonds": []
+  },
+  "Aluminum oxide": {
+    "bonds": []
+  },
+  "Aluminum chloride": {
+    "bonds": [
+      {
+        "elements": [
+          "Al",
+          "Cl"
+        ],
+        "type": "single",
+        "count": 3
+      }
+    ]
+  },
+  "Iron(II) chloride": {
+    "bonds": []
+  },
+  "Iron(III) chloride": {
+    "bonds": []
+  },
+  "Manganese dioxide": {
+    "bonds": [
+      {
+        "elements": [
+          "Mn",
+          "O"
+        ],
+        "type": "double",
+        "count": 2
+      }
+    ]
+  },
+  "Copper(II) oxide": {
+    "bonds": [
+      {
+        "elements": [
+          "Cu",
+          "O"
+        ],
+        "type": "double",
+        "count": 1
+      }
+    ]
+  },
+  "Copper(II) chloride": {
+    "bonds": []
+  },
+  "Magnesium carbonate": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "double",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "single",
+        "count": 2
+      }
+    ]
+  },
+  "Sodium acetate": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 3
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "double",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "single",
+        "count": 1
+      }
+    ]
+  },
+  "Potassium acetate": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 3
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "double",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "single",
+        "count": 1
+      }
+    ]
+  },
+  "Calcium phosphate": {
+    "bonds": [
+      {
+        "elements": [
+          "O",
+          "P"
+        ],
+        "type": "double",
+        "count": 2
+      },
+      {
+        "elements": [
+          "O",
+          "P"
+        ],
+        "type": "single",
+        "count": 6
+      }
+    ]
+  },
+  "Sodium phosphate": {
+    "bonds": [
+      {
+        "elements": [
+          "O",
+          "P"
+        ],
+        "type": "double",
+        "count": 1
+      },
+      {
+        "elements": [
+          "O",
+          "P"
+        ],
+        "type": "single",
+        "count": 3
+      }
+    ]
+  },
+  "Calcium nitrate": {
+    "bonds": [
+      {
+        "elements": [
+          "N",
+          "O"
+        ],
+        "type": "double",
+        "count": 4
+      },
+      {
+        "elements": [
+          "N",
+          "O"
+        ],
+        "type": "single",
+        "count": 2
+      }
+    ]
+  },
+  "Potassium sulfate": {
+    "bonds": [
+      {
+        "elements": [
+          "O",
+          "S"
+        ],
+        "type": "double",
+        "count": 2
+      },
+      {
+        "elements": [
+          "O",
+          "S"
+        ],
+        "type": "single",
+        "count": 2
+      }
+    ]
+  },
+  "Sodium bromide": {
+    "bonds": []
+  },
+  "Potassium bromide": {
+    "bonds": []
+  },
+  "Sodium iodide": {
+    "bonds": []
+  },
+  "Potassium iodide": {
+    "bonds": []
+  },
+  "Silicon dioxide": {
+    "bonds": [
+      {
+        "elements": [
+          "O",
+          "Si"
+        ],
+        "type": "double",
+        "count": 2
+      }
+    ]
+  },
+  "Titanium dioxide": {
+    "bonds": [
+      {
+        "elements": [
+          "O",
+          "Ti"
+        ],
+        "type": "double",
+        "count": 2
+      }
+    ]
+  },
+  "Zinc oxide": {
+    "bonds": [
+      {
+        "elements": [
+          "O",
+          "Zn"
+        ],
+        "type": "double",
+        "count": 1
+      }
+    ]
+  },
+  "Barium chloride": {
+    "bonds": []
+  },
+  "Strontium chloride": {
+    "bonds": []
+  },
+  "Sulfur hexafluoride": {
+    "bonds": [
+      {
+        "elements": [
+          "F",
+          "S"
+        ],
+        "type": "single",
+        "count": 6
+      }
+    ]
+  },
+  "Dinitrogen tetroxide": {
+    "bonds": [
+      {
+        "elements": [
+          "N",
+          "N"
+        ],
+        "type": "single",
+        "count": 1
+      },
+      {
+        "elements": [
+          "N",
+          "O"
+        ],
+        "type": "double",
+        "count": 2
+      }
+    ]
+  },
+  "Hydrogen cyanide": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "N"
+        ],
+        "type": "triple",
+        "count": 1
+      }
+    ]
+  },
+  "Carbon disulfide": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "S"
+        ],
+        "type": "double",
+        "count": 2
+      }
+    ]
+  },
+  "Boric acid": {
+    "bonds": [
+      {
+        "elements": [
+          "B",
+          "O"
+        ],
+        "type": "single",
+        "count": 3
+      },
+      {
+        "elements": [
+          "H",
+          "O"
+        ],
+        "type": "single",
+        "count": 3
+      }
+    ]
+  },
+  "Boron trifluoride": {
+    "bonds": [
+      {
+        "elements": [
+          "B",
+          "F"
+        ],
+        "type": "single",
+        "count": 3
+      }
+    ]
+  },
+  "Phosphorus trichloride": {
+    "bonds": [
+      {
+        "elements": [
+          "Cl",
+          "P"
+        ],
+        "type": "single",
+        "count": 3
+      }
+    ]
+  },
+  "Phosphorus pentachloride": {
+    "bonds": [
+      {
+        "elements": [
+          "Cl",
+          "P"
+        ],
+        "type": "single",
+        "count": 5
+      }
+    ]
+  },
+  "Phosphorus pentoxide": {
+    "bonds": [
+      {
+        "elements": [
+          "O",
+          "P"
+        ],
+        "type": "double",
+        "count": 4
+      },
+      {
+        "elements": [
+          "O",
+          "P"
+        ],
+        "type": "single",
+        "count": 2
+      },
+      {
+        "elements": [
+          "P",
+          "P"
+        ],
+        "type": "single",
+        "count": 1
+      }
+    ]
+  },
+  "Silicon tetrachloride": {
+    "bonds": [
+      {
+        "elements": [
+          "Cl",
+          "Si"
+        ],
+        "type": "single",
+        "count": 4
+      }
+    ]
+  },
+  "Nitrogen trifluoride": {
+    "bonds": [
+      {
+        "elements": [
+          "F",
+          "N"
+        ],
+        "type": "single",
+        "count": 3
+      }
+    ]
+  },
+  "Chlorine dioxide": {
+    "bonds": [
+      {
+        "elements": [
+          "Cl",
+          "O"
+        ],
+        "type": "double",
+        "count": 2
+      }
+    ]
+  },
+  "Bromine monochloride": {
+    "bonds": [
+      {
+        "elements": [
+          "Br",
+          "Cl"
+        ],
+        "type": "single",
+        "count": 1
+      }
+    ]
+  },
+  "Dichlorine monoxide": {
+    "bonds": [
+      {
+        "elements": [
+          "Cl",
+          "O"
+        ],
+        "type": "single",
+        "count": 2
+      }
+    ]
+  },
+  "Sulfuryl chloride": {
+    "bonds": [
+      {
+        "elements": [
+          "Cl",
+          "S"
+        ],
+        "type": "single",
+        "count": 2
+      },
+      {
+        "elements": [
+          "O",
+          "S"
+        ],
+        "type": "double",
+        "count": 2
+      }
+    ]
+  },
+  "Sulfur monochloride": {
+    "bonds": [
+      {
+        "elements": [
+          "Cl",
+          "S"
+        ],
+        "type": "single",
+        "count": 2
+      },
+      {
+        "elements": [
+          "S",
+          "S"
+        ],
+        "type": "single",
+        "count": 1
+      }
+    ]
+  },
+  "Carbonyl sulfide": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "double",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "S"
+        ],
+        "type": "double",
+        "count": 1
+      }
+    ]
+  },
+  "Thionyl chloride": {
+    "bonds": [
+      {
+        "elements": [
+          "Cl",
+          "S"
+        ],
+        "type": "single",
+        "count": 2
+      },
+      {
+        "elements": [
+          "O",
+          "S"
+        ],
+        "type": "double",
+        "count": 1
+      }
+    ]
+  },
+  "Sodium hypochlorite": {
+    "bonds": [
+      {
+        "elements": [
+          "Cl",
+          "O"
+        ],
+        "type": "single",
+        "count": 1
+      }
+    ]
+  },
+  "Calcium hypochlorite": {
+    "bonds": [
+      {
+        "elements": [
+          "Cl",
+          "O"
+        ],
+        "type": "single",
+        "count": 2
+      }
+    ]
+  },
+  "Sodium chlorate": {
+    "bonds": [
+      {
+        "elements": [
+          "Cl",
+          "O"
+        ],
+        "type": "double",
+        "count": 2
+      },
+      {
+        "elements": [
+          "Cl",
+          "O"
+        ],
+        "type": "single",
+        "count": 1
+      }
+    ]
+  },
+  "Potassium chlorate": {
+    "bonds": [
+      {
+        "elements": [
+          "Cl",
+          "O"
+        ],
+        "type": "double",
+        "count": 2
+      },
+      {
+        "elements": [
+          "Cl",
+          "O"
+        ],
+        "type": "single",
+        "count": 1
+      }
+    ]
+  },
+  "Potassium perchlorate": {
+    "bonds": [
+      {
+        "elements": [
+          "Cl",
+          "O"
+        ],
+        "type": "double",
+        "count": 3
+      },
+      {
+        "elements": [
+          "Cl",
+          "O"
+        ],
+        "type": "single",
+        "count": 1
+      }
+    ]
+  },
+  "Ammonium sulfate": {
+    "bonds": [
+      {
+        "elements": [
+          "H",
+          "N"
+        ],
+        "type": "single",
+        "count": 8
+      },
+      {
+        "elements": [
+          "O",
+          "S"
+        ],
+        "type": "double",
+        "count": 2
+      },
+      {
+        "elements": [
+          "O",
+          "S"
+        ],
+        "type": "single",
+        "count": 2
+      }
+    ]
+  },
+  "Ammonium phosphate": {
+    "bonds": [
+      {
+        "elements": [
+          "H",
+          "N"
+        ],
+        "type": "single",
+        "count": 12
+      },
+      {
+        "elements": [
+          "O",
+          "P"
+        ],
+        "type": "double",
+        "count": 1
+      },
+      {
+        "elements": [
+          "O",
+          "P"
+        ],
+        "type": "single",
+        "count": 3
+      }
+    ]
+  },
+  "Barium hydroxide": {
+    "bonds": [
+      {
+        "elements": [
+          "Ba",
+          "H"
+        ],
+        "type": "single",
+        "count": 2
+      }
+    ]
+  },
+  "Potassium permanganate": {
+    "bonds": [
+      {
+        "elements": [
+          "Mn",
+          "O"
+        ],
+        "type": "double",
+        "count": 3
+      },
+      {
+        "elements": [
+          "Mn",
+          "O"
+        ],
+        "type": "single",
+        "count": 1
+      }
+    ]
+  },
+  "Potassium dichromate": {
+    "bonds": [
+      {
+        "elements": [
+          "Cr",
+          "O"
+        ],
+        "type": "double",
+        "count": 2
+      },
+      {
+        "elements": [
+          "Cr",
+          "O"
+        ],
+        "type": "single",
+        "count": 6
+      }
+    ]
+  },
+  "Silver sulfate": {
+    "bonds": [
+      {
+        "elements": [
+          "O",
+          "S"
+        ],
+        "type": "double",
+        "count": 2
+      },
+      {
+        "elements": [
+          "O",
+          "S"
+        ],
+        "type": "single",
+        "count": 2
+      }
+    ]
+  },
+  "Silver oxide": {
+    "bonds": [
+      {
+        "elements": [
+          "Ag",
+          "O"
+        ],
+        "type": "single",
+        "count": 2
+      }
+    ]
+  },
+  "Zinc nitrate": {
+    "bonds": [
+      {
+        "elements": [
+          "N",
+          "O"
+        ],
+        "type": "double",
+        "count": 4
+      },
+      {
+        "elements": [
+          "N",
+          "O"
+        ],
+        "type": "single",
+        "count": 2
+      }
+    ]
+  },
+  "Cadmium sulfide": {
+    "bonds": [
+      {
+        "elements": [
+          "Cd",
+          "S"
+        ],
+        "type": "double",
+        "count": 1
+      }
+    ]
+  },
+  "Lead(II) nitrate": {
+    "bonds": [
+      {
+        "elements": [
+          "N",
+          "O"
+        ],
+        "type": "double",
+        "count": 4
+      },
+      {
+        "elements": [
+          "N",
+          "O"
+        ],
+        "type": "single",
+        "count": 2
+      }
+    ]
+  },
+  "Lead(II) chloride": {
+    "bonds": []
+  },
+  "Iron(III) nitrate": {
+    "bonds": [
+      {
+        "elements": [
+          "N",
+          "O"
+        ],
+        "type": "double",
+        "count": 6
+      },
+      {
+        "elements": [
+          "N",
+          "O"
+        ],
+        "type": "single",
+        "count": 3
+      }
+    ]
+  },
+  "Cobalt(II) nitrate": {
+    "bonds": [
+      {
+        "elements": [
+          "N",
+          "O"
+        ],
+        "type": "double",
+        "count": 4
+      },
+      {
+        "elements": [
+          "N",
+          "O"
+        ],
+        "type": "single",
+        "count": 2
+      }
+    ]
+  },
+  "Nickel(II) chloride": {
+    "bonds": []
+  },
+  "Nickel(II) nitrate": {
+    "bonds": [
+      {
+        "elements": [
+          "N",
+          "O"
+        ],
+        "type": "double",
+        "count": 4
+      },
+      {
+        "elements": [
+          "N",
+          "O"
+        ],
+        "type": "single",
+        "count": 2
+      }
+    ]
+  },
+  "Copper(I) oxide": {
+    "bonds": [
+      {
+        "elements": [
+          "Cu",
+          "O"
+        ],
+        "type": "single",
+        "count": 2
+      }
+    ]
+  },
+  "Copper(I) chloride": {
+    "bonds": [
+      {
+        "elements": [
+          "Cl",
+          "Cu"
+        ],
+        "type": "single",
+        "count": 1
+      }
+    ]
+  },
+  "Tin(II) chloride": {
+    "bonds": []
+  },
+  "Tin(IV) chloride": {
+    "bonds": [
+      {
+        "elements": [
+          "Cl",
+          "Sn"
+        ],
+        "type": "single",
+        "count": 4
+      }
+    ]
+  },
+  "Aluminum nitrate": {
+    "bonds": [
+      {
+        "elements": [
+          "N",
+          "O"
+        ],
+        "type": "double",
+        "count": 6
+      },
+      {
+        "elements": [
+          "N",
+          "O"
+        ],
+        "type": "single",
+        "count": 3
+      }
+    ]
+  },
+  "Chromium(III) oxide": {
+    "bonds": []
+  },
+  "Chromium(III) chloride": {
+    "bonds": [
+      {
+        "elements": [
+          "Cl",
+          "Cr"
+        ],
+        "type": "single",
+        "count": 3
+      }
+    ]
+  },
+  "Magnesium nitrate": {
+    "bonds": [
+      {
+        "elements": [
+          "N",
+          "O"
+        ],
+        "type": "double",
+        "count": 4
+      },
+      {
+        "elements": [
+          "N",
+          "O"
+        ],
+        "type": "single",
+        "count": 2
+      }
+    ]
+  },
+  "Sodium nitrite": {
+    "bonds": [
+      {
+        "elements": [
+          "N",
+          "O"
+        ],
+        "type": "double",
+        "count": 1
+      },
+      {
+        "elements": [
+          "N",
+          "O"
+        ],
+        "type": "single",
+        "count": 1
+      }
+    ]
+  },
+  "Potassium nitrite": {
+    "bonds": [
+      {
+        "elements": [
+          "N",
+          "O"
+        ],
+        "type": "double",
+        "count": 1
+      },
+      {
+        "elements": [
+          "N",
+          "O"
+        ],
+        "type": "single",
+        "count": 1
+      }
+    ]
+  },
+  "Calcium bromide": {
+    "bonds": []
+  },
+  "Strontium nitrate": {
+    "bonds": [
+      {
+        "elements": [
+          "N",
+          "O"
+        ],
+        "type": "double",
+        "count": 4
+      },
+      {
+        "elements": [
+          "N",
+          "O"
+        ],
+        "type": "single",
+        "count": 2
+      }
+    ]
+  },
+  "Lithium nitrate": {
+    "bonds": [
+      {
+        "elements": [
+          "N",
+          "O"
+        ],
+        "type": "double",
+        "count": 2
+      },
+      {
+        "elements": [
+          "N",
+          "O"
+        ],
+        "type": "single",
+        "count": 1
+      }
+    ]
+  },
+  "Sodium sulfite": {
+    "bonds": [
+      {
+        "elements": [
+          "O",
+          "S"
+        ],
+        "type": "double",
+        "count": 1
+      },
+      {
+        "elements": [
+          "O",
+          "S"
+        ],
+        "type": "single",
+        "count": 2
+      }
+    ]
+  },
+  "Potassium sulfite": {
+    "bonds": [
+      {
+        "elements": [
+          "O",
+          "S"
+        ],
+        "type": "double",
+        "count": 1
+      },
+      {
+        "elements": [
+          "O",
+          "S"
+        ],
+        "type": "single",
+        "count": 2
+      }
+    ]
+  },
+  "Sodium thiosulfate": {
+    "bonds": [
+      {
+        "elements": [
+          "O",
+          "S"
+        ],
+        "type": "double",
+        "count": 2
+      },
+      {
+        "elements": [
+          "O",
+          "S"
+        ],
+        "type": "single",
+        "count": 1
+      },
+      {
+        "elements": [
+          "S",
+          "S"
+        ],
+        "type": "single",
+        "count": 1
+      }
+    ]
+  },
+  "Sodium bisulfite": {
+    "bonds": [
+      {
+        "elements": [
+          "H",
+          "Na"
+        ],
+        "type": "single",
+        "count": 1
+      },
+      {
+        "elements": [
+          "O",
+          "S"
+        ],
+        "type": "double",
+        "count": 2
+      },
+      {
+        "elements": [
+          "O",
+          "S"
+        ],
+        "type": "single",
+        "count": 1
+      }
+    ]
+  },
+  "Sodium bisulfate": {
+    "bonds": [
+      {
+        "elements": [
+          "H",
+          "Na"
+        ],
+        "type": "single",
+        "count": 1
+      },
+      {
+        "elements": [
+          "O",
+          "S"
+        ],
+        "type": "double",
+        "count": 2
+      },
+      {
+        "elements": [
+          "O",
+          "S"
+        ],
+        "type": "single",
+        "count": 2
+      }
+    ]
+  },
+  "Potassium bisulfate": {
+    "bonds": [
+      {
+        "elements": [
+          "H",
+          "K"
+        ],
+        "type": "single",
+        "count": 1
+      },
+      {
+        "elements": [
+          "O",
+          "S"
+        ],
+        "type": "double",
+        "count": 2
+      },
+      {
+        "elements": [
+          "O",
+          "S"
+        ],
+        "type": "single",
+        "count": 2
+      }
+    ]
+  },
+  "Magnesium phosphate": {
+    "bonds": [
+      {
+        "elements": [
+          "O",
+          "P"
+        ],
+        "type": "double",
+        "count": 2
+      },
+      {
+        "elements": [
+          "O",
+          "P"
+        ],
+        "type": "single",
+        "count": 6
+      }
+    ]
+  },
+  "Barium nitrate": {
+    "bonds": [
+      {
+        "elements": [
+          "N",
+          "O"
+        ],
+        "type": "double",
+        "count": 4
+      },
+      {
+        "elements": [
+          "N",
+          "O"
+        ],
+        "type": "single",
+        "count": 2
+      }
+    ]
+  },
+  "Sodium cyanide": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "N"
+        ],
+        "type": "triple",
+        "count": 1
+      }
+    ]
+  },
+  "Potassium cyanide": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "N"
+        ],
+        "type": "triple",
+        "count": 1
+      }
+    ]
+  },
+  "Acetyl chloride": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "Cl"
+        ],
+        "type": "single",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 3
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "double",
+        "count": 1
+      }
+    ]
+  },
+  "Benzaldehyde": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "double",
+        "count": 3
+      },
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 4
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "double",
+        "count": 1
+      },
+      {
+        "elements": [
+          "H",
+          "O"
+        ],
+        "type": "single",
+        "count": 6
+      }
+    ]
+  },
+  "Benzoic acid": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "aromatic",
+        "count": 6
+      },
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "double",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "single",
+        "count": 1
+      },
+      {
+        "elements": [
+          "H",
+          "O"
+        ],
+        "type": "single",
+        "count": 6
+      }
+    ]
+  },
+  "Salicylic acid": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "aromatic",
+        "count": 6
+      },
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "double",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "single",
+        "count": 2
+      },
+      {
+        "elements": [
+          "H",
+          "O"
+        ],
+        "type": "single",
+        "count": 6
+      }
+    ]
+  },
+  "Anisole": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "aromatic",
+        "count": 5
+      },
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 8
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "aromatic",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "single",
+        "count": 1
+      }
+    ]
+  },
+  "Naphthalene": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "aromatic",
+        "count": 9
+      },
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 2
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 8
+      }
+    ]
+  },
+  "Anthracene": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "aromatic",
+        "count": 13
+      },
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 3
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 10
+      }
+    ]
+  },
+  "Pyrene": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "aromatic",
+        "count": 15
+      },
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 4
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 10
+      }
+    ]
+  },
+  "Pyrrole": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "aromatic",
+        "count": 3
+      },
+      {
+        "elements": [
+          "C",
+          "n"
+        ],
+        "type": "single",
+        "count": 2
+      },
+      {
+        "elements": [
+          "H",
+          "n"
+        ],
+        "type": "single",
+        "count": 5
+      }
+    ]
+  },
+  "Furan": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "aromatic",
+        "count": 3
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "aromatic",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "single",
+        "count": 1
+      },
+      {
+        "elements": [
+          "H",
+          "O"
+        ],
+        "type": "single",
+        "count": 4
+      }
+    ]
+  },
+  "Thiophene": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "aromatic",
+        "count": 3
+      },
+      {
+        "elements": [
+          "C",
+          "S"
+        ],
+        "type": "aromatic",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "S"
+        ],
+        "type": "single",
+        "count": 1
+      },
+      {
+        "elements": [
+          "H",
+          "S"
+        ],
+        "type": "single",
+        "count": 4
+      }
+    ]
+  },
+  "Styrene": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "double",
+        "count": 4
+      },
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 4
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 8
+      }
+    ]
+  },
+  "Cyclopentane": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 5
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 10
+      }
+    ]
+  },
+  "Cyclopentene": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "double",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 4
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 8
+      }
+    ]
+  },
+  "Methylcyclohexane": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 7
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 14
+      }
+    ]
+  },
+  "Hexane": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 5
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 14
+      }
+    ]
+  },
+  "Heptane": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 6
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 16
+      }
+    ]
+  },
+  "Octane": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 7
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 18
+      }
+    ]
+  },
+  "Nonane": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 8
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 20
+      }
+    ]
+  },
+  "Decane": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 9
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 22
+      }
+    ]
+  },
+  "Dibenzothiophene": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "aromatic",
+        "count": 10
+      },
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 3
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 8
+      },
+      {
+        "elements": [
+          "C",
+          "S"
+        ],
+        "type": "aromatic",
+        "count": 2
+      }
+    ]
+  },
+  "Acetylacetone": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 4
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 8
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "double",
+        "count": 2
+      }
+    ]
+  },
+  "Isobutyl alcohol": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 3
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 10
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "single",
+        "count": 1
+      }
+    ]
+  },
+  "Pentanol": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 4
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 12
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "single",
+        "count": 1
+      }
+    ]
+  },
+  "Hexanol": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 5
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 14
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "single",
+        "count": 1
+      }
+    ]
+  },
+  "Cyclohexanone": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 6
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "double",
+        "count": 1
+      },
+      {
+        "elements": [
+          "H",
+          "O"
+        ],
+        "type": "single",
+        "count": 10
+      }
+    ]
+  },
+  "Adenine": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 2
+      },
+      {
+        "elements": [
+          "C",
+          "N"
+        ],
+        "type": "aromatic",
+        "count": 7
+      },
+      {
+        "elements": [
+          "C",
+          "n"
+        ],
+        "type": "single",
+        "count": 2
+      },
+      {
+        "elements": [
+          "H",
+          "N"
+        ],
+        "type": "single",
+        "count": 5
+      }
+    ]
+  },
+  "Guanine": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "aromatic",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "N"
+        ],
+        "type": "aromatic",
+        "count": 5
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "double",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "n"
+        ],
+        "type": "single",
+        "count": 4
+      },
+      {
+        "elements": [
+          "H",
+          "N"
+        ],
+        "type": "single",
+        "count": 5
+      }
+    ]
+  },
+  "Cytosine": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "N"
+        ],
+        "type": "double",
+        "count": 2
+      },
+      {
+        "elements": [
+          "C",
+          "N"
+        ],
+        "type": "single",
+        "count": 5
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "double",
+        "count": 1
+      },
+      {
+        "elements": [
+          "H",
+          "N"
+        ],
+        "type": "single",
+        "count": 5
+      }
+    ]
+  },
+  "Thymine": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "aromatic",
+        "count": 2
+      },
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "H"
+        ],
+        "type": "single",
+        "count": 6
+      },
+      {
+        "elements": [
+          "C",
+          "N"
+        ],
+        "type": "aromatic",
+        "count": 2
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "double",
+        "count": 2
+      },
+      {
+        "elements": [
+          "C",
+          "n"
+        ],
+        "type": "single",
+        "count": 2
+      }
+    ]
+  },
+  "Uracil": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "aromatic",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "double",
+        "count": 2
+      },
+      {
+        "elements": [
+          "C",
+          "n"
+        ],
+        "type": "single",
+        "count": 4
+      },
+      {
+        "elements": [
+          "H",
+          "O"
+        ],
+        "type": "single",
+        "count": 4
+      }
+    ]
+  },
+  "Adenosine": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 6
+      },
+      {
+        "elements": [
+          "C",
+          "N"
+        ],
+        "type": "aromatic",
+        "count": 9
+      },
+      {
+        "elements": [
+          "C",
+          "N"
+        ],
+        "type": "single",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "single",
+        "count": 5
+      },
+      {
+        "elements": [
+          "H",
+          "N"
+        ],
+        "type": "single",
+        "count": 13
+      }
+    ]
+  },
+  "ATP": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 6
+      },
+      {
+        "elements": [
+          "C",
+          "N"
+        ],
+        "type": "aromatic",
+        "count": 9
+      },
+      {
+        "elements": [
+          "C",
+          "N"
+        ],
+        "type": "single",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "single",
+        "count": 5
+      },
+      {
+        "elements": [
+          "H",
+          "N"
+        ],
+        "type": "single",
+        "count": 16
+      },
+      {
+        "elements": [
+          "O",
+          "P"
+        ],
+        "type": "double",
+        "count": 3
+      },
+      {
+        "elements": [
+          "O",
+          "P"
+        ],
+        "type": "single",
+        "count": 9
+      }
+    ]
+  },
+  "ADP": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 6
+      },
+      {
+        "elements": [
+          "C",
+          "N"
+        ],
+        "type": "aromatic",
+        "count": 9
+      },
+      {
+        "elements": [
+          "C",
+          "N"
+        ],
+        "type": "single",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "single",
+        "count": 5
+      },
+      {
+        "elements": [
+          "H",
+          "N"
+        ],
+        "type": "single",
+        "count": 15
+      },
+      {
+        "elements": [
+          "O",
+          "P"
+        ],
+        "type": "double",
+        "count": 2
+      },
+      {
+        "elements": [
+          "O",
+          "P"
+        ],
+        "type": "single",
+        "count": 6
+      }
+    ]
+  },
+  "AMP": {
+    "bonds": [
+      {
+        "elements": [
+          "C",
+          "C"
+        ],
+        "type": "single",
+        "count": 6
+      },
+      {
+        "elements": [
+          "C",
+          "N"
+        ],
+        "type": "aromatic",
+        "count": 9
+      },
+      {
+        "elements": [
+          "C",
+          "N"
+        ],
+        "type": "single",
+        "count": 1
+      },
+      {
+        "elements": [
+          "C",
+          "O"
+        ],
+        "type": "single",
+        "count": 5
+      },
+      {
+        "elements": [
+          "H",
+          "N"
+        ],
+        "type": "single",
+        "count": 14
+      },
+      {
+        "elements": [
+          "O",
+          "P"
+        ],
+        "type": "double",
+        "count": 1
+      },
+      {
+        "elements": [
+          "O",
+          "P"
+        ],
+        "type": "single",
+        "count": 3
+      }
+    ]
+  }
+}

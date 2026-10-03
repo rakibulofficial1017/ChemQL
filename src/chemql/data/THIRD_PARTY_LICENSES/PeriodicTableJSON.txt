@@ -1,0 +1,10 @@
+PeriodicTableJSON
+https://github.com/Bowserinator/Periodic-Table-JSON
+
+The periodic table data used by this project is licensed under
+Creative Commons Attribution-ShareAlike 3.0 Unported (CC BY-SA 3.0).
+
+License:
+https://creativecommons.org/licenses/by-sa/3.0/
+
+The original work is attributed to its respective author(s).

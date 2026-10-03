@@ -1,0 +1,282 @@
+# ChemQL
+
+ChemQL is a chemistry-focused query language and REPL for exploring element, molecule, and reaction datasets. It lets you search the built-in chemistry data, filter results with expressions, set reaction conditions, and combine queries with small Python snippets when needed.
+
+## What ChemQL does
+
+ChemQL supports:
+
+- Searching the built-in `elements`, `molecules`, and `reactions` datasets
+- Filtering by field, comparison operator, pattern matching, and boolean logic
+- Quick lookup commands like `findel`, `findmol`, and `findre`
+- Reaction setup with temperature, pressure, and catalyst configuration
+- Running reactions with `react`
+- Embedding Python in `[ ... ]` blocks and templates in `{{ ... }}`
+- Running from a terminal REPL or executing a command/file from the shell
+
+## Install the library
+
+Install from this `chemql/` directory, which contains `pyproject.toml`:
+
+```bash
+cd /path/to/ChemQL/Language/chemql
+python -m pip install -e ".[test]"
+```
+
+This installs the Python package and the `chemql` CLI:
+
+```bash
+chemql -c "search elements name = 'Hydrogen'"
+```
+
+Start the interactive REPL with:
+
+```bash
+python -m chemql
+```
+
+You will see the interactive prompt:
+
+```text
+>>> 
+```
+
+Type:
+
+```text
+help
+```
+
+or:
+
+```text
+?
+```
+
+to display the built-in help.
+
+## Command-line usage
+
+You can also execute a single ChemQL command or a file:
+
+```bash
+chemql -c 'search elements name = "Hydrogen"'
+chemql -f examples/script.cql
+```
+
+The Python package is `chemql`. Its query engine, chemistry types, and bundled
+datasets can be imported directly:
+
+```python
+from chemql import execute_query_text
+
+result = execute_query_text('search elements name = "Hydrogen"')
+```
+
+## Core query syntax
+
+### Search a dataset
+
+```text
+search elements
+search molecules
+search reactions
+```
+
+### Search with filters
+
+```text
+search elements atomic_number > 10 and atomic_number < 20
+search molecules name like "*water*"
+search reactions reaction_type = "combustion"
+```
+
+### Sort, limit, and count
+
+```text
+search molecules sort molecular_weight desc
+search molecules limit 10
+search molecules count
+```
+
+### Return selected fields
+
+```text
+search molecules molecular_weight < 20 return name formula molecular_weight
+search reactions reversible = true return name conditions
+```
+
+### Set the current source
+
+```text
+source elements
+source molecules
+source reactions
+```
+
+### List available keys
+
+```text
+list all
+```
+
+## Convenience lookup commands
+
+```text
+findel "He"
+findel "Hydrogen"
+
+findmol "H2O"
+findmol "Water"
+
+findre "Haber process"
+findre "RHEA:10000" return name equation source
+```
+
+## Reactions
+
+Set reaction conditions before running a reaction:
+
+```text
+set temperature 723K
+set temperature standard
+set pressure 20265000pa
+set pressure room
+set catalysts iron zinc
+add catalyst "Vanadium oxide"
+remove catalyst "Vanadium oxide"
+conditions
+react N2 3H2
+```
+
+Temperature accepts `C`, `F`, or `K`; pressure accepts `Pa`, `N/m^2`, `Nm^-2`, `bar`, or `atm`. The keywords `standard` and `room` are also accepted.
+
+## Operators
+
+ChemQL supports these comparison operators:
+
+- `=`
+- `>`
+- `<`
+- `>=`
+- `<=`
+- `like`
+- `like!`
+- `has`
+
+Boolean logic:
+
+```text
+and
+or
+```
+
+Parentheses may be used to group expressions.
+
+## Result controls
+
+```text
+search molecules first
+search molecules last
+search molecules sort atomic_number desc limit 5
+search molecules count
+```
+
+## General commands
+
+```text
+list all
+view
+clear
+dump my_session.txt
+help
+exit
+```
+
+`view` opens the periodic table in a browser. `dump` writes recent command history to a file.
+
+## Hybrid Python mode
+
+ChemQL can be mixed with Python inside square-bracket blocks:
+
+```text
+[x = 10]
+[print(x)]
+```
+
+Conditional and loop blocks are also supported:
+
+```text
+[for x in range(3)]
+[print(x)]
+[endblock]
+
+[if x > 0]
+[print("positive")]
+[else]
+[print("not positive")]
+[endblock]
+```
+
+Embedded ChemQL queries can also be used with double-brace syntax. This executes a query and uses the result as a value in the surrounding Python:
+
+```text
+[print({{ search elements number = 1 }})]
+[for i in {{search elements number <= 10}}]
+    [print(i.name)]
+[endblock]
+```
+
+The `{{ ... }}` form is a convenient way to make a query return actual data to Python, rather than only writing a plain query line.
+
+## Line continuation
+
+If a line ends with `\`, it continues onto the next line:
+
+```text
+search elements \
+name = "Hydrogen"
+```
+
+This is treated as:
+
+```text
+search elements name = "Hydrogen"
+```
+
+## Examples
+
+```text
+search elements name = "Hydrogen"
+findel "He"
+findmol "H2O"
+
+search molecules molecular_weight < 20 \
+return name formula molecular_weight
+
+search elements atomic_number > 10 \
+and atomic_number < 20 \
+sort atomic_number desc \
+limit 5
+
+search molecules count
+```
+
+## Repository layout
+
+```text
+chemql/
+├── pyproject.toml
+├── src/
+│   └── chemql/
+│       ├── __init__.py
+│       ├── __main__.py
+│       ├── data/
+│       └── html/
+├── tests/
+├── scripts/
+└── examples/
+```
+
+The installable package contains the language implementation and its bundled
+chemical datasets. The Flask application is a separate project under `../api/`.
