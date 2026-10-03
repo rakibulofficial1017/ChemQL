@@ -279,4 +279,7 @@ chemql/
 ```
 
 The installable package contains the language implementation and its bundled
-chemical datasets. The Flask application is a separate project under `../api/`.
+chemical datasets.
+
+Created by [Mohammad Rakibul Islam](https://github.com/rakibulofficial1017).
+Source code: [rakibulofficial1017/ChemQL](https://github.com/rakibulofficial1017/ChemQL).
