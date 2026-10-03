@@ -3015,6 +3015,13 @@ def main():
         help="Execute Chemql code from a file"
     )
 
+    parser.add_argument(
+        "-v",
+        "--version",
+        action="version",
+        version="0.1.0",
+    )
+
     args = parser.parse_args()
 
     if args.command:
