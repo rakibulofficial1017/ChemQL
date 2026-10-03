@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "chemql"
+name = "chemql-python"
 version = "0.1.0"
 description = "A chemistry-focused query language and REPL"
 readme = "README.md"
