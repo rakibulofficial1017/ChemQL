@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: chemql
-Version: 0.1.0
+Version: 0.1.1
 Summary: A chemistry-focused query language and REPL
 Requires-Python: >=3.10
 Description-Content-Type: text/markdown
