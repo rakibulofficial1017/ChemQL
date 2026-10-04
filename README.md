@@ -1,5 +1,7 @@
 # ChemQL
 
+![ChemQL logo](logo.png)
+
 ChemQL is a chemistry-focused query language and REPL for exploring element, molecule, and reaction datasets. It lets you search the built-in chemistry data, filter results with expressions, set reaction conditions, and combine queries with small Python snippets when needed.
 
 ## What ChemQL does
