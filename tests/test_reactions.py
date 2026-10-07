@@ -2,6 +2,45 @@ import chemql
 from prompt_toolkit.document import Document
 
 
+def test_balance_stoichiometry_returns_minimal_reaction_coefficients():
+    reaction = chemql.balance_stoichiometry(["O2", "H2"], ["H2O"], True)
+
+    assert isinstance(reaction, chemql.Reaction)
+    assert [part["stoichiometric_coefficient"] for part in reaction.reactants] == [1, 2]
+    assert [part["stoichiometric_coefficient"] for part in reaction.products] == [2]
+    assert reaction.reversible is True
+
+    grouped = chemql.balance_stoichiometry(
+        ["Ca(OH)2", "H3PO4"],
+        ["Ca3(PO4)2", "H2O"],
+    )
+    assert [
+        part["stoichiometric_coefficient"]
+        for part in grouped.reactants + grouped.products
+    ] == [3, 2, 1, 6]
+
+
+def test_balance_syntax_preserves_direction_annotation(capsys):
+    chemql.process_lines(["balance O2 + H2 -> H2O //reversible"])
+    assert "1 O₂ + 2 H₂ ⇌ 2 H₂O" in capsys.readouterr().out
+
+    reaction = chemql.execute_query_text(
+        "balance O2 + H2 <-> H2O //irreversible"
+    )
+    assert isinstance(reaction, chemql.Reaction)
+    assert reaction.reversible is False
+    assert "1 O₂ + 2 H₂ → 2 H₂O" in str(reaction)
+
+
+def test_balance_stoichiometry_rejects_invalid_formula():
+    try:
+        chemql.balance_stoichiometry(["Xx2"], ["H2"])
+    except ValueError as exc:
+        assert "Unknown element" in str(exc)
+    else:
+        raise AssertionError("Unknown elements must be rejected")
+
+
 def test_findre_searches_reactions_by_id_and_projects_attributes():
     result = chemql.execute([
         "findre", "RHEA:10000", "return", "id", "name", "source"

@@ -70,9 +70,11 @@ The Python package is `chemql`. Its query engine, chemistry types, and bundled
 datasets can be imported directly:
 
 ```python
-from chemql import execute_query_text
+from chemql import balance_stoichiometry, execute_query_text
 
 result = execute_query_text('search elements name = "Hydrogen"')
+reaction = balance_stoichiometry(["O2", "H2"], ["H2O"], reversible=True)
+print(reaction)
 ```
 
 ## Core query syntax
@@ -149,9 +151,18 @@ add catalyst "Vanadium oxide"
 remove catalyst "Vanadium oxide"
 conditions
 react N2 3H2
+balance O2 + H2 -> H2O //reversible
+balance O2 + H2 <-> H2O //irreversible
 ```
 
 Temperature accepts `C`, `F`, or `K`; pressure accepts `Pa`, `N/m^2`, `Nm^-2`, `bar`, or `atm`. The keywords `standard` and `room` are also accepted.
+
+`balance` accepts chemical formulas on each side, separated by `+`. It returns
+a `Reaction` with the smallest positive integer stoichiometric coefficients.
+The optional `//reversible` and `//irreversible` annotations set the returned
+reaction direction; without an annotation, `->` is irreversible and `<->` is
+reversible. The function API is
+`balance_stoichiometry(reactants, products, reversible=None)`.
 
 ## Operators
 

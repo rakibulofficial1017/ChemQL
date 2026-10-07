@@ -10,6 +10,7 @@ def test_all_exports_only_public_query_api_and_result_types():
         "Reaction",
         "ReturnTable",
         "Unknown",
+        "balance_stoichiometry",
         "execute_query",
         "execute_query_text",
     }
@@ -24,4 +25,4 @@ def test_cli_version_option_prints_version(monkeypatch, capsys, option):
         chemql.main()
 
     assert exception.value.code == 0
-    assert capsys.readouterr().out == "0.1.0\n"
+    assert capsys.readouterr().out == "0.2.0\n"

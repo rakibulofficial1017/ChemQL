@@ -13,6 +13,9 @@ from prompt_toolkit.completion import Completer, Completion
 import urllib.parse
 import urllib.request
 import urllib.error
+from fractions import Fraction
+from functools import reduce
+from math import gcd
 
 
 __all__ = [
@@ -22,6 +25,7 @@ __all__ = [
     "Reaction",
     "ReturnTable",
     "Unknown",
+    "balance_stoichiometry",
     "execute_query",
     "execute_query_text",
 ]
@@ -918,7 +922,177 @@ reactionKeys = ("id", "name", "equation", "reaction_type", "reversible", "reacta
 del elements
 del reactions
 del molecules
-del MOLECULES_BY_FORMULA
+
+
+def _formula_counts(formula):
+    if not isinstance(formula, str) or not formula:
+        raise ValueError("Chemical formulas must be non-empty strings")
+    symbols = {element.symbol for element in ELEMENTS}
+
+    def parse_group(index, nested=False):
+        counts = {}
+        while index < len(formula):
+            char = formula[index]
+            if char == ")":
+                if not nested:
+                    raise ValueError(f"Unmatched closing parenthesis in formula `{formula}`")
+                return counts, index
+            if char == "(":
+                group, index = parse_group(index + 1, True)
+                if index >= len(formula) or formula[index] != ")":
+                    raise ValueError(f"Unclosed parenthesis in formula `{formula}`")
+                index += 1
+                match = re.match(r"\d+", formula[index:])
+                multiplier = int(match.group()) if match else 1
+                if multiplier <= 0:
+                    raise ValueError(f"Invalid atom count in formula `{formula}`")
+                if match:
+                    index += len(match.group())
+                for symbol, amount in group.items():
+                    counts[symbol] = counts.get(symbol, 0) + amount * multiplier
+                continue
+            if not char.isupper():
+                raise ValueError(f"Invalid chemical formula `{formula}`")
+            end = index + 1
+            if end < len(formula) and formula[end].islower():
+                end += 1
+            symbol = formula[index:end]
+            if symbol not in symbols:
+                raise ValueError(f"Unknown element `{symbol}` in formula `{formula}`")
+            index = end
+            match = re.match(r"\d+", formula[index:])
+            amount = int(match.group()) if match else 1
+            if amount <= 0:
+                raise ValueError(f"Invalid atom count in formula `{formula}`")
+            if match:
+                index += len(match.group())
+            counts[symbol] = counts.get(symbol, 0) + amount
+        if nested:
+            raise ValueError(f"Unclosed parenthesis in formula `{formula}`")
+        return counts, index
+
+    counts, end = parse_group(0)
+    if end != len(formula) or not counts:
+        raise ValueError(f"Invalid chemical formula `{formula}`")
+    return counts
+
+
+def _stoichiometric_species(side):
+    if isinstance(side, str):
+        species = [item.strip() for item in side.split("+")]
+    else:
+        species = [str(item).strip() for item in side]
+    if not species or any(not item for item in species):
+        raise ValueError("Both sides of a reaction must contain molecules")
+    return species
+
+
+def balance_stoichiometry(reactants, products, reversible=None):
+    """Balance a reaction and return it as a :class:`Reaction`."""
+    reactant_formulas = _stoichiometric_species(reactants)
+    product_formulas = _stoichiometric_species(products)
+    formulas = reactant_formulas + product_formulas
+    formulas_by_element = [_formula_counts(formula) for formula in formulas]
+    elements = list(dict.fromkeys(
+        element for counts in formulas_by_element for element in counts
+    ))
+    matrix = [
+        [
+            Fraction(counts.get(element, 0) * (1 if index < len(reactant_formulas) else -1))
+            for index, counts in enumerate(formulas_by_element)
+        ]
+        for element in elements
+    ]
+
+    pivot_columns = []
+    pivot_row = 0
+    for column in range(len(formulas)):
+        selected = next(
+            (row for row in range(pivot_row, len(matrix)) if matrix[row][column]),
+            None,
+        )
+        if selected is None:
+            continue
+        matrix[pivot_row], matrix[selected] = matrix[selected], matrix[pivot_row]
+        divisor = matrix[pivot_row][column]
+        matrix[pivot_row] = [value / divisor for value in matrix[pivot_row]]
+        for row in range(len(matrix)):
+            if row == pivot_row or not matrix[row][column]:
+                continue
+            factor = matrix[row][column]
+            matrix[row] = [
+                value - factor * pivot
+                for value, pivot in zip(matrix[row], matrix[pivot_row])
+            ]
+        pivot_columns.append(column)
+        pivot_row += 1
+        if pivot_row == len(matrix):
+            break
+
+    free_columns = [
+        column for column in range(len(formulas)) if column not in pivot_columns
+    ]
+    if len(free_columns) != 1:
+        raise ValueError("Reaction does not have a unique stoichiometric balance")
+    coefficients = [Fraction(0) for _ in formulas]
+    free_column = free_columns[0]
+    coefficients[free_column] = Fraction(1)
+    for row, column in enumerate(pivot_columns):
+        coefficients[column] = -matrix[row][free_column]
+    if all(value < 0 for value in coefficients):
+        coefficients = [-value for value in coefficients]
+    if any(value <= 0 for value in coefficients):
+        raise ValueError("Reaction cannot be balanced with positive coefficients")
+
+    denominator = 1
+    for coefficient in coefficients:
+        denominator = denominator * coefficient.denominator // gcd(
+            denominator, coefficient.denominator
+        )
+    integer_coefficients = [
+        int(coefficient * denominator) for coefficient in coefficients
+    ]
+    common_divisor = reduce(gcd, integer_coefficients)
+    integer_coefficients = [value // common_divisor for value in integer_coefficients]
+    participants = [
+        {
+            "molecule": formula,
+            "stoichiometric_coefficient": coefficient,
+        }
+        for formula, coefficient in zip(formulas, integer_coefficients)
+    ]
+    split_at = len(reactant_formulas)
+    return Reaction(
+        "BALANCED",
+        "Balanced reaction",
+        "balanced",
+        reversible,
+        participants[:split_at],
+        participants[split_at:],
+        {},
+        "",
+    )
+
+
+def _execute_balance_command(text):
+    match = re.fullmatch(
+        r"\s*balance\s+(.+?)\s*(<->|->)\s*(.+?)"
+        r"(?:\s*//\s*(reversible|irreversible)\s*)?",
+        text,
+        re.IGNORECASE,
+    )
+    if not match:
+        raise ValueError(
+            "Usage: balance <reactants> ->|<-> <products> "
+            "[//reversible|//irreversible]"
+        )
+    reactants, arrow, products, direction = match.groups()
+    reversible = (
+        direction.lower() == "reversible"
+        if direction
+        else arrow == "<->"
+    )
+    return balance_stoichiometry(reactants, products, reversible)
 
 
 
@@ -1549,6 +1723,13 @@ def find_endblock(lines, start):
     raise SyntaxError("Missing `[endblock]`")
 
 def remove_comments(line):
+    if re.fullmatch(
+        r"\s*balance\b.*//\s*(?:reversible|irreversible)\s*",
+        line,
+        re.IGNORECASE,
+    ):
+        return line
+
     in_quote = None
     escaped = False
 
@@ -2134,6 +2315,14 @@ def execute(arguments, query_text=None, positions=None):
     if not arguments:
         return
 
+    if arguments[0].lower() == "balance":
+        try:
+            return _execute_balance_command(
+                query_text if query_text is not None else shlex.join(arguments)
+            )
+        except ValueError as exc:
+            return format_error(str(exc), query_text)
+
     if arguments[0].lower() in {"help", "?"}:
         return HELP
 
@@ -2562,11 +2751,15 @@ HELP = """\033[1;36mChemql - Python Chemistry Query Language\033[0m
             set catalysts
               conditions
             react N2 3H2
+            balance O2 + H2 -> H2O //reversible
+            balance O2 + H2 <-> H2O //irreversible
 
     Temperature accepts C, F, or K. Pressure accepts Pa, N/m^2, Nm^-2, or bar.
     `standard` means 0 C and 100000 Pa; `room` means 25 C and 101325 Pa.
           Unset values appear as `Not Set` in `conditions`.
     Reaction matching allows 5 K temperature and 5% pressure tolerance.
+    `balance` returns a Reaction with the smallest positive integer coefficients.
+    Direction annotations override the arrow: `//reversible` or `//irreversible`.
 
 \033[1;33mRESULTS\033[0m
   \033[1mfirst\033[0m
@@ -2718,7 +2911,7 @@ class ChemqlLexer(Lexer):
             first_word = words[0] if words else ""
 
             # search / source / list / return / clear / exit
-            if first_word in {"search", "source", "list", "clear", "exit", "findel", "findmol", "findre", "set", "add", "remove", "react", "conditions", "view", "help", "dump"}:
+            if first_word in {"search", "source", "list", "clear", "exit", "findel", "findmol", "findre", "set", "add", "remove", "react", "balance", "conditions", "view", "help", "dump"}:
                 command_start = line.find(first_word)
                 command_end = command_start + len(first_word)
 
@@ -2857,6 +3050,7 @@ class ChemqlLexer(Lexer):
                         "add",
                         "remove",
                         "react",
+                        "balance",
                         "conditions",
                         "view",
                         "help",
@@ -2936,7 +3130,7 @@ class ChemqlCompleter(Completer):
         commands = (
             "search", "source", "list", "clear", "return", "exit",
             "findel", "findmol", "findre", "set", "add", "remove",
-            "react", "conditions",
+            "react", "balance", "conditions",
         )
 
         if not command_words:
@@ -3019,7 +3213,7 @@ def main():
         "-v",
         "--version",
         action="version",
-        version="0.1.0",
+        version="0.2.0",
     )
 
     args = parser.parse_args()
