@@ -25,4 +25,4 @@ def test_cli_version_option_prints_version(monkeypatch, capsys, option):
         chemql.main()
 
     assert exception.value.code == 0
-    assert capsys.readouterr().out == "0.2.0\n"
+    assert capsys.readouterr().out == "0.2.1\n"

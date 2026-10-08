@@ -151,18 +151,17 @@ add catalyst "Vanadium oxide"
 remove catalyst "Vanadium oxide"
 conditions
 react N2 3H2
-balance O2 + H2 -> H2O //reversible
-balance O2 + H2 <-> H2O //irreversible
+balance O2 + H2 -> H2O
+balance O2 + H2 <-> H2O
 ```
 
 Temperature accepts `C`, `F`, or `K`; pressure accepts `Pa`, `N/m^2`, `Nm^-2`, `bar`, or `atm`. The keywords `standard` and `room` are also accepted.
 
 `balance` accepts chemical formulas on each side, separated by `+`. It returns
 a `Reaction` with the smallest positive integer stoichiometric coefficients.
-The optional `//reversible` and `//irreversible` annotations set the returned
-reaction direction; without an annotation, `->` is irreversible and `<->` is
-reversible. The function API is
-`balance_stoichiometry(reactants, products, reversible=None)`.
+The arrow determines reaction direction: `->` is irreversible and `<->` is
+reversible. `//` begins a comment, as it does elsewhere in ChemQL. The function
+API is `balance_stoichiometry(reactants, products, reversible=None)`.
 
 ## Operators
 

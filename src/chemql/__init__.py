@@ -1075,23 +1075,16 @@ def balance_stoichiometry(reactants, products, reversible=None):
 
 
 def _execute_balance_command(text):
+    text = text.split("//", 1)[0].rstrip()
     match = re.fullmatch(
-        r"\s*balance\s+(.+?)\s*(<->|->)\s*(.+?)"
-        r"(?:\s*//\s*(reversible|irreversible)\s*)?",
+        r"\s*balance\s+(.+?)\s*(<->|->)\s*(.+?)\s*",
         text,
         re.IGNORECASE,
     )
     if not match:
-        raise ValueError(
-            "Usage: balance <reactants> ->|<-> <products> "
-            "[//reversible|//irreversible]"
-        )
-    reactants, arrow, products, direction = match.groups()
-    reversible = (
-        direction.lower() == "reversible"
-        if direction
-        else arrow == "<->"
-    )
+        raise ValueError("Usage: balance <reactants> ->|<-> <products>")
+    reactants, arrow, products = match.groups()
+    reversible = arrow == "<->"
     return balance_stoichiometry(reactants, products, reversible)
 
 
@@ -1723,13 +1716,6 @@ def find_endblock(lines, start):
     raise SyntaxError("Missing `[endblock]`")
 
 def remove_comments(line):
-    if re.fullmatch(
-        r"\s*balance\b.*//\s*(?:reversible|irreversible)\s*",
-        line,
-        re.IGNORECASE,
-    ):
-        return line
-
     in_quote = None
     escaped = False
 
@@ -2751,15 +2737,15 @@ HELP = """\033[1;36mChemql - Python Chemistry Query Language\033[0m
             set catalysts
               conditions
             react N2 3H2
-            balance O2 + H2 -> H2O //reversible
-            balance O2 + H2 <-> H2O //irreversible
+            balance O2 + H2 -> H2O
+            balance O2 + H2 <-> H2O
 
     Temperature accepts C, F, or K. Pressure accepts Pa, N/m^2, Nm^-2, or bar.
     `standard` means 0 C and 100000 Pa; `room` means 25 C and 101325 Pa.
           Unset values appear as `Not Set` in `conditions`.
     Reaction matching allows 5 K temperature and 5% pressure tolerance.
     `balance` returns a Reaction with the smallest positive integer coefficients.
-    Direction annotations override the arrow: `//reversible` or `//irreversible`.
+    The `->` arrow is irreversible; `<->` is reversible. `//` starts a comment.
 
 \033[1;33mRESULTS\033[0m
   \033[1mfirst\033[0m
@@ -3213,7 +3199,7 @@ def main():
         "-v",
         "--version",
         action="version",
-        version="0.2.0",
+        version="0.2.1",
     )
 
     args = parser.parse_args()
