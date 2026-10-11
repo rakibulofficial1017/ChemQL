@@ -18,11 +18,8 @@ ChemQL supports:
 
 ## Install the library
 
-Install from this `chemql/` directory, which contains `pyproject.toml`:
-
 ```bash
-cd /path/to/ChemQL/Language/chemql
-python -m pip install -e ".[test]"
+python -m pip install chemql-python
 ```
 
 This installs the Python package and the `chemql` CLI:
