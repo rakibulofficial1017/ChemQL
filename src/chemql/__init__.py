@@ -3199,7 +3199,7 @@ def main():
         "-v",
         "--version",
         action="version",
-        version="0.2.1",
+        version="0.2.2",
     )
 
     args = parser.parse_args()
@@ -3235,8 +3235,9 @@ def run_interactive():
             except EOFError:
                 print("\n\033[34mUse \033[1mCTRL+C\033[22m or type '\033[1mexit\033[22m' to exit\033[0m")
                 continue
-
-            if first_line.strip() == "exit":
+            if first_line.strip() == "":
+                continue
+            elif first_line.strip() == "exit":
                 break
 
             elif first_line.strip() in ("?", "help"):
