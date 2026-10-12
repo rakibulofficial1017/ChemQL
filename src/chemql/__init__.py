@@ -5,6 +5,8 @@ import re
 import ast
 import argparse
 import time
+import subprocess
+import sys
 from pathlib import Path
 from prompt_toolkit import PromptSession
 from prompt_toolkit.lexers import Lexer
@@ -28,6 +30,10 @@ __all__ = [
     "balance_stoichiometry",
     "execute_query",
     "execute_query_text",
+    "ChemQLQuery",
+    "search",
+    "union",
+    "intersection",
 ]
 
 
@@ -112,7 +118,7 @@ with (DATA_DIR / "MoleculeBonds.json").open("r", encoding="utf-8") as f:
 with (DATA_DIR / "BondEnergies.json").open("r", encoding="utf-8") as f:
     bondEnergies = json.load(f)
 
-operators = {"has", "like", "like!", "=", ">", "<", ">=", "<="}
+operators = {"has", "like", "like!", "likep", "=", "!=", ">", "<", ">=", "<="}
 
 queryOperations = {"sort", "limit", "count"}
 
@@ -1252,7 +1258,7 @@ def apply_query_operations(results, tokens, keys, positions=None):
     return results
 
 
-functionMap = {"=": "__eq__", ">": "__gt__", "<": "__lt__", ">=": "__ge__", "<=": "__le__"}
+functionMap = {"=": "__eq__", "!=": "__ne__", ">": "__gt__", "<": "__lt__", ">=": "__ge__", "<=": "__le__"}
 
 
 def convert_value(value, sample):
@@ -1296,14 +1302,35 @@ def parse_condition(tokens, index, source, keys, positions=None):
 
     key = tokens[index]
     operator = tokens[index + 1]
-    value = tokens[index + 2]
+    negated = operator.casefold() == "not"
+    if negated:
+        if index + 3 >= len(tokens):
+            raise ChemQLError("Expected an operator and value after `not`", *(error_position(positions, index + 1) if positions else (None, 1)))  # type: ignore
+        operator = tokens[index + 2]
+        value = tokens[index + 3]
+        consumed = index + 4
+    else:
+        value = tokens[index + 2]
+        consumed = index + 3
 
     if key not in keys:
         pos, length = error_position(positions, index) if positions else (None, 1)
         raise ChemQLError(f"There is no key `{key}`", pos, length)
 
-    if operator == "like" or operator == "like!":
+    if operator in {"like", "like!", "likep"}:
         pattern = value
+        if operator == "likep":
+            try:
+                compiled_pattern = re.compile(pattern)
+            except re.error as exc:
+                pos, length = error_position(positions, index + 2) if positions else (None, 1)
+                raise ChemQLError(f"Invalid regex: {exc}", pos, length) from exc
+
+            def regex_condition(item):
+                actual = getattr(item, key)
+                return isinstance(actual, str) and compiled_pattern.search(actual) is not None
+
+            return (lambda item, fn=regex_condition: not fn(item)) if negated else regex_condition, consumed
         case_sensitive = operator == "like!"
 
         def like_condition(item):
@@ -1318,7 +1345,7 @@ def parse_condition(tokens, index, source, keys, positions=None):
                 case_sensitive
             )
 
-        return like_condition, index + 3
+        return (lambda item, fn=like_condition: not fn(item)) if negated else like_condition, consumed
 
     if operator == "has":
         def has_condition(item):
@@ -1329,7 +1356,7 @@ def parse_condition(tokens, index, source, keys, positions=None):
             except TypeError:
                 return False
 
-        return has_condition, index + 3
+        return (lambda item, fn=has_condition: not fn(item)) if negated else has_condition, consumed
 
     if operator not in functionMap:
         pos, length = error_position(positions, index + 1) if positions else (None, 1)
@@ -1354,11 +1381,15 @@ def parse_condition(tokens, index, source, keys, positions=None):
         except (TypeError, AttributeError):
             return False
 
-    return comparison_condition, index + 3
+    return (lambda item, fn=comparison_condition: not fn(item)) if negated else comparison_condition, consumed
 
 def parse_primary(tokens, index, source, keys, positions=None):
     if index >= len(tokens):
         raise ChemQLError("Expected condition", *(error_position(positions, index) if positions else (None, 1)))#type:ignore
+
+    if tokens[index].casefold() == "not":
+        expression, next_index = parse_primary(tokens, index + 1, source, keys, positions)
+        return (lambda item, fn=expression: not fn(item)), next_index
 
     if tokens[index] == "(":
         expression, index = parse_or(
@@ -1582,9 +1613,107 @@ def interpolate_python_queries(code):
     python_globals.update(query_values)
     return "".join(rewritten)
 
+def _space_query_operators(text):
+    """Separate comparison operators and parentheses outside quoted strings."""
+    out, quote, escaped = [], None, False
+    i = 0
+    while i < len(text):
+        ch = text[i]
+        if quote:
+            out.append(ch)
+            if escaped:
+                escaped = False
+            elif ch == "\\\\":
+                escaped = True
+            elif ch == quote:
+                quote = None
+            i += 1
+            continue
+        if ch in ("'", '"'):
+            quote = ch
+            out.append(ch)
+            i += 1
+            continue
+        if ch in "()":
+            out.extend((" ", ch, " "))
+            i += 1
+            continue
+        if ch in "<>!=" and i + 1 < len(text) and text[i + 1] == "=":
+            out.extend((" ", ch + "=", " "))
+            i += 2
+            continue
+        if ch in "<>!=":
+            out.extend((" ", ch, " "))
+            i += 1
+            continue
+        out.append(ch)
+        i += 1
+    return "".join(out)
+
+
+def _split_set_operations(text):
+    """Split top-level union/intersection outside quotes and parentheses, left-to-right."""
+    parts, ops, start, depth = [], [], 0, 0
+    quote, escaped = None, False
+    words = re.finditer(r"\b(union|intersection)\b", text, re.IGNORECASE)
+    for match in words:
+        i = match.start()
+        quote = None
+        escaped = False
+        depth = 0
+        j = 0
+        while j < i:
+            ch = text[j]
+            if quote:
+                if escaped: escaped = False
+                elif ch == "\\\\": escaped = True
+                elif ch == quote: quote = None
+            elif ch in ("'", '"'): quote = ch
+            elif ch == "(": depth += 1
+            elif ch == ")": depth -= 1
+            j += 1
+        if quote is None and depth == 0:
+            parts.append(text[start:i].strip())
+            ops.append(match.group(1).casefold())
+            start = match.end()
+    if not ops:
+        return None
+    parts.append(text[start:].strip())
+    if any(not part for part in parts):
+        raise ChemQLError("Missing query around union/intersection")
+    return parts, ops
+
+
+def _as_result_list(result):
+    if result is None or result == "No matching item":
+        return []
+    return result if isinstance(result, list) else [result]
+
+
 def execute_query_text(text):
     """Execute plain query-language text."""
-    text = interpolate_query(text.strip())
+    text = text.strip()
+    set_expression = _split_set_operations(text)
+    if set_expression:
+        parts, ops = set_expression
+        result = _as_result_list(execute_query_text(parts[0]))
+        for operator, part in zip(ops, parts[1:]):
+            right = _as_result_list(execute_query_text(part))
+            def identity(item):
+                if hasattr(item, "id"): return ("id", getattr(item, "id"))
+                if hasattr(item, "number"): return ("number", getattr(item, "number"))
+                if hasattr(item, "cid") and getattr(item, "cid") is not None: return ("cid", getattr(item, "cid"))
+                return (type(item).__name__, repr(item))
+            right_map = {identity(item): item for item in right}
+            if operator == "union":
+                seen = {identity(item) for item in result}
+                result.extend(item for item in right if identity(item) not in seen and not seen.add(identity(item)))
+            else:
+                result = [item for item in result if identity(item) in right_map]
+        return result
+
+    text = interpolate_query(text)
+    text = _space_query_operators(text)
     positions = token_positions(text)
 
     try:
@@ -1968,6 +2097,17 @@ def process_inline(text):
         if not stripped[end + 2:].strip():
             return execute_query_block(stripped[2:end].strip())
 
+    # Backtick-wrapped commands execute through subprocess (not deprecated os.system).
+    if len(stripped) >= 2 and stripped.startswith("`") and stripped.endswith("`"):
+        command = stripped[1:-1]
+        completed = subprocess.run(command, shell=True, text=True, capture_output=True)
+        output = completed.stdout
+        if completed.stderr:
+            output += completed.stderr
+        if completed.returncode and not output:
+            output = f"Command exited with status {completed.returncode}"
+        return output.rstrip("\\n")
+
     # Everything else is query language.
     return execute_query_text(stripped)
 
@@ -2099,12 +2239,13 @@ def parse_temperature_setting(value):
     if normalized == "room":
         return 298.15
 
-    match = re.fullmatch(r"([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*°?\s*([cfk])", normalized)
+    match = re.fullmatch(r"([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*(?:°\s*)?(celsius|fahrenheit|kelvin|degc|degf|degk|c|f|k)", normalized)
     if not match:
         raise ValueError("Temperature must use C, F, or K, or be `standard` or `room`")
 
     temperature = float(match.group(1))
     unit = match.group(2)
+    unit = {"celsius": "c", "degc": "c", "fahrenheit": "f", "degf": "f", "kelvin": "k", "degk": "k", "K":"k", "C":"c", "F": "f","k":"k", "c":"c", "f": "f"}[unit]
     if unit == "f":
         temperature = (temperature - 32) * 5 / 9 + 273.15
     elif unit == "c":
@@ -2130,14 +2271,16 @@ def parse_pressure_setting(value):
     pressure = float(match.group(1))
     unit = re.sub(r"\s+", "", match.group(2)).replace("²", "^2")
     unit_scales = {
-        "pa": 1.0,
-        "n/m^2": 1.0,
-        "nm^-2": 1.0,
-        "bar": 100000.0,
-        "atm": 101325.0,
+        "pa": 1.0, "pascal": 1.0, "pascals": 1.0,
+        "kpa": 1_000.0, "mpa": 1_000_000.0,
+        "hpa": 100.0, "mbar": 100.0,
+        "n/m^2": 1.0, "n/m2": 1.0, "nm^-2": 1.0, "n·m^-2": 1.0,
+        "bar": 100_000.0, "mbar": 100.0,
+        "atm": 101_325.0, "torr": 101_325.0 / 760, "mmhg": 101_325.0 / 760,
+        "psi": 6894.757293168, "kpsi": 6_894_757.293168,
     }
     if unit not in unit_scales:
-        raise ValueError("Pressure must use Pa, N/m^2, Nm^-2, bar, or atm")
+        raise ValueError("Unsupported pressure unit. Try Pa, kPa, MPa, hPa, bar, atm, torr, mmHg, or psi")
 
     return pressure * unit_scales[unit]
 
@@ -2550,6 +2693,8 @@ def execute(arguments, query_text=None, positions=None):
             )
 
         source, keys = SOURCES[source_name]
+        if i >= len(arguments):
+            return list(source)
         return_attributes = None
 
         if "return" in arguments[i:]:
@@ -2941,6 +3086,18 @@ class ChemqlLexer(Lexer):
 
                     i = end + 2
                     continue
+                
+                if line.startswith("//", i):
+
+                    end = len(line)
+
+                    tokens.append((
+                        "class:comment",
+                        line[i:end]
+                    ))
+
+                    i = end
+                    continue
 
                 if line[i] == "[":
                     end = line.find("]", i + 1)
@@ -2950,6 +3107,20 @@ class ChemqlLexer(Lexer):
 
                     tokens.append((
                         "class:python",
+                        line[i:end + 1]
+                    ))
+
+                    i = end + 1
+                    continue
+                
+                if line[i] == "`":
+                    end = line.find("`", i + 1)
+
+                    if end == -1:
+                        end = len(line) - 1
+
+                    tokens.append((
+                        "class:terminalcommand",
                         line[i:end + 1]
                     ))
 
@@ -2983,7 +3154,7 @@ class ChemqlLexer(Lexer):
                 # Operators
                 matched_operator = None
 
-                for operator in (">=", "<=", "=", ">", "<"):
+                for operator in ("!=", ">=", "<=", "=", ">", "<"):
                     if line.startswith(operator, i):
                         matched_operator = operator
                         break
@@ -3040,7 +3211,9 @@ class ChemqlLexer(Lexer):
                         "conditions",
                         "view",
                         "help",
-                        "dump"
+                        "dump",
+                        "union",
+                        "intersection",
                     }:
                         style = "class:command"
 
@@ -3058,6 +3231,7 @@ class ChemqlLexer(Lexer):
                         "has",
                         "like",
                         "like!",
+                        "likep",
                         "sort",
                         "limit",
                         "count",
@@ -3152,7 +3326,7 @@ class ChemqlCompleter(Completer):
             if source_name in SOURCES:
                 _, keys = SOURCES[source_name]
                 suggestions = list(keys) + [
-                    "=", ">", "<", ">=", "<=", "like", "like!", "has",
+                    "=", ">", "<", ">=", "<=", "!=", "like", "like!", "likep", "has",
                     "sort", "limit", "count", "asc", "desc", "return",
                 ]
 
@@ -3167,6 +3341,8 @@ class ChemqlCompleter(Completer):
         
 chemql_style = Style.from_dict({
     "command": "ansicyan",
+    "terminalcommand": "ansipurple",
+    "comment": "#545454 bold underline",
     "source": "ansiblue",
     "key": "ansimagenta",
     "operator": "ansiyellow",
@@ -3176,6 +3352,90 @@ chemql_style = Style.from_dict({
     "python": "ansibrightcyan",
     "condition": "ansibrightyellow",
 })
+
+
+
+
+class _ChemQLField:
+    """Field selector used by the fluent Python query API."""
+    def __init__(self, query, field):
+        self.query = query
+        self.field = field
+
+    def condition(self, **conditions):
+        operators = {
+            "eq": "=", "ne": "!=", "lt": "<", "lte": "<=",
+            "gt": ">", "gte": ">=", "like": "like", "likep": "likep",
+            "has": "has",
+        }
+        if len(conditions) != 1:
+            raise ValueError("condition() expects exactly one condition, e.g. lt=10")
+        name, value = next(iter(conditions.items()))
+        if name not in operators:
+            raise ValueError(f"Unknown condition {name!r}; use {', '.join(operators)}")
+        rendered = shlex.quote(str(value))
+        return ChemQLQuery(f"{self.query.query} {self.field} {operators[name]} {rendered}")
+
+
+class ChemQLQuery:
+    """Composable ChemQL query. Use .execute() to evaluate it."""
+    def __init__(self, query):
+        self.query = str(query).strip()
+
+    def __getattr__(self, field):
+        if field.startswith("_"):
+            raise AttributeError(field)
+        return _ChemQLField(self, field)
+
+    def return_(self, *attributes):
+        if not attributes:
+            raise ValueError("return_() requires at least one attribute")
+        return ChemQLQuery(f"{self.query} return " + " ".join(attributes))
+
+    def execute(self):
+        return execute_query_text(self.query)
+
+    def __or__(self, other):
+        if not isinstance(other, ChemQLQuery):
+            return NotImplemented
+        return ChemQLQuery(f"{self.query} union {other.query}")
+
+    def __and__(self, other):
+        if not isinstance(other, ChemQLQuery):
+            return NotImplemented
+        return ChemQLQuery(f"{self.query} intersection {other.query}")
+
+    def __str__(self):
+        return f"Query of `{self.query}`"
+
+    def __repr__(self):
+        return str(self)
+
+
+def search(source):
+    """Create a native Python API query, e.g. search('elements')."""
+    source = str(source).strip()
+    if source not in SOURCES:
+        raise ValueError(f"Unknown ChemQL source {source!r}; expected one of {', '.join(SOURCES)}")
+    return ChemQLQuery(f"search {source}")
+
+
+def union(x, y):
+    """Return the left-to-right union of two ChemQLQuery objects."""
+    if not isinstance(x, ChemQLQuery) or not isinstance(y, ChemQLQuery):
+        raise TypeError("union() expects two ChemQLQuery objects")
+    return x | y
+
+
+def intersection(x, y):
+    """Return the intersection of two ChemQLQuery objects."""
+    if not isinstance(x, ChemQLQuery) or not isinstance(y, ChemQLQuery):
+        raise TypeError("intersection() expects two ChemQLQuery objects")
+    return x & y
+
+
+ChemQLQuery.__name__ = "ChemQLQuery"
+ChemQLQuery.__qualname__ = "ChemQLQuery"
 
 
 def main():
@@ -3199,7 +3459,7 @@ def main():
         "-v",
         "--version",
         action="version",
-        version="0.2.2",
+        version="1.0.0",
     )
 
     args = parser.parse_args()
@@ -3212,6 +3472,12 @@ def main():
             code = f.read()
         process_lines(code.splitlines())
 
+    elif not sys.stdin.isatty():
+        piped = sys.stdin.read()
+        if piped.strip():
+            process_lines([piped.strip()])
+        else:
+            run_interactive()
     else:
         run_interactive()
 

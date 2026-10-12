@@ -1,129 +1,208 @@
 # ChemQL
 
-![ChemQL logo](logo.png)
+**ChemQL** is a chemistry-focused query language for searching and
+working with chemical data from Python or an interactive terminal. It
+provides a compact way to query elements, molecules, and chemical
+reactions using filters, logical conditions, sorting, and result
+projections.
 
-ChemQL is a chemistry-focused query language and REPL for exploring element, molecule, and reaction datasets. It lets you search the built-in chemistry data, filter results with expressions, set reaction conditions, and combine queries with small Python snippets when needed.
+> Package: `chemql-python`\
+> Python import: `chemql`
 
-## What ChemQL does
+## Features
 
-ChemQL supports:
+-   Query element, molecule, and reaction datasets.
+-   Filter records with comparisons and logical conditions.
+-   Match text using wildcard patterns with `like` and case-sensitive
+    `like!`.
+-   Use `and`, `or`, `not`, and parentheses to combine conditions.
+-   Use `likep` for Python regular-expression matching.
+-   Combine list results with `union` and `intersection`.
+-   Sort, limit, count, and project results with `return`.
+-   Look up elements, molecules, and reactions using `findel`,
+    `findmol`, and `findre`.
+-   Balance chemical equations.
+-   Set reaction conditions, including temperature, pressure, and
+    catalysts.
+-   Use Python expressions and control blocks alongside ChemQL queries.
+-   Use ChemQL from the command line or through its Python API.
 
-- Searching the built-in `elements`, `molecules`, and `reactions` datasets
-- Filtering by field, comparison operator, pattern matching, and boolean logic
-- Quick lookup commands like `findel`, `findmol`, and `findre`
-- Reaction setup with temperature, pressure, and catalyst configuration
-- Running reactions with `react`
-- Embedding Python in `[ ... ]` blocks and templates in `{{ ... }}`
-- Running from a terminal REPL or executing a command/file from the shell
+## Installation
 
-## Install the library
+Install the Python package from PyPI:
 
-```bash
-python -m pip install chemql-python
+``` bash
+pip install chemql-python
 ```
 
-This installs the Python package and the `chemql` CLI:
+## Quick start
 
-```bash
-chemql -c "search elements name = 'Hydrogen'"
+Start the interactive terminal:
+
+``` bash
+chemql
 ```
 
-Start the interactive REPL with:
+Then try:
 
-```bash
-python -m chemql
+``` text
+search elements name = "Hydrogen"
+findel "He"
+findmol "H2O"
+search molecules molecular_weight < 20 return name formula molecular_weight
+search reactions reaction_type = "combustion" return name equation
 ```
 
-You will see the interactive prompt:
+Show the built-in command reference from the REPL:
 
-```text
->>> 
-```
-
-Type:
-
-```text
+``` text
 help
 ```
 
-or:
-
-```text
-?
-```
-
-to display the built-in help.
-
 ## Command-line usage
 
-You can also execute a single ChemQL command or a file:
+Run a single command with `-c`:
 
-```bash
+``` bash
 chemql -c 'search elements name = "Hydrogen"'
-chemql -f examples/script.cql
 ```
 
-The Python package is `chemql`. Its query engine, chemistry types, and bundled
-datasets can be imported directly:
+Run commands from a file with `-f`:
 
-```python
-from chemql import balance_stoichiometry, execute_query_text
-
-result = execute_query_text('search elements name = "Hydrogen"')
-reaction = balance_stoichiometry(["O2", "H2"], ["H2O"], reversible=True)
-print(reaction)
+``` bash
+chemql -f queries.chemql
 ```
 
-## Core query syntax
+Check the installed version:
 
-### Search a dataset
+``` bash
+chemql --version
+```
 
-```text
+A query file can contain multiple ChemQL commands, one per line. Use the
+`//` comment marker for comments and a trailing backslash (`\`) to
+continue a command onto the next line.
+
+Example `queries.chemql`:
+
+``` text
+// Find lighter molecules
+search molecules molecular_weight < 20 return name formula molecular_weight
+
+// Show a subset of the periodic table
+search elements atomic_number > 10 and atomic_number < 20 sort atomic_number desc limit 5
+```
+
+## Query language
+
+### Data sources
+
+ChemQL provides three main sources:
+
+  Source        Contents
+  ------------- ----------------------------------------------
+  `elements`    Periodic-table element data
+  `molecules`   Molecule properties and identifiers
+  `reactions`   Reaction equations, conditions, and metadata
+
+Search a source explicitly:
+
+``` text
 search elements
 search molecules
 search reactions
 ```
 
-### Search with filters
+You can also use `search all` before a source name, for example:
 
-```text
-search elements atomic_number > 10 and atomic_number < 20
-search molecules name like "*water*"
-search reactions reaction_type = "combustion"
+``` text
+search all elements atomic_mass < 100
 ```
 
-### Sort, limit, and count
+Change the active source in an interactive session with:
 
-```text
-search molecules sort molecular_weight desc
-search molecules limit 10
-search molecules count
-```
-
-### Return selected fields
-
-```text
-search molecules molecular_weight < 20 return name formula molecular_weight
-search reactions reversible = true return name conditions
-```
-
-### Set the current source
-
-```text
+``` text
 source elements
 source molecules
 source reactions
 ```
 
-### List available keys
+### Filtering
 
-```text
-list all
+Use comparison operators to filter records:
+
+  Operator   Meaning
+  ---------- ----------------------------------------
+  `=`        Equal
+  `!=`       Not equal
+  `>`        Greater than
+  `<`        Less than
+  `>=`       Greater than or equal
+  `<=`       Less than or equal
+  `like`     Case-insensitive wildcard match
+  `like!`    Case-sensitive wildcard match
+  `likep`    Python regular-expression match
+  `has`      Check whether a value contains an item
+
+Examples:
+
+``` text
+search elements atomic_number > 10
+search molecules molecular_weight <= 20
+search molecules name like "*water*"
+search reactions id likep ".*haber(\s*|-|_)process.*"
 ```
 
-## Convenience lookup commands
+The wildcard matcher supports `*` for a sequence of characters and other
+wildcard tokens supported by ChemQL's pattern matcher. Use `likep` when
+you need regular expressions rather than wildcard patterns.
 
-```text
+### Logical conditions and parentheses
+
+Combine conditions with `and`, `or`, and `not`. Parentheses group
+conditions. Comparison operators and parentheses can be written without
+surrounding spaces.
+
+``` text
+search elements name not like "*ium"
+search elements name not like "*ium" and not atomic_mass < 50
+search elements atomic_mass > 50 and (density<10 or boil<100)
+```
+
+### Combining query results
+
+Use `union` to combine results and `intersection` to keep records
+present in both result lists. Operations are evaluated from left to
+right.
+
+``` text
+search elements name not like "*ium" intersection search elements name like "*um"
+```
+
+Use the Python API's query-object operators `|` and `&` for union and
+intersection, respectively, when working with `ChemQLQuery` objects.
+
+### Sorting, limiting, counting, and returning fields
+
+``` text
+search elements sort atomic_number
+search molecules sort molecular_weight desc
+search molecules limit 10
+search molecules count
+search molecules molecular_weight < 20 return name
+search molecules molecular_weight < 20 return name formula molecular_weight
+```
+
+-   `sort <field> [asc|desc]` sorts results.
+-   `limit <number>` limits the number of results.
+-   `count` returns the number of matches.
+-   `return <field...>` returns only selected fields. One field produces
+    a list; multiple fields produce a table-like result.
+-   `first` and `last` can be used to select one result.
+
+### Find commands
+
+``` text
 findel "He"
 findel "Hydrogen"
 
@@ -134,161 +213,148 @@ findre "Haber process"
 findre "RHEA:10000" return name equation source
 ```
 
-## Reactions
+`findmol` searches the local molecule dataset first and can use external
+chemical-data services when a local match is not found. External lookups
+require an internet connection and may be unavailable if the service is
+down.
 
-Set reaction conditions before running a reaction:
+## Reactions and equation balancing
 
-```text
-set temperature 723K
-set temperature standard
-set pressure 20265000pa
-set pressure room
-set catalysts iron zinc
-add catalyst "Vanadium oxide"
-remove catalyst "Vanadium oxide"
-conditions
-react N2 3H2
+ChemQL includes reaction data and commands for working with reaction
+conditions.
+
+``` text
+findre "Haber process"
 balance O2 + H2 -> H2O
 balance O2 + H2 <-> H2O
 ```
 
-Temperature accepts `C`, `F`, or `K`; pressure accepts `Pa`, `N/m^2`, `Nm^-2`, `bar`, or `atm`. The keywords `standard` and `room` are also accepted.
+The `->` arrow denotes an irreversible reaction, while `<->` denotes a
+reversible reaction.
 
-`balance` accepts chemical formulas on each side, separated by `+`. It returns
-a `Reaction` with the smallest positive integer stoichiometric coefficients.
-The arrow determines reaction direction: `->` is irreversible and `<->` is
-reversible. `//` begins a comment, as it does elsewhere in ChemQL. The function
-API is `balance_stoichiometry(reactants, products, reversible=None)`.
+Set conditions before using `react`:
 
-## Operators
-
-ChemQL supports these comparison operators:
-
-- `=`
-- `>`
-- `<`
-- `>=`
-- `<=`
-- `like`
-- `like!`
-- `has`
-
-Boolean logic:
-
-```text
-and
-or
+``` text
+set temperature 723K
+set pressure 20265000pa
+set catalysts iron zinc
+conditions
+react N2 3H2
 ```
 
-Parentheses may be used to group expressions.
+Temperature can be supplied in Celsius (`C`), Fahrenheit (`F`), or
+Kelvin (`K`). Pressure supports units such as pascals and bar; the
+available unit conversions depend on the installed version. Preset
+conditions are also available:
 
-## Result controls
-
-```text
-search molecules first
-search molecules last
-search molecules sort atomic_number desc limit 5
-search molecules count
+``` text
+set temperature standard
+set pressure room
 ```
 
-## General commands
+Use `help` in the terminal for the command reference included with your
+installed version.
 
-```text
-list all
-view
-clear
-dump my_session.txt
-help
-exit
+## Python API
+
+Import ChemQL from Python:
+
+``` python
+import chemql
+
+result = chemql.execute_query_text(
+    'search elements name = "Hydrogen"'
+)
+print(result)
 ```
 
-`view` opens the periodic table in a browser. `dump` writes recent command history to a file.
+You can also use `execute_query` for a query string:
 
-## Hybrid Python mode
+``` python
+import chemql
 
-ChemQL can be mixed with Python inside square-bracket blocks:
+result = chemql.execute_query('search molecules molecular_weight < 20')
+print(result)
+```
 
-```text
+The package exposes chemistry data classes and helpers, including
+`Element`, `Molecule`, `Reaction`, `ChemQLError`, `Unknown`,
+`ReturnTable`, and `balance_stoichiometry`.
+
+### Query builder API
+
+Versions that include the query-builder API also support chaining query
+conditions:
+
+``` python
+import chemql
+
+x = chemql.search("elements")
+y = x.atomic_mass.condition(lt=10)
+z = y.return_("name")
+
+print(z)          # The query as text
+print(z.execute())  # Execute the query
+```
+
+Query objects can be combined with `|` (union) and `&` (intersection).
+The convenience functions `chemql.union(x, y)` and
+`chemql.intersection(x, y)` are also available in versions that include
+this API.
+
+## Hybrid Python
+
+ChemQL can execute Python expressions inside square brackets:
+
+``` text
 [x = 10]
 [print(x)]
 ```
 
-Conditional and loop blocks are also supported:
+It also supports Python control blocks using `[for ...]`, `[if ...]`,
+`[elif ...]`, `[else]`, `[while ...]`, `[break]`, `[continue]`, and
+`[endblock]`.
 
-```text
-[for x in range(3)]
-[print(x)]
-[endblock]
+Use `{{ ... }}` to evaluate a ChemQL query and insert its result into
+Python:
 
-[if x > 0]
-[print("positive")]
-[else]
-[print("not positive")]
-[endblock]
+``` text
+[print({{ search elements atomic_number = 1 }})]
 ```
 
-Embedded ChemQL queries can also be used with double-brace syntax. This executes a query and uses the result as a value in the surrounding Python:
+Only run Python code and shell commands from sources you trust.
 
-```text
-[print({{ search elements number = 1 }})]
-[for i in {{search elements number <= 10}}]
-    [print(i.name)]
-[endblock]
-```
+## Data and external services
 
-The `{{ ... }}` form is a convenient way to make a query return actual data to Python, rather than only writing a plain query line.
+ChemQL loads bundled JSON datasets for elements, molecules, reactions,
+molecule bonds, and bond energies. Some molecule lookups may query
+PubChem or other external sources when the local dataset does not
+contain a match.
 
-## Line continuation
+The periodic-table dataset is based on PeriodicTableJSON by
+Bowserinator. Review the dataset's accompanying license and attribution
+requirements when redistributing it or derivative data. The licenses and
+sources for the other bundled datasets should be checked in their
+respective files before redistribution.
 
-If a line ends with `\`, it continues onto the next line:
+## Safety note
 
-```text
-search elements \
-name = "Hydrogen"
-```
+ChemQL's hybrid Python functionality can execute Python code. If your
+installed version supports backtick-wrapped shell commands, those can
+execute operating-system commands as well. Do not run untrusted ChemQL
+scripts or queries.
 
-This is treated as:
+## Development notes
 
-```text
-search elements name = "Hydrogen"
-```
+-   The interactive shell uses `prompt_toolkit`.
+-   The command-line interface supports single-command execution (`-c`)
+    and file execution (`-f`).
+-   Consult the package's source and included `help` output for the
+    exact commands and fields supported by your installed version.
 
-## Examples
+## License
 
-```text
-search elements name = "Hydrogen"
-findel "He"
-findmol "H2O"
-
-search molecules molecular_weight < 20 \
-return name formula molecular_weight
-
-search elements atomic_number > 10 \
-and atomic_number < 20 \
-sort atomic_number desc \
-limit 5
-
-search molecules count
-```
-
-## Repository layout
-
-```text
-chemql/
-├── pyproject.toml
-├── src/
-│   └── chemql/
-│       ├── __init__.py
-│       ├── __main__.py
-│       ├── data/
-│       └── html/
-├── tests/
-├── scripts/
-└── examples/
-```
-
-The installable package contains the language implementation and its bundled
-chemical datasets.
+[MIT License](https://github.com/rakibulofficial1017/ChemQL/blob/main/LICENSE)
 
 Created by [Mohammad Rakibul Islam](https://github.com/rakibulofficial1017).
 Source code: [rakibulofficial1017/ChemQL](https://github.com/rakibulofficial1017/ChemQL).
