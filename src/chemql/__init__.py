@@ -10,6 +10,8 @@ import sys
 from pathlib import Path
 from prompt_toolkit import PromptSession
 from prompt_toolkit.lexers import Lexer
+import atexit
+import uuid
 from prompt_toolkit.styles import Style
 from prompt_toolkit.completion import Completer, Completion
 import urllib.parse
@@ -36,6 +38,84 @@ __all__ = [
     "intersection",
 ]
 
+
+
+_shell_process = None
+
+
+def get_shell():
+    """Start Bash once and reuse the same session."""
+    global _shell_process
+
+    if _shell_process is None or _shell_process.poll() is not None:
+        _shell_process = subprocess.Popen(
+            ["bash", "--noprofile", "--norc"],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+        )
+
+    return _shell_process
+
+
+def run_shell_command(command):
+    """Run a command in the persistent Bash session."""
+    shell = get_shell()
+    marker = f"__CHEMQL_END_{uuid.uuid4().hex}__"
+
+    try:
+        shell.stdin.write(command + "\n") #type:ignore
+        shell.stdin.write( #type:ignore
+            f"printf '\\n%s:%s\\n' '{marker}' \"$?\"\n"
+        )
+        shell.stdin.flush() #type:ignore
+
+        output = []
+        exit_code = None
+
+        while True:
+            line = shell.stdout.readline() #type:ignore
+
+            if not line:
+                break
+
+            line = line.rstrip("\n")
+
+            if line.startswith(marker + ":"):
+                exit_code = int(line[len(marker) + 1:])
+                break
+
+            output.append(line)
+
+        result = "\n".join(output)
+
+        if exit_code is None:
+            return result or "Shell session terminated."
+
+        if exit_code != 0 and not result:
+            return f"Command exited with status {exit_code}"
+
+        return result
+
+    except (BrokenPipeError, OSError) as exc:
+        return f"Shell error: {exc}"
+
+
+def close_shell():
+    """Clean up the persistent shell on exit."""
+    global _shell_process
+
+    if _shell_process is not None:
+        if _shell_process.poll() is None:
+            _shell_process.terminate()
+            _shell_process.wait(timeout=2)
+
+        _shell_process = None
+
+
+atexit.register(close_shell)
 
 class Unknown:
     """Represents a Chemql query result that cannot be resolved to a known object."""
@@ -1623,7 +1703,7 @@ def _space_query_operators(text):
             out.append(ch)
             if escaped:
                 escaped = False
-            elif ch == "\\\\":
+            elif ch == "\\":
                 escaped = True
             elif ch == quote:
                 quote = None
@@ -1666,7 +1746,7 @@ def _split_set_operations(text):
             ch = text[j]
             if quote:
                 if escaped: escaped = False
-                elif ch == "\\\\": escaped = True
+                elif ch == "\\": escaped = True
                 elif ch == quote: quote = None
             elif ch in ("'", '"'): quote = ch
             elif ch == "(": depth += 1
@@ -2097,16 +2177,11 @@ def process_inline(text):
         if not stripped[end + 2:].strip():
             return execute_query_block(stripped[2:end].strip())
 
-    # Backtick-wrapped commands execute through subprocess (not deprecated os.system).
+    # Backtick-wrapped commands use the persistent Bash session.
     if len(stripped) >= 2 and stripped.startswith("`") and stripped.endswith("`"):
         command = stripped[1:-1]
-        completed = subprocess.run(command, shell=True, text=True, capture_output=True)
-        output = completed.stdout
-        if completed.stderr:
-            output += completed.stderr
-        if completed.returncode and not output:
-            output = f"Command exited with status {completed.returncode}"
-        return output.rstrip("\\n")
+        return run_shell_command(command)
+
 
     # Everything else is query language.
     return execute_query_text(stripped)
@@ -3433,6 +3508,54 @@ def intersection(x, y):
         raise TypeError("intersection() expects two ChemQLQuery objects")
     return x & y
 
+PACKAGE_NAME = "chemql-python"
+
+def upgrade_package(version=None):
+    """Upgrade ChemQL, optionally to a specific version."""
+
+    if version is not None:
+        # Accept ordinary numeric release versions, optionally with
+        # prerelease or post-release suffixes.
+        if not re.fullmatch(
+            r"\d+(?:\.\d+)*(?:(?:a|b|rc)\d+)?(?:\.post\d+)?(?:\.dev\d+)?",
+            version,
+            re.IGNORECASE,
+        ):
+            print(f"Invalid version: {version}", file=sys.stderr)
+            return 2
+
+        target = f"{PACKAGE_NAME}=={version}"
+        print(f"Installing {target}...")
+        cmd = [
+            sys.executable, "-m", "pip", "install",
+            "--force-reinstall", target,
+        ]
+    else:
+        print(f"Upgrading {PACKAGE_NAME} to the latest version...")
+        cmd = [
+            sys.executable, "-m", "pip", "install",
+            "--upgrade", PACKAGE_NAME,
+        ]
+
+    try:
+        result = subprocess.run(cmd, check=False)
+        if result.returncode != 0:
+            print(
+                f"Installation failed (exit code {result.returncode}).",
+                file=sys.stderr,
+            )
+            return result.returncode
+
+    except KeyboardInterrupt:
+        print("\nUpgrade cancelled.", file=sys.stderr)
+        return 130
+    except OSError as exc:
+        print(f"Could not run pip: {exc}", file=sys.stderr)
+        return 1
+
+    print("ChemQL installation completed.")
+    return 0
+
 
 ChemQLQuery.__name__ = "ChemQLQuery"
 ChemQLQuery.__qualname__ = "ChemQLQuery"
@@ -3459,13 +3582,28 @@ def main():
         "-v",
         "--version",
         action="version",
-        version="1.0.0",
+        version="1.0.1",
     )
+
+
+    parser.add_argument(
+        "--upgrade",
+        nargs="?",
+        const="latest",
+        default=None,
+        metavar="VERSION",
+        help="Upgrade ChemQL, optionally to a specific version.",
+    )
+
 
     args = parser.parse_args()
 
-    if args.command:
-        process_lines(args.command.splitlines())
+    if args.upgrade is not None:
+        version_target = (
+            None if args.upgrade == "latest" else args.upgrade
+        )
+        sys.exit(upgrade_package(version_target))
+
 
     elif args.file:
         with open(args.file) as f:

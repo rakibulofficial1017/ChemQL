@@ -35,6 +35,25 @@ Install the Python package from PyPI:
 pip install chemql-python
 ```
 
+## Upgrading the package or switching versions
+
+If your chemql-python version is >=1.0.1, you can simply run
+```bash
+chemql --upgrade
+``` 
+Or to switch versions to for example 0.2.2
+```bash
+chemql --upgrade 0.2.2
+``` 
+However if you do not have chemql-python version >=1.0.1
+```bash
+pip install --upgrade chemql-python
+```
+Or to switch versions to for example 0.2.2
+```bash
+pip install --force-reinstall chemql-python==0.2.2
+```
+
 ## Quick start
 
 Start the interactive terminal:
@@ -323,6 +342,57 @@ Python:
 ```
 
 Only run Python code and shell commands from sources you trust.
+
+## Shell Commands
+
+ChemQL supports executing system shell commands by enclosing them in backticks (`` ` ``). Commands execute in a **persistent shell session**, allowing shell state to be preserved between commands.
+
+**Syntax**
+
+```chemql
+`command`
+```
+
+**Examples**
+
+Execute system commands:
+
+```chemql
+`whoami`
+`dir`
+`echo Hello`
+```
+
+Change the working directory:
+
+```chemql
+`cd ..`
+`cd ~`
+`dir`
+```
+
+The working directory persists between commands.
+
+Environment variables and other shell state can also persist between commands, depending on the shell being used.
+
+**Platform support**
+
+- **Linux:** Bash
+- **macOS:** Bash
+- **Windows:** Command Prompt (`cmd.exe`)
+
+PowerShell is not supported by the current implementation.
+
+**How it works**
+
+ChemQL maintains a persistent shell process and sends commands to it sequentially. Command output is captured and displayed in the ChemQL interface, allowing shell state to persist throughout the session.
+
+**Notes**
+
+- Commands must be enclosed in backticks to be interpreted as shell commands rather than ChemQL statements.
+- Shell syntax differs between operating systems. Use commands appropriate for your platform.
+- Commands run with the permissions of the process running ChemQL and may modify files or affect your system.
+- Interactive terminal programs and commands requiring direct terminal input may not work correctly because the shell uses pipes rather than a real terminal.
 
 ## Data and external services
 
