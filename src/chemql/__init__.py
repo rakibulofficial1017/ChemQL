@@ -1,6 +1,7 @@
 import json
 import math
 import shlex
+import os
 import re
 import ast
 import argparse
@@ -36,72 +37,81 @@ __all__ = [
     "search",
     "union",
     "intersection",
+    "__version__"
 ]
 
+__version__ = "1.0.2"
 
 
 _shell_process = None
 
 
 def get_shell():
-    """Start Bash once and reuse the same session."""
     global _shell_process
 
     if _shell_process is None or _shell_process.poll() is not None:
-        _shell_process = subprocess.Popen(
-            ["bash", "--noprofile", "--norc"],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            bufsize=1,
-        )
+        if os.name == "nt":
+            _shell_process = subprocess.Popen(
+                ["cmd.exe", "/D", "/Q", "/K", "prompt $S"],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,
+            )
+        else:
+            _shell_process = subprocess.Popen(
+                ["bash", "--noprofile", "--norc"],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,
+            )
 
     return _shell_process
 
 
 def run_shell_command(command):
-    """Run a command in the persistent Bash session."""
     shell = get_shell()
+
+    command = command.replace("\r\n", "\n").replace("\r", "\n").rstrip("\n")
     marker = f"__CHEMQL_END_{uuid.uuid4().hex}__"
 
     try:
-        shell.stdin.write(command + "\n") #type:ignore
-        shell.stdin.write( #type:ignore
-            f"printf '\\n%s:%s\\n' '{marker}' \"$?\"\n"
-        )
+        if os.name == "nt":
+            # Run the command, then print a unique completion marker.
+            shell.stdin.write(
+                f"{command}\r\n"
+                f"echo {marker}\r\n"
+            )
+        else:
+            shell.stdin.write( #type:ignore
+                f"{command}\n"
+                f"printf '\\n%s\\n' '{marker}'\n"
+            )
+
         shell.stdin.flush() #type:ignore
 
         output = []
-        exit_code = None
 
         while True:
             line = shell.stdout.readline() #type:ignore
 
             if not line:
-                break
+                return "\n".join(output) or "Shell session terminated."
 
-            line = line.rstrip("\n")
+            line = line.rstrip("\r\n")
 
-            if line.startswith(marker + ":"):
-                exit_code = int(line[len(marker) + 1:])
+            if marker in line:
                 break
 
             output.append(line)
 
-        result = "\n".join(output)
-
-        if exit_code is None:
-            return result or "Shell session terminated."
-
-        if exit_code != 0 and not result:
-            return f"Command exited with status {exit_code}"
-
-        return result
+        return "\n".join(output).strip()
 
     except (BrokenPipeError, OSError) as exc:
         return f"Shell error: {exc}"
-
 
 def close_shell():
     """Clean up the persistent shell on exit."""
@@ -2533,6 +2543,9 @@ def execute(arguments, query_text=None, positions=None):
     if arguments[0].lower() == "sorry":
         return "\033[34mIt's ok, everybody makes mistakes👌\033[0m"
 
+    if arguments[0].lower() == "version":
+        return __version__
+    
     if arguments[0] == "conditions":
         if len(arguments) != 1:
             return "Usage: conditions"
@@ -3117,7 +3130,7 @@ class ChemqlLexer(Lexer):
             first_word = words[0] if words else ""
 
             # search / source / list / return / clear / exit
-            if first_word in {"search", "source", "list", "clear", "exit", "findel", "findmol", "findre", "set", "add", "remove", "react", "balance", "conditions", "view", "help", "dump"}:
+            if first_word in {"search", "source", "list", "clear", "exit", "findel", "findmol", "findre", "set", "add", "remove", "react", "balance", "conditions", "view", "help", "dump", "version"}:
                 command_start = line.find(first_word)
                 command_end = command_start + len(first_word)
 
@@ -3365,7 +3378,7 @@ class ChemqlCompleter(Completer):
         commands = (
             "search", "source", "list", "clear", "return", "exit",
             "findel", "findmol", "findre", "set", "add", "remove",
-            "react", "balance", "conditions",
+            "react", "balance", "conditions", "version", "help", "view"
         )
 
         if not command_words:
@@ -3582,7 +3595,7 @@ def main():
         "-v",
         "--version",
         action="version",
-        version="1.0.1",
+        version=__version__,
     )
 
 
@@ -3604,7 +3617,9 @@ def main():
         )
         sys.exit(upgrade_package(version_target))
 
-
+    if args.command is not None:
+        process_lines(args.command.splitlines())
+        return
     elif args.file:
         with open(args.file) as f:
             code = f.read()
