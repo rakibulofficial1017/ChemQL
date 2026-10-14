@@ -40,11 +40,27 @@ __all__ = [
     "__version__"
 ]
 
-__version__ = "1.0.2"
+__version__ = "1.0.3"
 
 
 _shell_process = None
 
+
+def enable_ansi():
+    """Enable ANSI escape code support on Windows and Unix-like terminals."""
+    if os.name == 'nt':
+        import ctypes
+        kernel32 = ctypes.windll.kernel32
+        # STD_OUTPUT_HANDLE = -11
+        handle = kernel32.GetStdHandle(-11)
+        mode = ctypes.c_ulong()
+        if kernel32.GetConsoleMode(handle, ctypes.byref(mode)):
+            # ENABLE_VIRTUAL_TERMINAL_PROCESSING = 0x0004
+            new_mode = mode.value | 0x0004
+            kernel32.SetConsoleMode(handle, new_mode)
+
+
+enable_ansi()
 
 def get_shell():
     global _shell_process
@@ -81,7 +97,7 @@ def run_shell_command(command):
     try:
         if os.name == "nt":
             # Run the command, then print a unique completion marker.
-            shell.stdin.write(
+            shell.stdin.write( #type:ignore
                 f"{command}\r\n"
                 f"echo {marker}\r\n"
             )
