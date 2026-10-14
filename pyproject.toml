@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "chemql-python"
-version = "1.0.3"
+version = "1.1.0"
 authors = [
     { name = "Mohammad Rakibul Islam", email = "rakibulofficial1017@gmail.com" }
 ]

@@ -8,6 +8,8 @@ import argparse
 import time
 import subprocess
 import sys
+import contextlib
+import io
 from pathlib import Path
 from prompt_toolkit import PromptSession
 from prompt_toolkit.lexers import Lexer
@@ -40,10 +42,12 @@ __all__ = [
     "__version__"
 ]
 
-__version__ = "1.0.3"
+__version__ = "1.1.0"
 
 
 _shell_process = None
+NO_ANSI = False
+EXECUTION_HISTORY = []
 
 
 def enable_ansi():
@@ -2138,7 +2142,7 @@ def execute_if_block(header, body):
             return
 
 def split_commands(text):
-    """Split ; commands, but never split inside [], {{}} or strings."""
+    """Split top-level semicolons, respecting quotes and nested syntax."""
     commands = []
     start = 0
     i = 0
@@ -2146,9 +2150,20 @@ def split_commands(text):
     curly = 0
     quote = None
     escaped = False
+    backtick = False
 
     while i < len(text):
         char = text[i]
+
+        if backtick:
+            if char == "`" and not escaped:
+                backtick = False
+            if char == "\\" and not escaped:
+                escaped = True
+            else:
+                escaped = False
+            i += 1
+            continue
 
         if quote is not None:
             if escaped:
@@ -2162,6 +2177,8 @@ def split_commands(text):
 
         if char in ("'", '"'):
             quote = char
+        elif char == "`":
+            backtick = True
         elif text.startswith("{{", i):
             curly += 1
             i += 2
@@ -2184,12 +2201,68 @@ def split_commands(text):
     return commands
 
 
+def _record_execution(query, result, success):
+    EXECUTION_HISTORY.append({
+        "query": str(query),
+        "result": str(result) if result is not None else "",
+        "success": bool(success),
+    })
+
+
+def _dump_history(command):
+    """Implement: dump [all|good|bad] [queries|results] FILE."""
+    try:
+        parts = shlex.split(command)
+    except ValueError as exc:
+        raise ChemQLError(f"Invalid dump command: {exc}") from exc
+
+    if len(parts) == 2:
+        category, mode, filename = "all", "both", parts[1]
+    elif len(parts) == 4:
+        category, mode, filename = parts[1:]
+        if category not in {"all", "good", "bad"} or mode not in {"queries", "results"}:
+            raise ChemQLError("Usage: dump [all|good|bad] [queries|results] FILE")
+    elif len(parts) == 3 and parts[1] in {"all", "good", "bad"}:
+        category, mode, filename = parts[1], "both", parts[2]
+    else:
+        raise ChemQLError("Usage: dump [all|good|bad] [queries|results] FILE")
+
+    records = EXECUTION_HISTORY
+    if category == "good":
+        records = [record for record in records if record["success"]]
+    elif category == "bad":
+        records = [record for record in records if not record["success"]]
+
+    if mode == "queries":
+        content = "\n".join(record["query"] for record in records)
+    elif mode == "results":
+        content = "\n".join(record["result"] for record in records)
+    else:
+        content = "\n\n".join(
+            f"QUERY:\n{record['query']}\nRESULT:\n{record['result']}"
+            for record in records
+        )
+
+    Path(filename).write_text(strip_ansi(content), encoding="utf-8")
+    return f"Dumped {len(records)} execution record(s) to {filename}"
+
+
+def strip_ansi(text):
+    """Remove common ANSI CSI, OSC, and single-character escape sequences."""
+    text = re.sub(r"\x1B\][^\x07]*(?:\x07|\x1B\\)", "", str(text))
+    return re.sub(r"\x1B(?:\[[0-?]*[ -/]*[@-~]|[@-_])", "", text)
+
+
 def process_inline(text):
     """Process one complete line of the chemql language."""
     stripped = text.strip()
 
     if not stripped:
         return
+
+    # History dump command.
+    if stripped.casefold().startswith("dump "):
+        return _dump_history(stripped)
 
     # [ ... ] is Python.
     if stripped.startswith("["):
@@ -2237,84 +2310,182 @@ def join_continuations(lines):
     return joined
 
 
+def _find_unquoted_marker(text, marker, start=0):
+    """Find a marker outside single- and double-quoted strings."""
+    quote = None
+    escaped = False
+    i = start
+    while i <= len(text) - len(marker):
+        char = text[i]
+        if quote is not None:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == quote:
+                quote = None
+            i += 1
+            continue
+        if char in ("'", '"'):
+            quote = char
+            i += 1
+            continue
+        if text.startswith(marker, i):
+            return i
+        i += 1
+    return -1
+
+
 def process_lines(lines):
-    lines = join_continuations(lines)
-    lines = [remove_comments(line) for line in lines]
-    lines = [line for line in lines if line.strip()]
+    """Process ChemQL source, including multiline Python, terminal, and comments."""
+    lines = join_continuations(list(lines))
     i = 0
 
     while i < len(lines):
-        
-        line = lines[i]
-        stripped = line.strip()
+        raw_line = lines[i]
+        stripped = raw_line.strip()
 
-        if not line.strip():
+        if not stripped:
+            i += 1
             continue
 
-        if stripped == "[endblock]":
+        # Multiline comments can start/end within a line, but markers inside
+        # quoted strings are ordinary text. Keep any code surrounding a comment.
+        comment_start = _find_unquoted_marker(raw_line, "///")
+        if comment_start >= 0:
+            prefix = raw_line[:comment_start]
+            same_line_end = _find_unquoted_marker(raw_line, "///", comment_start + 3)
+            if same_line_end >= 0:
+                suffix = raw_line[same_line_end + 3:]
+                lines[i] = prefix + suffix
+                if not lines[i].strip():
+                    i += 1
+                    continue
+                raw_line = lines[i]
+                stripped = raw_line.strip()
+            else:
+                close_line = i + 1
+                close_pos = -1
+                while close_line < len(lines):
+                    close_pos = _find_unquoted_marker(lines[close_line], "///")
+                    if close_pos >= 0:
+                        break
+                    close_line += 1
+                if close_line >= len(lines):
+                    raise SyntaxError("Missing closing `///` for multiline comment")
+                suffix = lines[close_line][close_pos + 3:]
+                lines[i] = prefix
+                del lines[i + 1:close_line + 1]
+                if suffix.strip():
+                    lines.insert(i + 1, suffix)
+                if not prefix.strip():
+                    if suffix.strip():
+                        i += 1
+                    else:
+                        continue
+                else:
+                    raw_line = prefix
+                    stripped = prefix.strip()
+
+        # Multiline Python block. Closing delimiter must be alone on a line;
+        # this avoids mistaking valid expressions such as [[4]]] for a close.
+        if stripped == "[[[":
+            body = []
+            i += 1
+            while i < len(lines) and lines[i].strip() != "]]]":
+                body.append(lines[i])
+                i += 1
+            if i >= len(lines):
+                raise SyntaxError("Missing closing `]]]` for Python block")
+            code = "\n".join(body)
+            captured = io.StringIO()
+            try:
+                with contextlib.redirect_stdout(captured):
+                    value = evaluate_python(code)
+                output = captured.getvalue()
+                if value is not None:
+                    output += str(value)
+                if output:
+                    output = strip_ansi(output) if NO_ANSI else output
+                    print(output, end="" if output.endswith("\n") else "\n")
+                _record_execution("[[[\n" + code + "\n]]]", output, True)
+            except Exception as exc:
+                message = f"Error: {exc}"
+                print(strip_ansi(message) if NO_ANSI else message, file=sys.stderr)
+                _record_execution("[[[\n" + code + "\n]]]", message, False)
+            i += 1
+            continue
+
+        # Multiline terminal block, sent as one script to the persistent shell.
+        if stripped in {"```", "```bash", "```sh", "```cmd", "```terminal"}:
+            body = []
+            i += 1
+            while i < len(lines) and lines[i].strip() != "```":
+                body.append(lines[i])
+                i += 1
+            if i >= len(lines):
+                raise SyntaxError("Missing closing ``` for terminal block")
+            command = "\n".join(body)
+            result = run_shell_command(command)
+            result = strip_ansi(result) if NO_ANSI else result
+            if result:
+                print(result)
+            _record_execution("```\n" + command + "\n```", result, not result.startswith("Shell error:"))
+            i += 1
+            continue
+
+        line = remove_comments(raw_line).strip()
+        if not line:
+            i += 1
+            continue
+
+        if line == "[endblock]":
             raise SyntaxError("Unexpected `[endblock]`")
 
-        # ----------------------------------------
-        # Control-flow block
-        # ----------------------------------------
-
-        if is_python_block_header(stripped):
+        # Existing Python control-flow blocks.
+        if is_python_block_header(line):
             end = find_endblock(lines, i + 1)
             body = lines[i + 1:end]
-
-            code = stripped[1:-1].strip()
-
+            code = line[1:-1].strip()
             if code.startswith("for "):
-                execute_for_block(
-                    stripped,
-                    body
-                )
-
+                execute_for_block(line, body)
             elif code.startswith("while "):
-                execute_while_block(
-                    stripped,
-                    body
-                )
-
+                execute_while_block(line, body)
             elif code.startswith("if "):
-                execute_if_block(
-                    stripped,
-                    body
-                )
-
+                execute_if_block(line, body)
             else:
-                raise SyntaxError(
-                    f"Unsupported block `{code}`"
-                )
-
+                raise SyntaxError(f"Unsupported block `{code}`")
             i = end + 1
             continue
 
-        # ----------------------------------------
-        # break / continue
-        # ----------------------------------------
-
-        if stripped == "[break]":
+        if line == "[break]":
             raise ChemQLBreak()
-
-        if stripped == "[continue]":
+        if line == "[continue]":
             raise ChemQLContinue()
-
-        if stripped == "view":
+        if line == "view":
             view_periodic_table()
             i += 1
             continue
 
-
-        # ----------------------------------------
-        # Normal chemql-language line
-        # ----------------------------------------
-
         for command in split_commands(line):
-            result = process_inline(command)
-
-            if result is not None:
-                print(result)
+            command = command.strip()
+            if not command:
+                continue
+            try:
+                if command.casefold().startswith("dump "):
+                    result = _dump_history(command)
+                else:
+                    result = process_inline(command)
+                rendered = "" if result is None else str(result)
+                if result is not None:
+                    if NO_ANSI:
+                        rendered = strip_ansi(rendered)
+                    print(rendered)
+                _record_execution(command, rendered, True)
+            except Exception as exc:
+                message = f"Error: {exc}"
+                print(strip_ansi(message) if NO_ANSI else message, file=sys.stderr)
+                _record_execution(command, message, False)
 
         i += 1
 
@@ -2558,6 +2729,10 @@ def execute(arguments, query_text=None, positions=None):
 
     if arguments[0].lower() == "sorry":
         return "\033[34mIt's ok, everybody makes mistakes👌\033[0m"
+    
+    if arguments[0].lower() == "view":
+        view_periodic_table()
+        return "Check your browser to view periodic table"
 
     if arguments[0].lower() == "version":
         return __version__
@@ -3175,22 +3350,7 @@ class ChemqlLexer(Lexer):
 
                     tokens.append(("", line[start:i]))
                     continue
-
-                # Python/query blocks
-                if line.startswith("{{", i):
-                    end = line.find("}}", i + 2)
-
-                    if end == -1:
-                        end = len(line) - 2
-
-                    tokens.append((
-                        "class:python",
-                        line[i:end + 2]
-                    ))
-
-                    i = end + 2
-                    continue
-                
+           
                 if line.startswith("//", i):
 
                     end = len(line)
@@ -3203,19 +3363,7 @@ class ChemqlLexer(Lexer):
                     i = end
                     continue
 
-                if line[i] == "[":
-                    end = line.find("]", i + 1)
 
-                    if end == -1:
-                        end = len(line) - 1
-
-                    tokens.append((
-                        "class:python",
-                        line[i:end + 1]
-                    ))
-
-                    i = end + 1
-                    continue
                 
                 if line[i] == "`":
                     end = line.find("`", i + 1)
@@ -3376,6 +3524,21 @@ class ChemqlLexer(Lexer):
                     tokens.append((style, word))
                     continue
 
+                # if line[i] == "[":
+                    end = line.find("]", i + 1)
+
+                    if end == -1:
+                        end = len(line) - 1
+
+                    tokens.append((
+                        "class:python",
+                        line[i:end + 1]
+                    ))
+
+                    i = end + 1
+                    continue
+                
+                
                 # Anything else
                 tokens.append(("", line[i]))
                 i += 1
@@ -3539,7 +3702,7 @@ def intersection(x, y):
 
 PACKAGE_NAME = "chemql-python"
 
-def upgrade_package(version=None):
+def upgrade_package(version=None, force=False):
     """Upgrade ChemQL, optionally to a specific version."""
 
     if version is not None:
@@ -3555,16 +3718,28 @@ def upgrade_package(version=None):
 
         target = f"{PACKAGE_NAME}=={version}"
         print(f"Installing {target}...")
-        cmd = [
-            sys.executable, "-m", "pip", "install",
-            "--force-reinstall", target,
-        ]
+        if force:
+            cmd = [
+                sys.executable, "-m", "pip", "install",
+                "--force-reinstall", target, "--break-system-packages"
+            ]
+        else:
+            cmd = [
+                sys.executable, "-m", "pip", "install",
+                "--force-reinstall", target,
+            ]
     else:
         print(f"Upgrading {PACKAGE_NAME} to the latest version...")
-        cmd = [
-            sys.executable, "-m", "pip", "install",
-            "--upgrade", PACKAGE_NAME,
-        ]
+        if force:
+            cmd = [
+                sys.executable, "-m", "pip", "install",
+                "--upgrade", PACKAGE_NAME, "--break-system-packages"
+            ]
+        else:
+            cmd = [
+                sys.executable, "-m", "pip", "install",
+                "--upgrade", PACKAGE_NAME,
+            ]
 
     try:
         result = subprocess.run(cmd, check=False)
@@ -3608,6 +3783,18 @@ def main():
     )
 
     parser.add_argument(
+        "--no-ansi",
+        action="store_true",
+        help="Strip ANSI escape sequences from output.",
+    )
+
+    parser.add_argument(
+        "-o", "--output",
+        metavar="FILE",
+        help="Write -c or -f output to a file without ANSI sequences.",
+    )
+
+    parser.add_argument(
         "-v",
         "--version",
         action="version",
@@ -3624,6 +3811,13 @@ def main():
         help="Upgrade ChemQL, optionally to a specific version.",
     )
 
+    parser.add_argument(
+    "--force",
+    "--dangerously",
+    dest="force",
+    action="store_true",
+    help="Force the upgrade, including breaking system-package protections.",
+    )
 
     args = parser.parse_args()
 
@@ -3631,20 +3825,35 @@ def main():
         version_target = (
             None if args.upgrade == "latest" else args.upgrade
         )
-        sys.exit(upgrade_package(version_target))
+        sys.exit(upgrade_package(version_target, args.force))
 
-    if args.command is not None:
-        process_lines(args.command.splitlines())
+    global NO_ANSI
+    NO_ANSI = args.no_ansi or bool(args.output)
+
+    if args.output and args.command is None and args.file is None:
+        parser.error("-o/--output requires -c/--command or -f/--file")
+
+    if args.command is not None or args.file:
+        if args.command is not None:
+            code = args.command
+        else:
+            code = Path(args.file).read_text(encoding="utf-8")
+
+        if args.output:
+            stdout_capture = io.StringIO()
+            stderr_capture = io.StringIO()
+            with contextlib.redirect_stdout(stdout_capture), contextlib.redirect_stderr(stderr_capture):
+                process_lines(code.splitlines())
+            output_text = stdout_capture.getvalue() + stderr_capture.getvalue()
+            Path(args.output).write_text(strip_ansi(output_text), encoding="utf-8")
+        else:
+            process_lines(code.splitlines())
         return
-    elif args.file:
-        with open(args.file) as f:
-            code = f.read()
-        process_lines(code.splitlines())
 
-    elif not sys.stdin.isatty():
+    if not sys.stdin.isatty():
         piped = sys.stdin.read()
         if piped.strip():
-            process_lines([piped.strip()])
+            process_lines(piped.splitlines())
         else:
             run_interactive()
     else:
@@ -3652,11 +3861,12 @@ def main():
 
 def run_interactive():
         history = []
-        print("\033[1mType help or ? for help\033[0m")
+        welcome = "Type help or ? for help"
+        print(welcome if NO_ANSI else "\033[1m" + welcome + "\033[0m")
         session = PromptSession(
             lexer=ChemqlLexer(),
             completer=ChemqlCompleter(),
-            style=chemql_style,
+            style=Style.from_dict({}) if NO_ANSI else chemql_style,
             reserve_space_for_menu=0,
         )
         while True:
@@ -3668,7 +3878,8 @@ def run_interactive():
                 break
 
             except EOFError:
-                print("\n\033[34mUse \033[1mCTRL+C\033[22m or type '\033[1mexit\033[22m' to exit\033[0m")
+                message = "\nUse CTRL+C or type 'exit' to exit"
+                print(message if NO_ANSI else "\n\033[34mUse \033[1mCTRL+C\033[22m or type '\033[1mexit\033[22m' to exit\033[0m")
                 continue
             if first_line.strip() == "":
                 continue
@@ -3676,39 +3887,19 @@ def run_interactive():
                 break
 
             elif first_line.strip() in ("?", "help"):
-                print(HELP)
+                print(strip_ansi(HELP) if NO_ANSI else HELP)
                 continue
 
             elif first_line.strip().lower() == "sorry":
-                print("\033[34mIt's ok, everybody makes mistakes👌\033[0m")
+                message = "It's ok, everybody makes mistakes👌"
+                print(message if NO_ANSI else "\033[34m" + message + "\033[0m")
                 continue
             
-            elif first_line.strip().split()[0] == "dump":
-                arguments = first_line.strip().split()
-
-                if len(arguments) != 2:
-                    print("Usage: dump <file>")
-                else:
-                    filename = arguments[1]
-
-                    try:
-                        with open(filename, "x") as f:
-                            f.write("\n".join(history))
-
-                    except FileExistsError:
-                        action = choice(
-                            message=f"`{filename}` already exists. What would you like to do?",
-                            options=[("append", "Append to existing file"), ("overwrite", "Overwrite existing file"), ("cancel", "Cancel")],
-                        )
-
-                        if action == "append":
-                            with open(filename, "a") as f:
-                                f.write("\n" + "\n".join(history))
-
-                        elif action == "overwrite":
-                            with open(filename, "w") as f:
-                                f.write("\n".join(history))
-
+            elif first_line.strip().split()[0].casefold() == "dump":
+                try:
+                    print(_dump_history(first_line.strip()))
+                except Exception as exc:
+                    print(f"Error: {exc}")
                 continue
         
             if not first_line.strip():
@@ -3728,13 +3919,42 @@ def run_interactive():
                         print()
                         break
                     except EOFError:
-                        print("\n\033[31mError: Incomplete continued input\033[0m")
+                        message = "Error: Incomplete continued input"
+                        print("\n" + (message if NO_ANSI else "\033[31m" + message + "\033[0m"))
                         break
 
                     current_line += next_line
                 else:
                     lines.append(current_line)
                     break
+
+            # Collect new multiline Python, terminal, and comment blocks in the REPL.
+            if lines and lines[0].strip() in {"[[[", "```", "```bash", "```sh", "```cmd", "```terminal"}:
+                opener = lines[0].strip()
+                closer = "]]]" if opener == "[[[" else "```"
+                while not (len(lines) > 1 and lines[-1].strip() == closer):
+                    try:
+                        next_line = session.prompt("... ")
+                    except (KeyboardInterrupt, EOFError):
+                        print("\nIncomplete multiline block")
+                        lines = []
+                        break
+                    lines.append(next_line)
+                if not lines:
+                    continue
+
+            elif lines and "///" in lines[0]:
+                # Collect multiline comment until its closing marker.
+                while sum(line.count("///") for line in lines) < 2:
+                    try:
+                        next_line = session.prompt("... ")
+                    except (KeyboardInterrupt, EOFError):
+                        print("\nIncomplete multiline comment")
+                        lines = []
+                        break
+                    lines.append(next_line)
+                if not lines:
+                    continue
 
             # Collect a Python control block until its matching [endblock].
             if lines and is_python_block_header(lines[0].strip()):
@@ -3747,7 +3967,8 @@ def run_interactive():
                         print()
                         break
                     except EOFError:
-                        print("\n\033[31mMissing `\033[1m[endblock]\033[22m`\033[0m")
+                        message = "Missing `[endblock]`"
+                        print("\n" + (message if NO_ANSI else "\033[31mMissing `\033[1m[endblock]\033[22m`\033[0m"))
                         break
 
                     lines.append(line)
@@ -3763,7 +3984,8 @@ def run_interactive():
                 process_lines(lines)
                 history.extend(lines)
             except Exception as e:
-                print(f"\033[31mError: {e}\033[0m")
+                message = f"Error: {e}"
+                print(message if NO_ANSI else f"\033[31m{message}\033[0m")
 
 
 if __name__ == "__main__":
