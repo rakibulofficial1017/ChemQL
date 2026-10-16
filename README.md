@@ -4,13 +4,15 @@
 shell commands in one interactive environment.**
 
 ChemQL is a command-line chemistry query language for exploring chemical
-elements, molecules, and reactions. It combines a small SQL-inspired
+elements, molecules, and reactions. Version 1.2.2 combines database-style
+chemistry queries, reaction tools, Python interoperability, reusable functions
+and macros, and a persistent shell in one scriptable environment. It combines a small SQL-inspired
 query syntax with a persistent Python environment, reaction utilities,
 optional external molecule lookup, and tools for running repeatable
 scripts.
 
-> **Version covered by this README:** 1.1.0\
-> The examples below describe the current ChemQL 1.1.0 source. Dataset
+> **Version covered by this README:** 1.2.2\
+> The examples below describe the ChemQL 1.2.2 source. Dataset
 > contents and external-service availability can affect individual
 > lookup results.
 
@@ -29,6 +31,7 @@ scripts.
     sources](#molecules-from-external-chemistry-sources)
 -   [Chemical reactions](#chemical-reactions)
 -   [Balancing equations](#balancing-equations)
+-   [Preprocessor, functions, and macros](#preprocessor-functions-and-macros)
 -   [Mixing ChemQL with Python](#mixing-chemql-with-python)
 -   [Multiline Python blocks](#multiline-python-blocks)
 -   [Running shell commands](#running-shell-commands)
@@ -68,6 +71,12 @@ scripts.
 -   **Hybrid Python:** execute Python expressions and statements, retain
     variables between commands, and embed ChemQL query results directly
     inside Python.
+-   **Preprocessor definitions:** define reusable literal values with `define`
+    and `@NAME` references.
+-   **User-defined functions:** define reusable Python-backed functions with
+    positional arguments and return values.
+-   **Source-generating macros:** define reusable ChemQL command sequences
+    and expand them with arguments.
 -   **Python control flow:** use `if`/`elif`/`else`, `for`, `while`,
     `break`, and `continue` blocks.
 -   **Multiline Python:** use `[[[` ... `]]]` for a single multiline
@@ -514,6 +523,71 @@ balance N2 + H2 <-> NH3
 The result is represented as a reaction object, which can also be
 queried or inspected from Python.
 
+## Preprocessor, functions, and macros
+
+ChemQL 1.2.2 adds three ways to reuse values and logic. These declarations
+are processed in source order: definitions affect later lines, not earlier
+ones. They persist during the current ChemQL process/session; they are not
+saved automatically between separate launches.
+
+### Literal definitions
+
+Use `define NAME value` to store a literal replacement. Reference it as
+`@NAME` in later ChemQL commands, Python blocks, or shell commands.
+
+``` text
+define MAX 9
+define ELEMENT "Hydrogen"
+definitions
+
+search elements number <= @MAX return name symbol number
+search elements name = @ELEMENT
+remove definition MAX
+```
+
+Definitions are textual replacements, not typed variables. They are
+expanded literally, including inside quoted strings, and a definition's
+replacement text is not recursively expanded in the same pass. `definitions`
+shows active definitions; `remove definition NAME` removes one.
+
+### User-defined functions
+
+Declare a function with `func NAME` and finish it with `endfunc`. Use `\1`,
+`\2`, and so on as positional argument placeholders. A `return` line gives
+the function's result; arguments are evaluated as Python expressions.
+
+``` text
+func square
+return [\1 * \1]
+endfunc
+
+square{5}
+search molecules molecular_weight < square{5} return name formula molecular_weight
+```
+
+Functions can contain multiple commands and `[[[` multiline Python blocks.
+Function-local Python assignments are restored after the call; return a value
+explicitly when you need one. Function calls use braces, for example
+`name{argument1, argument2}`.
+
+### Macros
+
+Macros expand into ChemQL source lines. Declare one using `define NAME{}`
+and close it with `enddefine`. Use `\1`, `\2`, etc. for arguments, then call
+the macro with `@NAME{arguments}`.
+
+``` text
+define light_molecules{}
+search molecules molecular_weight < \1 return name formula molecular_weight
+enddefine
+
+@light_molecules{50}
+```
+
+Macros are useful for reusable query recipes or command sequences. Arguments
+are substituted into the macro's source text, so quote or validate values
+appropriately when passing text that contains spaces or special characters.
+
 ## Mixing ChemQL with Python
 
 ChemQL is a hybrid language: a single-line Python expression or
@@ -741,6 +815,19 @@ cat explore.cql | chemql
 On Windows PowerShell, use `Get-Content explore.cql | chemql` or
 redirect a file into the command.
 
+### Show version and upgrade
+
+``` bash
+chemql --version
+chemql --upgrade
+chemql --upgrade 1.2.2
+```
+
+`--upgrade` installs the latest published `chemql-python` release; supplying a
+version requests that specific release. The optional `--force` (also accepted
+as `--dangerously`) bypasses system-package protections. Use that option only
+when you understand the consequences for your Python environment.
+
 ### Disable ANSI escape sequences
 
 ``` bash
@@ -962,11 +1049,6 @@ against appropriate primary or authoritative sources.
 Python and shell blocks execute real code with your operating-system
 user's permissions. Do not run scripts or commands you do not trust.
 
-## License
+------------------------------------------------------------------------
 
-[MIT License](https://github.com/rakibulofficial1017/ChemQL/blob/main/LICENSE)
-
-Created by [Mohammad Rakibul Islam](https://github.com/rakibulofficial1017).
-Source code: [rakibulofficial1017/ChemQL](https://github.com/rakibulofficial1017/ChemQL).
-
-
+**ChemQL --- Python Chemistry Query Language**

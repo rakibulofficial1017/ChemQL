@@ -12,9 +12,14 @@ import contextlib
 import io
 from pathlib import Path
 from prompt_toolkit import PromptSession
+from prompt_toolkit.key_binding import KeyBindings
+from prompt_toolkit.keys import Keys
 from prompt_toolkit.lexers import Lexer
 import atexit
 import uuid
+import select
+import queue
+import threading
 from prompt_toolkit.styles import Style
 from prompt_toolkit.completion import Completer, Completion
 import urllib.parse
@@ -42,107 +47,562 @@ __all__ = [
     "__version__"
 ]
 
-__version__ = "1.1.0"
+__version__ = "1.2.2"
+
+# Persistent preprocessor/function state for the current ChemQL session.
+DEFINITIONS = {}
+FUNCTIONS = {}
+MACROS = {}
+EXECUTION_HISTORY = []
+_DEFINITION_NAME = r"[A-Za-z_][A-Za-z0-9_]*"
+
+def _expand_definitions(line):
+    """Replace @NAME literally, including inside strings, using current definitions."""
+    if not DEFINITIONS:
+        return line
+    pattern = re.compile(r"@(" + _DEFINITION_NAME + r")")
+    # One substitution pass only: replacement text is not recursively expanded.
+    return pattern.sub(lambda match: DEFINITIONS.get(match.group(1), match.group(0)), line)
+
+def _split_function_arguments(source):
+    """Split comma-separated arguments while respecting nested delimiters and strings."""
+    args, start = [], 0
+    quote = None
+    escaped = False
+    round_depth = square_depth = curly_depth = double_curly_depth = 0
+    i = 0
+    while i < len(source):
+        ch = source[i]
+        if quote is not None:
+            if escaped:
+                escaped = False
+            elif ch == "\\":
+                escaped = True
+            elif ch == quote:
+                quote = None
+            i += 1
+            continue
+        if ch in ("'", '"'):
+            quote = ch
+        elif source.startswith("{{", i):
+            double_curly_depth += 1
+            i += 2
+            continue
+        elif source.startswith("}}", i) and double_curly_depth:
+            double_curly_depth -= 1
+            i += 2
+            continue
+        elif not double_curly_depth:
+            if ch == "(": round_depth += 1
+            elif ch == ")": round_depth = max(0, round_depth - 1)
+            elif ch == "[": square_depth += 1
+            elif ch == "]": square_depth = max(0, square_depth - 1)
+            elif ch == "{": curly_depth += 1
+            elif ch == "}": curly_depth = max(0, curly_depth - 1)
+            elif ch == "," and not (round_depth or square_depth or curly_depth):
+                args.append(source[start:i].strip())
+                start = i + 1
+        i += 1
+    tail = source[start:].strip()
+    if tail or source.strip():
+        args.append(tail)
+    return args
+
+def _call_function(name, arguments):
+    """Call a ChemQL function, including `let` assignments and block syntax."""
+    if name not in FUNCTIONS:
+        raise NameError(f"Unknown ChemQL function `{name}`")
+
+    values = [evaluate_python(arg) for arg in arguments]
+    definition = FUNCTIONS[name]
+    saved_globals = python_globals.copy()
+    saved_chemql_variables = CHEMQL_VARIABLES.copy()
+    had_arguments = "arguments" in python_globals
+    saved_arguments = python_globals.get("arguments")
+    # `arguments` contains only the supplied arguments, not the function name.
+    python_globals["arguments"] = list(values)
+
+    def substitute_parameters(source):
+        # Replace positional placeholders as tokens, so \1 does not corrupt \10.
+        return re.sub(
+            r"\\(\d+)",
+            lambda match: repr(values[int(match.group(1)) - 1])
+            if 0 < int(match.group(1)) <= len(values) else match.group(0),
+            source,
+        )
+
+    def normalize_let_line(source):
+        """Translate `let name = expression` to a Python assignment block."""
+        match = re.fullmatch(r"\s*let\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*", source)
+        if not match:
+            return source
+        variable, expression = match.groups()
+        expression = substitute_parameters(expression)
+        # In ChemQL function expressions, [i] means evaluate i, rather than
+        # create a Python list containing i. Keep this deliberately simple and
+        # avoid changing arbitrary Python list literals.
+        expression = re.sub(
+            r"\[\s*([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*\]",
+            r"(\1)",
+            expression,
+        )
+        return f"[{variable} = {expression}]"
+
+    try:
+        body = definition["body"]
+        i = 0
+        while i < len(body):
+            line = body[i].strip()
+            if not line:
+                i += 1
+                continue
+
+            # A function may contain a multiline [[[ Python block ]]].
+            if line == "[[[":
+                block = []
+                i += 1
+                while i < len(body) and body[i].strip() != "]]]":
+                    block.append(substitute_parameters(body[i]))
+                    i += 1
+                if i >= len(body):
+                    raise SyntaxError(f"Missing `]]]` in function `{name}`")
+                evaluate_python("\n".join(block))
+                i += 1
+                continue
+
+            # Support ChemQL's [for ...], [if ...], and [while ...] blocks
+            # inside functions, using the same block executors as the REPL.
+            if is_python_block_header(line):
+                end = find_endblock(body, i + 1)
+                block_body = [
+                    normalize_let_line(substitute_parameters(source_line))
+                    for source_line in body[i + 1:end]
+                ]
+                code = line[1:-1].strip()
+                if code.startswith("for "):
+                    execute_for_block(line, block_body)
+                elif code.startswith("while "):
+                    execute_while_block(line, block_body)
+                elif code.startswith("if "):
+                    execute_if_block(line, block_body)
+                else:
+                    raise SyntaxError(f"Unsupported function block `{code}`")
+                i = end + 1
+                continue
+
+            if line == "[endblock]":
+                raise SyntaxError(f"Unexpected `[endblock]` in function `{name}`")
+
+            if line.startswith("return"):
+                expression = line[len("return"):].strip()
+                if expression.startswith("[") and expression.endswith("]"):
+                    expression = expression[1:-1]
+                expression = substitute_parameters(expression)
+                return evaluate_python(expression) if expression else None
+
+            normalized = normalize_let_line(line)
+            if normalized != line:
+                # The wrapper is ChemQL syntax; pass the assignment itself to Python.
+                evaluate_python(normalized[1:-1])
+            else:
+                evaluate_python(substitute_parameters(line))
+            i += 1
+        return None
+    finally:
+        # Keep function-local assignments from leaking into the caller's namespace.
+        python_globals.clear()
+        python_globals.update(saved_globals)
+        CHEMQL_VARIABLES.clear()
+        CHEMQL_VARIABLES.update(saved_chemql_variables)
+        if had_arguments:
+            python_globals["arguments"] = saved_arguments
+        else:
+            python_globals.pop("arguments", None)
+
+def _expand_function_calls(text):
+    """Expand function calls of the form name{arg1, arg2} in query text."""
+    # This pass is only for top-level query expressions, not arbitrary strings.
+    # The scanner preserves quoted strings and resolves innermost calls first.
+    for _ in range(100):
+        changed = False
+        quote = None
+        escaped = False
+        i = 0
+        while i < len(text):
+            ch = text[i]
+            if quote is not None:
+                if escaped: escaped = False
+                elif ch == "\\": escaped = True
+                elif ch == quote: quote = None
+                i += 1
+                continue
+            if ch in ("'", '"'):
+                quote = ch; i += 1; continue
+            match = re.match(r"([A-Za-z_][A-Za-z0-9_]*(?:::[A-Za-z_][A-Za-z0-9_]*)?)\{", text[i:])
+            if match:
+                name = match.group(1)
+                if name in FUNCTIONS:
+                    opening = i + match.end() - 1
+                    end = find_matching(text, opening, "{", "}")
+                    args = _split_function_arguments(text[opening + 1:end])
+                    value = _call_function(name, args)
+                    replacement = repr(value) if isinstance(value, str) else ("None" if value is None else str(value))
+                    text = text[:i] + replacement + text[end + 1:]
+                    changed = True
+                    break
+            i += 1
+        if not changed:
+            return text
+    raise SyntaxError("Function expansion exceeded 100 levels (possible recursion)")
 
 
 _shell_process = None
-NO_ANSI = False
-EXECUTION_HISTORY = []
+_shell_master_fd = None
+_shell_prompt_ready = False
+_shell_output_streamed = False
+_shell_output_queue = None
+_shell_reader_thread = None
+_shell_prompt = f"__CHEMQL_PROMPT_{uuid.uuid4().hex}__"
 
-
-def enable_ansi():
-    """Enable ANSI escape code support on Windows and Unix-like terminals."""
-    if os.name == 'nt':
-        import ctypes
-        kernel32 = ctypes.windll.kernel32
-        # STD_OUTPUT_HANDLE = -11
-        handle = kernel32.GetStdHandle(-11)
-        mode = ctypes.c_ulong()
-        if kernel32.GetConsoleMode(handle, ctypes.byref(mode)):
-            # ENABLE_VIRTUAL_TERMINAL_PROCESSING = 0x0004
-            new_mode = mode.value | 0x0004
-            kernel32.SetConsoleMode(handle, new_mode)
-
-
-enable_ansi()
 
 def get_shell():
-    global _shell_process
+    """Return the persistent OS shell process for the current platform."""
+    global _shell_process, _shell_master_fd, _shell_prompt_ready
+    global _shell_output_queue, _shell_reader_thread
 
-    if _shell_process is None or _shell_process.poll() is not None:
-        if os.name == "nt":
-            _shell_process = subprocess.Popen(
-                ["cmd.exe", "/D", "/Q", "/K", "prompt $S"],
-                stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-                bufsize=1,
-            )
-        else:
+    if _shell_process is not None and _shell_process.poll() is None:
+        return _shell_process
+
+    # Clean up any stale shell/PTY left by an interrupted command.
+    close_shell()
+
+    if os.name == "nt":
+        # Use PowerShell as ChemQL's native Windows shell. Its prompt function
+        # emits a private marker when a command finishes, so we do not append a
+        # marker to stdin (which would accidentally become Read-Host input).
+        setup = (
+            f"function global:prompt {{ [Console]::Out.WriteLine('{_shell_prompt}'); return '' }}"
+        )
+        _shell_process = subprocess.Popen(
+            ["powershell.exe", "-NoLogo", "-NoProfile", "-NoExit", "-Command", setup],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+        )
+        output_queue = queue.Queue()
+        _shell_output_queue = output_queue
+        process = _shell_process
+
+        def read_output():
+            try:
+                while True:
+                    character = process.stdout.read(1)  # type: ignore
+                    if not character:
+                        break
+                    output_queue.put(character)
+            except (OSError, ValueError):
+                pass
+            finally:
+                output_queue.put(None)
+
+        _shell_reader_thread = threading.Thread(target=read_output, daemon=True)
+        _shell_reader_thread.start()
+    else:
+        import fcntl
+        import pty
+        import termios
+
+        master_fd, slave_fd = pty.openpty()
+        # Don't echo bytes sent by ChemQL or keyboard input twice. Keep ISIG
+        # enabled so forwarding Ctrl-C to the PTY interrupts the foreground job.
+        attrs = termios.tcgetattr(slave_fd)
+        attrs[3] &= ~termios.ECHO
+        termios.tcsetattr(slave_fd, termios.TCSANOW, attrs)
+
+        def attach_controlling_terminal():
+            # Popen(start_new_session=True) has already called setsid().
+            fcntl.ioctl(slave_fd, termios.TIOCSCTTY, 0)
+
+        try:
             _shell_process = subprocess.Popen(
                 ["bash", "--noprofile", "--norc"],
-                stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-                bufsize=1,
+                stdin=slave_fd,
+                stdout=slave_fd,
+                stderr=slave_fd,
+                close_fds=True,
+                start_new_session=True,
+                preexec_fn=attach_controlling_terminal,
+                env={**os.environ, "PS1": _shell_prompt, "PS2": ""},
             )
+            _shell_master_fd = master_fd
+            _shell_prompt_ready = False
+        except Exception:
+            os.close(master_fd)
+            raise
+        finally:
+            os.close(slave_fd)
 
     return _shell_process
 
 
-def run_shell_command(command):
+def _run_shell_command_posix(command, marker=None):
+    """Run a command through the persistent PTY and forward keyboard input.
+
+    A unique shell prompt marks command completion. Unlike appending an `echo`
+    marker to stdin, this does not accidentally feed that marker to commands
+    such as `read -p` that consume keyboard input.
+    """
+    global _shell_prompt_ready, _shell_output_streamed
+    _shell_output_streamed = False
     shell = get_shell()
+    master_fd = _shell_master_fd
+    if master_fd is None:
+        return "Shell error: pseudo-terminal was not initialized."
 
-    command = command.replace("\r\n", "\n").replace("\r", "\n").rstrip("\n")
-    marker = f"__CHEMQL_END_{uuid.uuid4().hex}__"
+    prompt_bytes = _shell_prompt.encode()
 
-    try:
-        if os.name == "nt":
-            # Run the command, then print a unique completion marker.
-            shell.stdin.write( #type:ignore
-                f"{command}\r\n"
-                f"echo {marker}\r\n"
-            )
-        else:
-            shell.stdin.write( #type:ignore
-                f"{command}\n"
-                f"printf '\\n%s\\n' '{marker}'\n"
-            )
-
-        shell.stdin.flush() #type:ignore
-
-        output = []
+    def wait_for_prompt(forward_keyboard=False):
+        collected = bytearray()
+        streamed_pos = 0
+        stdin_fd = None
+        try:
+            if forward_keyboard and sys.stdin is not None and sys.stdin.isatty():
+                stdin_fd = sys.stdin.fileno()
+        except (AttributeError, OSError, ValueError):
+            stdin_fd = None
 
         while True:
-            line = shell.stdout.readline() #type:ignore
+            readers = [master_fd]
+            if stdin_fd is not None:
+                readers.append(stdin_fd)
+            try:
+                ready, _, _ = select.select(readers, [], [])
+            except KeyboardInterrupt:
+                # ChemQL owns the user's terminal, so forward Ctrl-C into the
+                # child PTY to interrupt its foreground command.
+                try:
+                    os.write(master_fd, b"\x03")
+                except OSError:
+                    pass
+                continue
 
-            if not line:
-                return "\n".join(output) or "Shell session terminated."
+            if stdin_fd is not None and stdin_fd in ready:
+                try:
+                    typed = os.read(stdin_fd, 4096)
+                except OSError:
+                    typed = b""
+                if typed:
+                    try:
+                        os.write(master_fd, typed)
+                    except OSError:
+                        stdin_fd = None
+                else:
+                    stdin_fd = None
 
-            line = line.rstrip("\r\n")
+            if master_fd in ready:
+                try:
+                    chunk = os.read(master_fd, 4096)
+                except OSError:
+                    chunk = b""
+                if not chunk:
+                    return None
+                collected.extend(chunk)
+                prompt_pos = collected.find(prompt_bytes)
+                if forward_keyboard:
+                    # Stream command output immediately so prompts such as
+                    # `read -p` are visible while the command waits for input.
+                    # Hold back only a suffix that might be the start of PS1.
+                    safe_end = prompt_pos if prompt_pos >= 0 else len(collected)
+                    if prompt_pos < 0:
+                        max_overlap = min(len(prompt_bytes) - 1, len(collected))
+                        overlap = 0
+                        for size in range(max_overlap, 0, -1):
+                            if collected.endswith(prompt_bytes[:size]):
+                                overlap = size
+                                break
+                        safe_end -= overlap
+                    if safe_end > streamed_pos:
+                        visible = bytes(collected[streamed_pos:safe_end])
+                        try:
+                            sys.stdout.write(visible.decode(errors="replace"))
+                            sys.stdout.flush()
+                            _shell_output_streamed = True
+                        except (OSError, UnicodeError):
+                            pass
+                        streamed_pos = safe_end
+                if prompt_pos >= 0:
+                    before = bytes(collected[:prompt_pos])
+                    # Strip terminal CRs while preserving meaningful output.
+                    return before.decode(errors="replace").replace("\r\n", "\n").rstrip("\r\n ")
 
-            if marker in line:
-                break
+    # Bash emits a prompt immediately on startup. Consume it before submitting
+    # the first command; after each command the same prompt signals completion.
+    if not _shell_prompt_ready:
+        initial = wait_for_prompt(forward_keyboard=False)
+        if initial is None:
+            close_shell()
+            return "Shell session terminated."
+        _shell_prompt_ready = True
 
-            output.append(line)
-
-        return "\n".join(output).strip()
-
+    try:
+        os.write(master_fd, (command + "\n").encode())
+        result = wait_for_prompt(forward_keyboard=True)
+        if result is None:
+            close_shell()
+            return "Shell session terminated."
+        return result
     except (BrokenPipeError, OSError) as exc:
+        close_shell()
         return f"Shell error: {exc}"
 
+
+def _run_shell_command_windows(command):
+    """Run a command in persistent PowerShell and forward line input interactively."""
+    global _shell_prompt_ready, _shell_output_streamed
+    shell = get_shell()
+    output_queue = _shell_output_queue
+    if output_queue is None:
+        return "Shell error: PowerShell output reader was not initialized."
+
+    import msvcrt
+
+    def wait_for_prompt(stream_output):
+        collected = ""
+        streamed_pos = 0
+        marker = _shell_prompt
+        marker_len = len(marker)
+        stdin_is_tty = False
+        try:
+            stdin_is_tty = sys.stdin is not None and sys.stdin.isatty()
+        except (AttributeError, OSError, ValueError):
+            pass
+        pending_input = ""
+
+        while True:
+            # While a shell command is running, pass complete lines typed by the
+            # user to PowerShell. This lets Read-Host receive real input rather
+            # than consuming a completion marker injected by ChemQL.
+            if stdin_is_tty:
+                try:
+                    while msvcrt.kbhit(): #type:ignore
+                        key = msvcrt.getwch()  #type:ignore
+                        if key in ("\x00", "\xe0"):  #type:ignore
+                            # Consume the second half of a Windows special key.
+                            if msvcrt.kbhit():  #type:ignore
+                                msvcrt.getwch()  #type:ignore
+                        elif key in ("\r", "\n"):
+                            shell.stdin.write(pending_input + "\r\n")  # type: ignore
+                            shell.stdin.flush()  # type: ignore
+                            pending_input = ""
+                        elif key == "\b":
+                            pending_input = pending_input[:-1]
+                        elif key == "\x03":
+                            # Ctrl-C is sent as a line input; reset is safer than
+                            # leaving ChemQL stuck in a nested interactive prompt.
+                            close_shell()
+                            return None
+                        elif key >= " " and key != "\x7f":
+                            pending_input += key
+                except (OSError, ValueError):
+                    stdin_is_tty = False
+
+            try:
+                character = output_queue.get(timeout=0.04)
+            except queue.Empty:
+                continue
+            if character is None:
+                return None
+
+            collected += character
+            marker_pos = collected.find(marker)
+            if marker_pos >= 0:
+                visible = collected[:marker_pos]
+                if stream_output and marker_pos > streamed_pos:
+                    sys.stdout.write(collected[streamed_pos:marker_pos])
+                    sys.stdout.flush()
+                    _shell_output_streamed = True
+                return visible.replace("\r\n", "\n").rstrip("\r\n ")
+
+            if stream_output:
+                # Stream immediately, retaining the full output for history and
+                # only withholding a suffix that could begin the prompt marker.
+                overlap = 0
+                max_overlap = min(marker_len - 1, len(collected))
+                for size in range(max_overlap, 0, -1):
+                    if collected.endswith(marker[:size]):
+                        overlap = size
+                        break
+                safe_end = len(collected) - overlap
+                if safe_end > streamed_pos:
+                    sys.stdout.write(collected[streamed_pos:safe_end])
+                    sys.stdout.flush()
+                    _shell_output_streamed = True
+                    streamed_pos = safe_end
+
+    if not _shell_prompt_ready:
+        initial = wait_for_prompt(stream_output=False)
+        if initial is None:
+            close_shell()
+            return "Shell session terminated."
+        _shell_prompt_ready = True
+
+    try:
+        shell.stdin.write(command.replace("\n", "\r\n") + "\r\n")  # type: ignore
+        shell.stdin.flush()  # type: ignore
+        result = wait_for_prompt(stream_output=True)
+        if result is None:
+            close_shell()
+            return "Shell session terminated."
+        return result
+    except (BrokenPipeError, OSError, ValueError) as exc:
+        close_shell()
+        return f"Shell error: {exc}"
+
+
+def run_shell_command(command):
+    global _shell_output_streamed
+    command = command.replace("\r\n", "\n").replace("\r", "\n").rstrip("\n")
+    try:
+        if os.name == "nt":
+            if command.strip().casefold() in {"powershell", "powershell.exe", "pwsh", "pwsh.exe"}:
+                return "ChemQL already uses PowerShell on Windows; run the command directly instead of starting a nested shell."
+            _shell_output_streamed = False
+            return _run_shell_command_windows(command)
+        return _run_shell_command_posix(command)
+    except KeyboardInterrupt:
+        close_shell()
+        return "Shell command interrupted. Shell session was reset."
+
+
 def close_shell():
-    """Clean up the persistent shell on exit."""
-    global _shell_process
+    """Clean up the persistent shell and its pseudo-terminal on exit."""
+    global _shell_process, _shell_master_fd, _shell_prompt_ready
+    global _shell_output_queue, _shell_reader_thread
 
     if _shell_process is not None:
         if _shell_process.poll() is None:
-            _shell_process.terminate()
-            _shell_process.wait(timeout=2)
-
+            try:
+                _shell_process.terminate()
+                _shell_process.wait(timeout=2)
+            except (subprocess.TimeoutExpired, OSError):
+                try:
+                    _shell_process.kill()
+                    _shell_process.wait(timeout=2)
+                except (subprocess.TimeoutExpired, OSError):
+                    pass
         _shell_process = None
+
+    if _shell_master_fd is not None:
+        try:
+            os.close(_shell_master_fd)
+        except OSError:
+            pass
+        _shell_master_fd = None
+    _shell_prompt_ready = False
+    _shell_output_queue = None
+    _shell_reader_thread = None
 
 
 atexit.register(close_shell)
@@ -1625,6 +2085,14 @@ reaction_state = {
 
 # Python variables persist for the whole session.
 python_globals = {"__builtins__": __builtins__, "math": math}
+CHEMQL_VARIABLES = set()
+
+def _chemql_value(expression):
+    """Resolve a native ChemQL variable, otherwise evaluate a query expression."""
+    expression = expression.strip()
+    if re.fullmatch(_DEFINITION_NAME, expression) and expression in CHEMQL_VARIABLES:
+        return python_globals[expression]
+    return execute_query_block(expression)
 
 
 def find_matching(text, start, opening, closing):
@@ -1706,7 +2174,7 @@ def interpolate_python_queries(code):
             end = find_matching(code, i, "{{", "}}")
             query = code[i + 2:end].strip()
 
-            value = execute_query_block(query)
+            value = _chemql_value(query)
 
             name = f"__chemql_query_{query_index}"
             query_index += 1
@@ -1803,6 +2271,7 @@ def _as_result_list(result):
 def execute_query_text(text):
     """Execute plain query-language text."""
     text = text.strip()
+    text = _expand_function_calls(text)
     set_expression = _split_set_operations(text)
     if set_expression:
         parts, ops = set_expression
@@ -1873,7 +2342,8 @@ def evaluate_python(code):
         if code.startswith("{{", i):
             end = find_matching(code, i, "{{", "}}")
             query = code[i + 2:end].strip()
-            value = execute_query_block(query)
+            query = _expand_function_calls(query)
+            value = _chemql_value(query)
 
             name = f"__chemql_query_{query_index}"
             query_index += 1
@@ -1886,19 +2356,22 @@ def evaluate_python(code):
         i += 1
 
     rewritten = "".join(rewritten)
+    rewritten = _expand_function_calls(rewritten)
 
     python_globals.update(query_values)
 
     try:
         tree = ast.parse(rewritten, mode="eval")
     except SyntaxError:
-        exec(rewritten, python_globals)
+        module = ast.parse(rewritten, mode="exec")
+        for node in ast.walk(module):
+            if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
+                if isinstance(node.ctx, ast.Store) and node.id.isidentifier() and not node.id.startswith("__chemql_"):
+                    CHEMQL_VARIABLES.add(node.id)
+        exec(compile(module, "<embedded-python>", "exec"), python_globals)
         return None
 
-    return eval(
-        compile(tree, "<embedded-python>", "eval"),
-        python_globals
-    )
+    return eval(compile(tree, "<embedded-python>", "eval"), python_globals)
 
 
 def is_python_block_header(text):
@@ -2260,9 +2733,39 @@ def process_inline(text):
     if not stripped:
         return
 
+    # Native dynamically typed variables: `let name = expression`.
+    let_match = re.fullmatch(r"let\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+)", stripped, re.DOTALL)
+    if let_match:
+        name, expression = let_match.groups()
+        value = evaluate_python(expression)
+        python_globals[name] = value
+        CHEMQL_VARIABLES.add(name)
+        return None
+
+    if stripped.casefold() == "variables":
+        if not CHEMQL_VARIABLES:
+            return "No variables."
+        return "\n".join(f"{name} = {python_globals.get(name)!r}" for name in sorted(CHEMQL_VARIABLES) if name in python_globals)
+
+    unset_match = re.fullmatch(r"unset\s+([A-Za-z_][A-Za-z0-9_]*)", stripped, re.IGNORECASE)
+    if unset_match:
+        name = unset_match.group(1)
+        CHEMQL_VARIABLES.discard(name)
+        python_globals.pop(name, None)
+        return None
+
+    # A bare native variable is an expression that prints its value in the REPL.
+    if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", stripped) and stripped in CHEMQL_VARIABLES:
+        return python_globals.get(stripped)
+
     # History dump command.
     if stripped.casefold().startswith("dump "):
         return _dump_history(stripped)
+
+    # A standalone user-defined function call returns its value directly.
+    function_call = re.fullmatch(r"([A-Za-z_][A-Za-z0-9_]*(?:::[A-Za-z_][A-Za-z0-9_]*)?)\s*\{(.*)\}", stripped, re.DOTALL)
+    if function_call and function_call.group(1) in FUNCTIONS:
+        return _call_function(function_call.group(1), _split_function_arguments(function_call.group(2)))
 
     # [ ... ] is Python.
     if stripped.startswith("["):
@@ -2349,6 +2852,62 @@ def process_lines(lines):
             i += 1
             continue
 
+        # Definitions are processed in source order and affect only later lines.
+        define_match = re.fullmatch(r"define\s+(" + _DEFINITION_NAME + r")\s+(.+)", stripped)
+        if define_match and not stripped.endswith("{}"):
+            DEFINITIONS[define_match.group(1)] = define_match.group(2)
+            i += 1
+            continue
+
+        remove_definition = re.fullmatch(r"remove\s+definition\s+(" + _DEFINITION_NAME + r")", stripped, re.IGNORECASE)
+        if remove_definition:
+            DEFINITIONS.pop(remove_definition.group(1), None)
+            i += 1
+            continue
+
+        if stripped.casefold() == "definitions":
+            if DEFINITIONS:
+                for name, value in DEFINITIONS.items():
+                    print(f"@{name} = {value}")
+            else:
+                print("No definitions.")
+            i += 1
+            continue
+        if stripped.casefold() == "macros":
+            if MACROS:
+                for name, value in MACROS.items():
+                    print(f"@{name} = {value}")
+            else:
+                print("No macros.")
+            i += 1
+            continue
+
+        # Function definitions use `func NAME ... endfunc`.
+        function_match = re.fullmatch(r"func\s+(" + _DEFINITION_NAME + r")", stripped, re.IGNORECASE)
+        if function_match:
+            name = function_match.group(1)
+            end = i + 1
+            while end < len(lines) and lines[end].strip().casefold() != "endfunc":
+                end += 1
+            if end >= len(lines):
+                raise SyntaxError(f"Missing `endfunc` for function `{name}`")
+            FUNCTIONS[name] = {"body": [_expand_definitions(source_line) for source_line in lines[i + 1:end]]}
+            i = end + 1
+            continue
+
+        # `define NAME{}` introduces a source-generating macro.
+        macro_match = re.fullmatch(r"define\s+(" + _DEFINITION_NAME + r")\s*\{\s*\}", stripped)
+        if macro_match:
+            name = macro_match.group(1)
+            end = i + 1
+            while end < len(lines) and lines[end].strip().casefold() != "enddefine":
+                end += 1
+            if end >= len(lines):
+                raise SyntaxError(f"Missing `enddefine` for macro `{name}`")
+            MACROS[name] = [_expand_definitions(source_line) for source_line in lines[i + 1:end]]
+            i = end + 1
+            continue
+
         # Multiline comments can start/end within a line, but markers inside
         # quoted strings are ordinary text. Keep any code surrounding a comment.
         comment_start = _find_unquoted_marker(raw_line, "///")
@@ -2397,6 +2956,7 @@ def process_lines(lines):
                 i += 1
             if i >= len(lines):
                 raise SyntaxError("Missing closing `]]]` for Python block")
+            body = [_expand_definitions(source_line) for source_line in body]
             code = "\n".join(body)
             captured = io.StringIO()
             try:
@@ -2425,15 +2985,22 @@ def process_lines(lines):
                 i += 1
             if i >= len(lines):
                 raise SyntaxError("Missing closing ``` for terminal block")
+            body = [_expand_definitions(source_line) for source_line in body]
             command = "\n".join(body)
             result = run_shell_command(command)
             result = strip_ansi(result) if NO_ANSI else result
-            if result:
+            # POSIX PTY commands stream output live. Never print their returned
+            # capture a second time; Windows pipe mode still needs normal printing.
+            if result and (os.name == "nt" or not _shell_output_streamed):
                 print(result)
             _record_execution("```\n" + command + "\n```", result, not result.startswith("Shell error:"))
+            globals()["_shell_output_streamed"] = False
             i += 1
             continue
 
+        # Literal definitions are intentionally expanded inside strings too.
+        # Directives themselves were handled above, so updates are not retroactive.
+        raw_line = _expand_definitions(raw_line)
         line = remove_comments(raw_line).strip()
         if not line:
             i += 1
@@ -2472,7 +3039,23 @@ def process_lines(lines):
             if not command:
                 continue
             try:
-                if command.casefold().startswith("dump "):
+                macro_call = re.fullmatch(r"@(" + _DEFINITION_NAME + r")\s*\{(.*)\}", command, re.DOTALL)
+                if macro_call and macro_call.group(1) in MACROS:
+                    macro_name = macro_call.group(1)
+                    macro_args = _split_function_arguments(macro_call.group(2))
+                    expanded_lines = []
+                    for macro_line in MACROS[macro_name]:
+                        expanded = macro_line
+                        for arg_index, arg in enumerate(macro_args, start=1):
+                            expanded = re.sub(
+                                r"\\" + str(arg_index) + r"(?!\d)",
+                                lambda _match, value=arg: value,
+                                expanded,
+                            )
+                        expanded_lines.append(_expand_definitions(expanded))
+                    process_lines(expanded_lines)
+                    result = None
+                elif command.casefold().startswith("dump "):
                     result = _dump_history(command)
                 else:
                     result = process_inline(command)
@@ -2480,8 +3063,18 @@ def process_lines(lines):
                 if result is not None:
                     if NO_ANSI:
                         rendered = strip_ansi(rendered)
-                    print(rendered)
+                    # PTY-backed backtick commands already stream their output.
+                    # Don't echo their captured return value a second time.
+                    is_streamed_shell = (
+                        os.name != "nt"
+                        and len(command) >= 2
+                        and command.startswith("`")
+                        and command.endswith("`")
+                    )
+                    if not is_streamed_shell and not _shell_output_streamed:
+                        print(rendered)
                 _record_execution(command, rendered, True)
+                globals()["_shell_output_streamed"] = False
             except Exception as exc:
                 message = f"Error: {exc}"
                 print(strip_ansi(message) if NO_ANSI else message, file=sys.stderr)
@@ -2736,6 +3329,13 @@ def execute(arguments, query_text=None, positions=None):
 
     if arguments[0].lower() == "version":
         return __version__
+    if arguments[0].lower() == "exit":
+        return sys.exit(0)
+    if arguments[0].lower() == "definitions":
+        return "\n".join([f"@{name} = {value}" for name, value in DEFINITIONS.items()]) if DEFINITIONS else "No definitions."
+        
+    if arguments[0].lower() == "macros":
+        return "\n".join([f"@{name} = {value}" for name, value in MACROS.items()]) if MACROS else "No macros."
     
     if arguments[0] == "conditions":
         if len(arguments) != 1:
@@ -3072,230 +3672,9 @@ def execute(arguments, query_text=None, positions=None):
         )
 
     return format_error(f"Unknown command `{arguments[0]}`")
-HELP = """\033[1;36mChemql - Python Chemistry Query Language\033[0m
 
-\033[1;33mQUERYING\033[0m
-  \033[1msearch\033[0m
-      Search the current source.
+HELP = '\x1b[1;94m╭──────────────────────────────────────────────────────────────────────────────╮\x1b[0m\n\x1b[1;94m│\x1b[0m  \x1b[1;96m✦ \x1b[1mChemQL\x1b[0m \x1b[97mv1.2.0\x1b[0m \x1b[90m│\x1b[0m \x1b[1m\x1b[97mTHE PYTHON CHEMISTRY QUERY LANGUAGE\x1b[0m                         \x1b[1;94m│\x1b[0m\n\x1b[1;94m│\x1b[0m  \x1b[90mQuery chemical datasets · balance equations · embed Python · automate workflows\x1b[0m   \x1b[1;94m│\x1b[0m\n\x1b[1;94m╰──────────────────────────────────────────────────────────────────────────────╯\x1b[0m\n\n\x1b[1;93m\x1b[1m▶  QUICK START\x1b[0m\n  \x1b[92msearch elements ...          \x1b[0m \x1b[90m│\x1b[0m Query the periodic-table dataset\n  \x1b[92msearch molecules ...         \x1b[0m \x1b[90m│\x1b[0m Query molecule records\n  \x1b[92msearch reactions ...         \x1b[0m \x1b[90m│\x1b[0m Query stored reaction records\n  \x1b[92mfindel "He"                  \x1b[0m \x1b[90m│\x1b[0m Find an element by name or symbol\n  \x1b[92mfindmol "Water"              \x1b[0m \x1b[90m│\x1b[0m Find a molecule by name or formula\n  \x1b[92mfindre "Haber process"       \x1b[0m \x1b[90m│\x1b[0m Find a reaction by name, ID, or equation\n  \x1b[92mlist all                     \x1b[0m \x1b[90m│\x1b[0m List available fields and sources\n  \x1b[92mhelp  or  ?                  \x1b[0m \x1b[90m│\x1b[0m Show this help reference\n  \x1b[92mversion                      \x1b[0m \x1b[90m│\x1b[0m Show the installed version\n  \x1b[92mexit                         \x1b[0m \x1b[90m│\x1b[0m Leave the interactive prompt\n\n\x1b[1;93m\x1b[1m◆  QUERY SOURCES & EXAMPLES\x1b[0m\n  \x1b[92msearch elements [where]      \x1b[0m \x1b[90m│\x1b[0m Search element data\n  \x1b[92msearch molecules [where]     \x1b[0m \x1b[90m│\x1b[0m Search molecule data\n  \x1b[92msearch reactions [where]     \x1b[0m \x1b[90m│\x1b[0m Search reaction data\n  \x1b[1;96msource elements|molecules|reactions\x1b[0m \x1b[90m│\x1b[0m Set the current source\n    \x1b[95msearch elements symbol = "Fe" return name symbol number atomic_mass\x1b[0m\n    \x1b[95msearch molecules molecular_weight < 50 sort molecular_weight limit 10\x1b[0m\n    \x1b[95msearch reactions reversible = true return name equation source\x1b[0m\n\n\x1b[1;93m\x1b[1m◆  FILTERS & LOGIC\x1b[0m\n  \x1b[1;96m=   !=   >   <   >=   <=     \x1b[0m \x1b[90m│\x1b[0m Comparison operators\n  \x1b[1;96mlike  /  like!               \x1b[0m \x1b[90m│\x1b[0m Case-insensitive / case-sensitive wildcard matching\n  \x1b[1;96mlikep  /  has                \x1b[0m \x1b[90m│\x1b[0m Pattern matching / contains an item\n  \x1b[1;96mand  /  or  /  ( ... )       \x1b[0m \x1b[90m│\x1b[0m Combine conditions; parentheses group logic\n    \x1b[95msearch elements number > 10 and number < 20\x1b[0m\n    \x1b[95msearch molecules name like "*water*"\x1b[0m\n    \x1b[95msearch molecules (name like "*water*" or formula = "H2O") and molecular_weight < 25\x1b[0m\n\n\x1b[1;93m\x1b[1m◆  RESULT OPERATIONS\x1b[0m\n  \x1b[92mfirst  /  last               \x1b[0m \x1b[90m│\x1b[0m Return the first or last match\n  \x1b[92msort FIELD [asc|desc]        \x1b[0m \x1b[90m│\x1b[0m Sort matching records\n  \x1b[92mlimit N                      \x1b[0m \x1b[90m│\x1b[0m Limit the number of results\n  \x1b[92mcount                        \x1b[0m \x1b[90m│\x1b[0m Count matches\n  \x1b[92mreturn FIELD ...             \x1b[0m \x1b[90m│\x1b[0m Choose fields; one field lists, multiple fields form a table\n  \x1b[92munion / intersection         \x1b[0m \x1b[90m│\x1b[0m Combine result sets\n    \x1b[95msearch molecules molecular_weight < 20 sort molecular_weight asc limit 5\x1b[0m\n    \x1b[95msearch elements number < 10 union search elements number > 90\x1b[0m\n\n\x1b[1;93m\x1b[1m◆  REACTION TOOLS & CONDITIONS\x1b[0m\n  \x1b[1;96mset temperature 723K|150C|300F|standard|room    \x1b[0m \x1b[90m│\x1b[0m Set reaction temperature\n  \x1b[1;96mset pressure 101325Pa|2bar|1atm|standard|room   \x1b[0m \x1b[90m│\x1b[0m Set reaction pressure\n  \x1b[1;96mset catalysts iron zinc      \x1b[0m \x1b[90m│\x1b[0m Set the catalyst list\n  \x1b[1;96mset catalysts                \x1b[0m \x1b[90m│\x1b[0m Clear the catalyst list\n  \x1b[1;96madd catalyst "Vanadium oxide"\x1b[0m \x1b[90m│\x1b[0m Add a catalyst\n  \x1b[1;96mremove catalyst "Vanadium oxide"\x1b[0m \x1b[90m│\x1b[0m Remove a catalyst\n  \x1b[1;96mconditions                   \x1b[0m \x1b[90m│\x1b[0m Show active temperature, pressure, and catalysts\n  \x1b[1;96mreact N2 3H2                 \x1b[0m \x1b[90m│\x1b[0m Find a stored reaction matching reactants\n  \x1b[1;96mbalance H2 + O2 -> H2O       \x1b[0m \x1b[90m│\x1b[0m Balance an irreversible equation\n  \x1b[1;96mbalance N2 + H2 <-> NH3      \x1b[0m \x1b[90m│\x1b[0m Balance a reversible equation\n  \x1b[2mTemperature units: C, F, K. Pressure units include Pa, N/m^2, Nm^-2, bar, and atm.\x1b[0m\n  \x1b[2mPresets: standard = 0 C and 100000 Pa; room = 25 C and 101325 Pa.\x1b[0m\n\n\x1b[1;93m\x1b[1m◆  PREPROCESSOR, FUNCTIONS & MACROS  ·  V1.2.0\x1b[0m\n  \x1b[95mdefine MAX 9                 \x1b[0m \x1b[90m│\x1b[0m Define a literal replacement used as @MAX\n  \x1b[95mdefinitions                  \x1b[0m \x1b[90m│\x1b[0m List current literal definitions\n  \x1b[95mremove definition MAX        \x1b[0m \x1b[90m│\x1b[0m Remove a definition\n    \x1b[95mdefine MAX 9\x1b[0m\n    \x1b[95msearch elements number <= @MAX\x1b[0m\n\n  \x1b[95mfunc square                  \x1b[0m \x1b[90m│\x1b[0m Begin a function; finish it with endfunc\n  \x1b[95mreturn [\\1 * \\1]             \x1b[0m \x1b[90m│\x1b[0m Return a value using positional argument \\1\n  \x1b[95mendfunc                      \x1b[0m \x1b[90m│\x1b[0m Close the function definition\n  \x1b[95msquare{5}                    \x1b[0m \x1b[90m│\x1b[0m Call the function with brace-delimited arguments\n\n  \x1b[95mdefine light{}               \x1b[0m \x1b[90m│\x1b[0m Begin a macro; finish it with enddefine\n    \x1b[95msearch molecules molecular_weight < \\1 return name formula\x1b[0m\n  \x1b[95menddefine                    \x1b[0m \x1b[90m│\x1b[0m Close the macro definition\n  \x1b[95m@light{50}                   \x1b[0m \x1b[90m│\x1b[0m Expand and execute a macro\n  \x1b[2mFunction and macro arguments use positional placeholders: \\1, \\2, and so on.\x1b[0m\n  \x1b[2mDefinitions are processed in source order and are local to the current session.\x1b[0m\n\n\x1b[1;93m\x1b[1m◆  PYTHON INTEGRATION\x1b[0m\n  \x1b[1;96m[x = 10]                     \x1b[0m \x1b[90m│\x1b[0m Execute a Python statement\n  \x1b[1;96m[print(x)]                   \x1b[0m \x1b[90m│\x1b[0m Use Python variables across commands\n  \x1b[1;96m[x * 2]                      \x1b[0m \x1b[90m│\x1b[0m Evaluate and display a Python expression\n    \x1b[95m{{ search elements name = "Hydrogen" }}\x1b[0m\n  \x1b[2mEmbedded {{ ... }} queries return their result as a value.\x1b[0m\n  Python control-flow blocks:\n    \x1b[95m[if condition] ... [elif condition] ... [else] ... [endblock]\x1b[0m\n    \x1b[95m[for item in iterable] ... [endblock]\x1b[0m\n    \x1b[95m[while condition] ... [endblock]\x1b[0m\n    \x1b[95m[break] and [continue] inside loops\x1b[0m\n  Multiline Python block:\n    \x1b[95m[[[\x1b[0m\n    \x1b[95mfor x in range(3):\x1b[0m\n    \x1b[95m    print(x)\x1b[0m\n    \x1b[95m]]]   # close on its own line\x1b[0m\n\n\x1b[1;93m\x1b[1m◆  SHELL, COMMENTS & COMMAND COMPOSITION\x1b[0m\n  \x1b[1;96m`command`                    \x1b[0m \x1b[90m│\x1b[0m Run a command in the persistent system shell\n  \x1b[1;96m```bash ... ```              \x1b[0m \x1b[90m│\x1b[0m Run a multiline shell block (also sh, cmd, terminal)\n  \x1b[1;96m// comment                   \x1b[0m \x1b[90m│\x1b[0m Single-line comment\n  \x1b[1;96m/// ... ///                  \x1b[0m \x1b[90m│\x1b[0m Multiline comment\n  \x1b[1;96mcommand1; command2           \x1b[0m \x1b[90m│\x1b[0m Run multiple commands on one line\n  \x1b[1;96mtrailing backslash           \x1b[0m \x1b[90m│\x1b[0m Continue a command on the next line\n  \x1b[1;96mview                         \x1b[0m \x1b[90m│\x1b[0m Open the bundled periodic-table viewer\n  \x1b[1;96mclear                        \x1b[0m \x1b[90m│\x1b[0m Clear the terminal\n\n\x1b[1;93m\x1b[1m◆  HISTORY EXPORT\x1b[0m\n  \x1b[92mdump FILE                    \x1b[0m \x1b[90m│\x1b[0m Export all recorded queries and results\n  \x1b[92mdump all|good|bad FILE       \x1b[0m \x1b[90m│\x1b[0m Export all, successful, or failed executions\n  \x1b[92mdump all|good|bad queries FILE\x1b[0m \x1b[90m│\x1b[0m Export query history\n  \x1b[92mdump all|good|bad results FILE\x1b[0m \x1b[90m│\x1b[0m Export result history\n\n\x1b[1;93m\x1b[1m◆  COMMAND-LINE OPTIONS\x1b[0m\n  \x1b[1;96mchemql                       \x1b[0m \x1b[90m│\x1b[0m Start the interactive prompt\n  \x1b[1;96mchemql -c "COMMAND"          \x1b[0m \x1b[90m│\x1b[0m Execute one command\n  \x1b[1;96mchemql -f FILE               \x1b[0m \x1b[90m│\x1b[0m Execute commands from a file\n  \x1b[1;96mchemql --version             \x1b[0m \x1b[90m│\x1b[0m Print the installed version\n  \x1b[1;96mchemql --no-ansi             \x1b[0m \x1b[90m│\x1b[0m Disable ANSI styling in output\n  \x1b[1;96mchemql -c "COMMAND" -o FILE  \x1b[0m \x1b[90m│\x1b[0m Write command output to a plain-text file\n  \x1b[1;96mchemql --upgrade [VERSION]   \x1b[0m \x1b[90m│\x1b[0m Upgrade to latest or a chosen release\n  \x1b[1;96mchemql --force               \x1b[0m \x1b[90m│\x1b[0m Force upgrade past system-package protections\n\n\x1b[1;93m\x1b[1m◆  PYTHON API\x1b[0m\n    \x1b[95mfrom chemql import execute_query_text, execute_query\x1b[0m\n    \x1b[95mresult = execute_query_text(\'search elements symbol = "O"\')\x1b[0m\n  \x1b[2mDistribution package: chemql-python  ·  import / CLI name: chemql\x1b[0m\n\n\x1b[1;93m\x1b[1m⚠  SAFETY & DATA NOTES\x1b[0m\n  \x1b[2mPython blocks and shell commands run real code with your user permissions.\x1b[0m\n  \x1b[2mRun only code and commands you trust. External lookups need network access\x1b[0m\n  \x1b[2mand can fail when a remote service is unavailable.\x1b[0m\n\n\x1b[1;94m────────────────────────────────────────────────────────────────────────────────\x1b[0m\n\x1b[90mChemQL 1.2.0  ·  Type \x1b[92mhelp\x1b[90m for this guide, or \x1b[92mexit\x1b[90m to quit.\x1b[0m\n'
 
-            search elements
-            search molecules
-            search reactions
-            search all elements
-            search all molecules
-            search all reactions
-
-      Example:
-        search elements name = "Hydrogen"
-        search molecules molecular_weight < 20
-        search reactions reaction_type = "combustion"
-
-  \033[1msource\033[0m
-      Change the current source.
-
-        source elements
-        source molecules
-        source reactions
-
-  \033[1mfindel <value>\033[0m
-      Find an element by name or symbol.
-
-      Example:
-        findel "He"
-        findel "Hydrogen"
-
-  \033[1mfindmol <value>\033[0m
-      Find a molecule by name or formula.
-
-      Example:
-        findmol "H2O"
-        findmol "Water"
-
-    \033[1mfindre <name-or-id>\033[0m
-            Find a reaction by name, identifier, or equation.
-
-            Example:
-                findre "Haber process"
-                findre "RHEA:10000" return name equation source
-
-    Reaction fields:
-            id, name, equation, reaction_type, reversible,
-            reactants, products, conditions, notes
-
-            Example:
-                search reactions name like "*combustion*" return name equation
-                search reactions reversible = true return name conditions
-
-\033[1;33mFILTERING\033[0m
-  Operators:
-      =       Equal
-      >       Greater than
-      <       Less than
-      >=      Greater than or equal
-      <=      Less than or equal
-      like    Pattern match (case-insensitive)
-      like!   Pattern match (case-sensitive)
-      has     Check whether a value contains an item
-
-  Logical operators:
-      and
-      or
-
-      Parentheses can be used to group conditions.
-
-      Example:
-        search elements atomic_number > 10 and atomic_number < 20
-        search molecules name like "*water*"
-        search reactions reaction_type = "combustion"
-
-\033[1;33mREACTIONS\033[0m
-    Set reaction conditions before using `react`.
-
-            set temperature 723K
-            set temperature standard
-            set pressure 20265000pa
-            set pressure room
-            set catalysts iron zinc
-            add catalyst "Vanadium oxide"
-            remove catalyst "Vanadium oxide"
-            set catalysts
-              conditions
-            react N2 3H2
-            balance O2 + H2 -> H2O
-            balance O2 + H2 <-> H2O
-
-    Temperature accepts C, F, or K. Pressure accepts Pa, N/m^2, Nm^-2, or bar.
-    `standard` means 0 C and 100000 Pa; `room` means 25 C and 101325 Pa.
-          Unset values appear as `Not Set` in `conditions`.
-    Reaction matching allows 5 K temperature and 5% pressure tolerance.
-    `balance` returns a Reaction with the smallest positive integer coefficients.
-    The `->` arrow is irreversible; `<->` is reversible. `//` starts a comment.
-
-\033[1;33mRESULTS\033[0m
-  \033[1mfirst\033[0m
-      Return only the first result.
-
-  \033[1mlast\033[0m
-      Return only the last result.
-
-  \033[1msort <key> [asc|desc]\033[0m
-      Sort results by an attribute.
-
-      Example:
-        search elements sort atomic_number
-        search molecules sort molecular_weight desc
-
-  \033[1mlimit <number>\033[0m
-      Limit the number of results.
-
-      Example:
-        search molecules limit 10
-
-  \033[1mcount\033[0m
-      Return the number of results.
-
-      Example:
-        search molecules count
-        search reactions reversible = true return name equation
-
-  \033[1mreturn <attributes...>\033[0m
-      Return only the specified attributes.
-
-      One attribute returns a list.
-      Multiple attributes return a table.
-
-      Example:
-        search molecules molecular_weight < 20 return name
-
-        search molecules molecular_weight < 20 return name formula molecular_weight
-
-\033[1;33mGENERAL COMMANDS\033[0m
-  \033[1mlist all\033[0m
-      List keys from the active source or all available sources.
-
-  \033[1mview\033[0m
-      Open the periodic table viewer in the default browser.
-
-  \033[1mclear\033[0m
-      Clear the current screen.
-
-  \033[1mdump\033[0m
-      Export the recent command history to a file.
-      Example: dump my_session.txt
-
-  \033[1mhelp\033[0m
-      Show this help message.
-
-  \033[1mexit\033[0m
-      Exit Chemql.
-
-\033[1;33mHYBRID PYTHON\033[0m
-  Chemql can be combined with Python using [ ... ].
-
-      [x = 10]
-      [print(x)]
-
-  Python control blocks are also supported:
-
-      [for x in ...]
-      [if ...]
-      [elif ...]
-      [else]
-      [while ...]
-      [break]
-      [continue]
-      [endblock]
-
-  ChemQL queries can be embedded directly using {{ ... }}.
-  This evaluates the query and inserts its result into the surrounding Python.
-
-      {{ search elements name = "Hydrogen" }}
-      [print({{ search elements atomic_number = 1 }})]
-
-  You can also use a bare query block as a value-producing expression:
-
-      {{ search molecules molecular_weight < 20 return name formula }}
-
-\033[1;33mLINE CONTINUATION\033[0m
-  A line ending with '\\' continues onto the next line.
-
-      search elements \\
-      name = "Hydrogen"
-
-  This is treated as:
-
-      search elements name = "Hydrogen"
-
-\033[1;33mOPTIONS\033[0m
-  \033[1m-c <command>\033[0m
-      Execute a command.
-
-  \033[1m-f <file>\033[0m
-      Execute commands from a file.
-
-  \033[1m?\033[0m
-      Show help.
-
-\033[1;33mEXAMPLES\033[0m
-  search elements name = "Hydrogen"
-
-  findel "He"
-
-  findmol "H2O"
-
-  search molecules molecular_weight < 20 \\
-  return name formula molecular_weight
-
-  search elements atomic_number > 10 \\
-  and atomic_number < 20 \\
-  sort atomic_number desc \\
-  limit 5
-
-  search molecules count
-
-\033[1;36mChemql\033[0m
-Python Chemistry Query Language
-"""
 import webbrowser
 from pathlib import Path
 
@@ -3303,7 +3682,34 @@ def view_periodic_table():
     path = Path(__file__).parent / "html" /"periodic_table.html"
     webbrowser.open(path.resolve().as_uri())
 
+
 class ChemqlLexer(Lexer):
+    """Syntax highlighting for ChemQL, native variables, and embedded Python."""
+
+    COMMANDS = {
+        "search", "source", "list", "clear", "exit", "findel",
+        "findmol", "findre", "set", "add", "remove", "react",
+        "balance", "conditions", "view", "help", "dump", "version",
+        "return", "union", "intersection", "let", "unset", "variables",
+        "macros", "definitions", "arguments",
+    }
+
+    OPERATORS = {
+        "and", "or", "has", "like", "like!", "likep", "sort",
+        "limit", "count", "asc", "desc",
+    }
+
+    CONTROL_WORDS = {
+        "if", "elif", "else", "for", "while", "in", "break",
+        "continue", "endblock", "endfunc", "func", "enddefine",
+        "define", "import", "as",
+    }
+
+    CONDITIONS = {
+        "temperature", "pressure", "catalyst", "catalysts",
+        "standard", "room", "c", "f", "k", "pa", "bar",
+    }
+
     def lex_document(self, document):
         lines = document.lines
 
@@ -3313,61 +3719,59 @@ class ChemqlLexer(Lexer):
 
             line = lines[lineno]
             tokens = []
-
             i = 0
-            words = line.split()
 
-            # Determine basic query context
-            first_word = words[0] if words else ""
+            # Preserve leading indentation.
+            while i < len(line) and line[i].isspace():
+                start = i
+                while i < len(line) and line[i].isspace():
+                    i += 1
+                tokens.append(("", line[start:i]))
 
-            # search / source / list / return / clear / exit
-            if first_word in {"search", "source", "list", "clear", "exit", "findel", "findmol", "findre", "set", "add", "remove", "react", "balance", "conditions", "view", "help", "dump", "version"}:
-                command_start = line.find(first_word)
-                command_end = command_start + len(first_word)
+            # Highlight a leading ChemQL command.
+            first_match = re.match(r"[A-Za-z_][A-Za-z0-9_]*", line[i:])
+            if first_match:
+                word = first_match.group(0)
+                if word in self.COMMANDS:
+                    tokens.append(("class:command", word))
+                    i += len(word)
 
-                # Preserve leading whitespace exactly.
-                if command_start > 0:
-                    tokens.append((
-                        "",
-                        line[:command_start]
-                    ))
-
-                tokens.append((
-                    "class:command",
-                    first_word
-                ))
-
-                i = command_end
-
-            # Everything else is scanned character-by-character
             while i < len(line):
                 # Whitespace
                 if line[i].isspace():
                     start = i
-
                     while i < len(line) and line[i].isspace():
                         i += 1
-
                     tokens.append(("", line[start:i]))
                     continue
-           
+
+                # Comments
                 if line.startswith("//", i):
+                    tokens.append(("class:comment", line[i:]))
+                    break
 
-                    end = len(line)
+                # # Embedded ChemQL expressions: {{ ... }}
+                # # Embedded ChemQL expressions: {{ ... }}
+                # if line.startswith("{{", i):
+                #     try:
+                #         end = find_matching(line, i + 2, "{{", "}}")
+                #     except SyntaxError:
+                #         # The user may still be typing the expression.
+                #         tokens.append(("class:interpolation", line[i:]))
+                #         break
 
-                    tokens.append((
-                        "class:comment",
-                        line[i:end]
-                    ))
+                #     if end is None:
+                #         tokens.append(("class:interpolation", line[i:]))
+                #         break
 
-                    i = end
-                    continue
+                #     end += 2
+                #     tokens.append(("class:interpolation", line[i:end]))
+                #     i = end
+                #     continue
 
-
-                
+                # Backtick shell commands
                 if line[i] == "`":
                     end = line.find("`", i + 1)
-
                     if end == -1:
                         end = len(line) - 1
 
@@ -3375,9 +3779,27 @@ class ChemqlLexer(Lexer):
                         "class:terminalcommand",
                         line[i:end + 1]
                     ))
-
                     i = end + 1
                     continue
+
+                # # Python blocks and single-line Python statements
+                # if line[i] == "[":
+                #     try:
+                #         end = find_matching(line, i + 1, "[", "]")
+                #     except SyntaxError:
+                #         # An unfinished bracket is valid while editing.
+                #         tokens.append(("class:python", line[i:]))
+                #         break
+
+                #     if end is not None:
+                #         end += 1
+                #         tokens.append(("class:python", line[i:end]))
+                #         i = end
+                #         continue
+
+                #     tokens.append(("class:python", line[i]))
+                #     i += 1
+                #     continue
 
                 # Strings
                 if line[i] in "\"'":
@@ -3389,57 +3811,46 @@ class ChemqlLexer(Lexer):
                         if line[i] == "\\":
                             i += 2
                             continue
-
                         if line[i] == quote:
                             i += 1
                             break
-
                         i += 1
 
-                    tokens.append((
-                        "class:string",
-                        line[start:i]
-                    ))
-
-                    continue
-
-                # Operators
-                matched_operator = None
-
-                for operator in ("!=", ">=", "<=", "=", ">", "<"):
-                    if line.startswith(operator, i):
-                        matched_operator = operator
-                        break
-
-                if matched_operator:
-                    tokens.append((
-                        "class:operator",
-                        matched_operator
-                    ))
-
-                    i += len(matched_operator)
+                    tokens.append(("class:string", line[start:i]))
                     continue
 
                 # Numbers
                 if line[i].isdigit():
                     start = i
-
+                    i += 1
                     while i < len(line) and (
-                        line[i].isdigit() or line[i] in ".-"
+                        line[i].isdigit() or line[i] == "."
                     ):
                         i += 1
 
-                    tokens.append((
-                        "class:number",
-                        line[start:i]
-                    ))
-
+                    tokens.append(("class:number", line[start:i]))
                     continue
 
-                # Words
+                # Operators
+                operator = next(
+                    (
+                        op for op in (
+                            "!=", ">=", "<=", "==", "=", ">", "<",
+                            "+=", "-=", "*=", "/=", "+", "-", "*", "/",
+                    )
+                        if line.startswith(op, i)
+                    ),
+                    None,
+                )
+
+                if operator:
+                    tokens.append(("class:operator", operator))
+                    i += len(operator)
+                    continue
+
+                # Identifiers and keywords
                 if line[i].isalpha() or line[i] == "_":
                     start = i
-
                     while i < len(line) and (
                         line[i].isalnum() or line[i] == "_"
                     ):
@@ -3447,99 +3858,38 @@ class ChemqlLexer(Lexer):
 
                     word = line[start:i]
 
-                    # Commands
-                    if word in {
-                        "search",
-                        "source",
-                        "list",
-                        "clear",
-                        "exit",
-                        "return",
-                        "set",
-                        "add",
-                        "remove",
-                        "react",
-                        "balance",
-                        "conditions",
-                        "view",
-                        "help",
-                        "dump",
-                        "union",
-                        "intersection",
-                    }:
+                    if word in self.COMMANDS:
                         style = "class:command"
-
-                    # Sources
+                    elif word in self.CONTROL_WORDS:
+                        style = "class:control"
+                    elif word in {"True", "False", "None"}:
+                        style = "class:number"
+                    elif word in {"print", "len", "str", "int", "float", "range"}:
+                        style = "class:python"
                     elif word in SOURCES:
                         style = "class:source"
-
-                    elif word.casefold() in {"temperature", "pressure", "catalyst", "catalysts", "standard", "room", "c", "f", "k", "pa", "bar"}:
+                    elif word.casefold() in self.CONDITIONS:
                         style = "class:condition"
-
-                    # Operators
-                    elif word in {
-                        "and",
-                        "or",
-                        "has",
-                        "like",
-                        "like!",
-                        "likep",
-                        "sort",
-                        "limit",
-                        "count",
-                        "asc",
-                        "desc"
-                    }:
+                    elif word in self.OPERATORS:
                         style = "class:operator"
-
-                    # Control flow
-                    elif word in {
-                        "if",
-                        "elif",
-                        "else",
-                        "for",
-                        "while",
-                        "in",
-                        "break",
-                        "continue",
-                        "endblock"
-                    }:
-                        style = "class:control"
-
-                    # Python constants
-                    elif word in {
-                        "True",
-                        "False",
-                        "None"
-                    }:
-                        style = "class:number"
-
-                    # Dataset keys
-                    elif word in elementKeys or word in moleculeKeys or word in reactionKeys:
+                    elif (
+                        word in CHEMQL_VARIABLES
+                        or word in python_globals
+                    ):
+                        style = "class:variable"
+                    elif (
+                        word in elementKeys
+                        or word in moleculeKeys
+                        or word in reactionKeys
+                    ):
                         style = "class:key"
-
                     else:
                         style = ""
 
                     tokens.append((style, word))
                     continue
 
-                # if line[i] == "[":
-                    end = line.find("]", i + 1)
-
-                    if end == -1:
-                        end = len(line) - 1
-
-                    tokens.append((
-                        "class:python",
-                        line[i:end + 1]
-                    ))
-
-                    i = end + 1
-                    continue
-                
-                
-                # Anything else
+                # Other punctuation
                 tokens.append(("", line[i]))
                 i += 1
 
@@ -3547,62 +3897,131 @@ class ChemqlLexer(Lexer):
 
         return get_line
 
+
 class ChemqlCompleter(Completer):
+    """Context-aware completion for ChemQL commands and variables."""
+
+    COMMANDS = (
+        "search", "source", "list", "clear", "return", "exit",
+        "findel", "findmol", "findre", "set", "add", "remove",
+        "react", "balance", "conditions", "version", "help", "view",
+        "dump", "let", "unset", "variables", "func", "define",
+        "import", "definitions", "macros",
+    )
+
+    QUERY_OPERATORS = [
+        "=", "!=", ">", "<", ">=", "<=", "like", "like!",
+        "likep", "has", "sort", "limit", "count", "asc",
+        "desc", "return", "and", "or",
+    ]
+
     def get_completions(self, document, complete_event):
         text = document.text_before_cursor
         parts = text.split()
         trailing_space = bool(text and text[-1].isspace())
+
         current = "" if trailing_space or not parts else parts[-1]
         command_words = parts if trailing_space else parts[:-1]
-        commands = (
-            "search", "source", "list", "clear", "return", "exit",
-            "findel", "findmol", "findre", "set", "add", "remove",
-            "react", "balance", "conditions", "version", "help", "view"
-        )
 
+        def emit(suggestions):
+            seen = set()
+            for suggestion in suggestions:
+                suggestion = str(suggestion)
+                key = suggestion.casefold()
+
+                if (
+                    key not in seen
+                    and key.startswith(current.casefold())
+                ):
+                    seen.add(key)
+                    yield Completion(
+                        suggestion,
+                        start_position=-len(current),
+                    )
+
+        # At the beginning of a command, suggest commands and variables.
         if not command_words:
-            for command in commands:
-                if command.startswith(current):
-                    yield Completion(command, start_position=-len(current))
+            suggestions = list(self.COMMANDS)
+            suggestions.extend(
+                sorted(CHEMQL_VARIABLES)
+            )
+            yield from emit(suggestions)
             return
 
         command = command_words[0]
         suggestions = []
 
-        if len(command_words) == 1:
-            if command == "search":
-                suggestions = list(SOURCES)
-            elif command == "source":
-                suggestions = list(SOURCES)
-            elif command == "set":
-                suggestions = ["temperature", "pressure", "catalysts"]
-            elif command in {"add", "remove"}:
-                suggestions = ["catalyst"]
+        # Native variable syntax
+        if command == "let":
+            if len(command_words) == 1:
+                suggestions = ["name = value"]
+            elif len(command_words) >= 2:
+                suggestions = ["="]
 
-        elif command == "set" and len(command_words) == 2:
-            setting = command_words[1].casefold()
-            if setting == "temperature":
-                suggestions = ["standard", "room", "0C", "0F", "0K"]
-            elif setting == "pressure":
-                suggestions = ["standard", "room", "0Pa", "0N/m^2", "0Nm^-2", "0bar"]
-            elif setting == "catalysts":
-                suggestions = list(reaction_state["catalysts"])
+        elif command == "unset":
+            suggestions = sorted(CHEMQL_VARIABLES)
 
-        elif command == "search" and len(command_words) >= 2:
-            source_name = command_words[1]
-            if source_name in SOURCES:
-                _, keys = SOURCES[source_name]
-                suggestions = list(keys) + [
-                    "=", ">", "<", ">=", "<=", "!=", "like", "like!", "likep", "has",
-                    "sort", "limit", "count", "asc", "desc", "return",
+        elif command == "variables":
+            suggestions = []
+
+        # Source names
+        elif command in {"search", "source"}:
+            if len(command_words) == 1:
+                suggestions = list(SOURCES)
+            elif command == "search" and len(command_words) >= 2:
+                source_name = command_words[1]
+                if source_name in SOURCES:
+                    _, keys = SOURCES[source_name]
+                    suggestions = list(keys) + self.QUERY_OPERATORS
+
+        # Reaction settings
+        elif command == "set":
+            if len(command_words) == 1:
+                suggestions = [
+                    "temperature", "pressure", "catalysts"
                 ]
+            elif len(command_words) == 2:
+                setting = command_words[1].casefold()
 
-        elif command == "remove" and len(command_words) == 2 and command_words[1] == "catalyst":
-            suggestions = list(reaction_state["catalysts"])
+                if setting == "temperature":
+                    suggestions = [
+                        "standard", "room", "0C", "0F", "0K"
+                    ]
+                elif setting == "pressure":
+                    suggestions = [
+                        "standard", "room", "0Pa",
+                        "0N/m^2", "0Nm^-2", "0bar",
+                    ]
+                elif setting == "catalysts":
+                    suggestions = list(
+                        reaction_state["catalysts"]
+                    )
 
-        for suggestion in suggestions:
-            if suggestion.casefold().startswith(current.casefold()):
-                yield Completion(suggestion, start_position=-len(current))
+        # Catalyst management
+        elif command in {"add", "remove"}:
+            if len(command_words) == 1:
+                suggestions = ["catalyst"]
+            elif (
+                command == "remove"
+                and len(command_words) == 2
+                and command_words[1] == "catalyst"
+            ):
+                suggestions = list(
+                    reaction_state["catalysts"]
+                )
+
+        # Variable names can be useful in expressions.
+        elif command in {"print", "return"}:
+            suggestions = sorted(CHEMQL_VARIABLES)
+
+        # Offer native variables in other expression contexts too.
+        if not suggestions and (
+            "{{" in text
+            or text.lstrip().startswith("[")
+        ):
+            suggestions = sorted(CHEMQL_VARIABLES)
+
+        yield from emit(suggestions)
 
 
         
@@ -3863,11 +4282,60 @@ def run_interactive():
         history = []
         welcome = "Type help or ? for help"
         print(welcome if NO_ANSI else "\033[1m" + welcome + "\033[0m")
+        bindings = KeyBindings()
+
+        def multiline_input_needs_more(text):
+            """Return True when Enter should add a newline instead of submitting."""
+            if not text:
+                return False
+            source_lines = text.splitlines()
+            first = source_lines[0].strip()
+            last = source_lines[-1].strip()
+
+            if last.endswith("\\"):
+                return True
+
+            if first in {"[[[", "```", "```bash", "```sh", "```cmd", "```terminal"}:
+                closer = "]]]" if first == "[[[" else "```"
+                return not (len(source_lines) > 1 and last == closer)
+
+            if re.fullmatch(r"func\s+" + _DEFINITION_NAME, first, re.IGNORECASE):
+                return last.casefold() != "endfunc"
+
+            if re.fullmatch(r"define\s+" + _DEFINITION_NAME + r"\s*\{\s*\}", first):
+                return last.casefold() != "enddefine"
+
+            if "///" in first:
+                return sum(line.count("///") for line in source_lines) < 2
+
+            if is_python_block_header(first):
+                depth = 0
+                for line in source_lines:
+                    stripped = line.strip()
+                    if is_python_block_header(stripped):
+                        depth += 1
+                    elif stripped == "[endblock]":
+                        depth -= 1
+                return depth > 0
+
+            return False
+
+        @bindings.add(Keys.Enter)
+        def _handle_enter(event):
+            buffer = event.current_buffer
+            if multiline_input_needs_more(buffer.text):
+                buffer.insert_text("\n")
+            else:
+                buffer.validate_and_handle()
+
         session = PromptSession(
             lexer=ChemqlLexer(),
             completer=ChemqlCompleter(),
             style=Style.from_dict({}) if NO_ANSI else chemql_style,
             reserve_space_for_menu=0,
+            multiline=True,
+            key_bindings=bindings,
+            prompt_continuation=lambda width, line_number, is_soft_wrap: "... ",
         )
         while True:
             try:
@@ -3905,28 +4373,50 @@ def run_interactive():
             if not first_line.strip():
                 continue
 
-            # Collect continued input.
-            lines = []
-            current_line = first_line
+            # PromptSession now edits multiline blocks in one buffer, so the
+            # user can move across lines and Backspace can join them.
+            lines = first_line.splitlines() or [first_line]
 
-            while True:
-                if current_line.rstrip().endswith("\\"):
-                    current_line = current_line.rstrip()[:-1] + " "
-
-                    try:
-                        next_line = session.prompt("... ")
-                    except KeyboardInterrupt:
-                        print()
-                        break
-                    except EOFError:
-                        message = "Error: Incomplete continued input"
-                        print("\n" + (message if NO_ANSI else "\033[31m" + message + "\033[0m"))
-                        break
-
-                    current_line += next_line
-                else:
-                    lines.append(current_line)
+            # Preserve the existing backslash continuation behavior for commands
+            # that were not collected as a block by the Enter key binding.
+            while lines[-1].rstrip().endswith("\\"):
+                lines[-1] = lines[-1].rstrip()[:-1] + " "
+                try:
+                    next_line = session.prompt("... ")
+                except KeyboardInterrupt:
+                    print()
+                    lines = []
                     break
+                except EOFError:
+                    message = "Error: Incomplete continued input"
+                    print("\n" + (message if NO_ANSI else "\033[31m" + message + "\033[0m"))
+                    lines = []
+                    break
+                lines.extend(next_line.splitlines() or [next_line])
+            if not lines:
+                continue
+
+            # Collect function and macro declarations as complete REPL units.
+            if lines and re.fullmatch(r"func\s+" + _DEFINITION_NAME, lines[0].strip(), re.IGNORECASE):
+                while lines[-1].strip().casefold() != "endfunc":
+                    try:
+                        lines.append(session.prompt("... "))
+                    except (KeyboardInterrupt, EOFError):
+                        print("\nIncomplete function definition")
+                        lines = []
+                        break
+                if not lines:
+                    continue
+            elif lines and re.fullmatch(r"define\s+" + _DEFINITION_NAME + r"\s*\{\s*\}", lines[0].strip()):
+                while lines[-1].strip().casefold() != "enddefine":
+                    try:
+                        lines.append(session.prompt("... "))
+                    except (KeyboardInterrupt, EOFError):
+                        print("\nIncomplete macro definition")
+                        lines = []
+                        break
+                if not lines:
+                    continue
 
             # Collect new multiline Python, terminal, and comment blocks in the REPL.
             if lines and lines[0].strip() in {"[[[", "```", "```bash", "```sh", "```cmd", "```terminal"}:
@@ -3956,29 +4446,37 @@ def run_interactive():
                 if not lines:
                     continue
 
-            # Collect a Python control block until its matching [endblock].
+            # Collect a Python control block only if the single editable buffer
+            # was submitted before its matching [endblock] was entered.
             if lines and is_python_block_header(lines[0].strip()):
-                depth = 1
+                depth = 0
+                for existing_line in lines:
+                    if is_python_block_header(existing_line.strip()):
+                        depth += 1
+                    elif existing_line.strip() == "[endblock]":
+                        depth -= 1
 
-                while depth:
+                while depth > 0:
                     try:
                         line = session.prompt(">>> ")
                     except KeyboardInterrupt:
                         print()
+                        lines = []
                         break
                     except EOFError:
                         message = "Missing `[endblock]`"
                         print("\n" + (message if NO_ANSI else "\033[31mMissing `\033[1m[endblock]\033[22m`\033[0m"))
+                        lines = []
                         break
 
-                    lines.append(line)
-
-                    if is_python_block_header(line.strip()):
-                        depth += 1
-                    elif line.strip() == "[endblock]":
-                        depth -= 1
-                else:
-                    pass
+                    lines.extend(line.splitlines() or [line])
+                    for added_line in (line.splitlines() or [line]):
+                        if is_python_block_header(added_line.strip()):
+                            depth += 1
+                        elif added_line.strip() == "[endblock]":
+                            depth -= 1
+                if not lines:
+                    continue
 
             try:
                 process_lines(lines)
