@@ -47,7 +47,7 @@ __all__ = [
     "__version__"
 ]
 
-__version__ = "1.2.2"
+__version__ = "1.2.4"
 
 # Persistent preprocessor/function state for the current ChemQL session.
 DEFINITIONS = {}
@@ -55,6 +55,7 @@ FUNCTIONS = {}
 MACROS = {}
 EXECUTION_HISTORY = []
 _DEFINITION_NAME = r"[A-Za-z_][A-Za-z0-9_]*"
+_NO_RETURN = object()
 
 def _expand_definitions(line):
     """Replace @NAME literally, including inside strings, using current definitions."""
@@ -107,113 +108,217 @@ def _split_function_arguments(source):
     if tail or source.strip():
         args.append(tail)
     return args
+def is_block_header(line):
+    """Return True only for actual ChemQL block headers."""
+    if not (line.startswith("[") and line.endswith("]")):
+        return False
+
+    code = line[1:-1].strip()
+
+    return (
+        code.startswith("if ")
+        or code.startswith("for ")
+        or code.startswith("while ")
+    )
 
 def _call_function(name, arguments):
-    """Call a ChemQL function, including `let` assignments and block syntax."""
+    """Call a ChemQL function, including let assignments and block syntax."""
     if name not in FUNCTIONS:
         raise NameError(f"Unknown ChemQL function `{name}`")
 
     values = [evaluate_python(arg) for arg in arguments]
     definition = FUNCTIONS[name]
+
     saved_globals = python_globals.copy()
     saved_chemql_variables = CHEMQL_VARIABLES.copy()
+
     had_arguments = "arguments" in python_globals
     saved_arguments = python_globals.get("arguments")
-    # `arguments` contains only the supplied arguments, not the function name.
+
+    # Expose only the supplied arguments.
     python_globals["arguments"] = list(values)
 
     def substitute_parameters(source):
-        # Replace positional placeholders as tokens, so \1 does not corrupt \10.
+        """Replace \\1, \\2, etc. without corrupting \\10 or longer indices."""
         return re.sub(
             r"\\(\d+)",
-            lambda match: repr(values[int(match.group(1)) - 1])
-            if 0 < int(match.group(1)) <= len(values) else match.group(0),
+            lambda match: (
+                repr(values[int(match.group(1)) - 1])
+                if 0 < int(match.group(1)) <= len(values)
+                else match.group(0)
+            ),
             source,
         )
 
     def normalize_let_line(source):
-        """Translate `let name = expression` to a Python assignment block."""
-        match = re.fullmatch(r"\s*let\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*", source)
+        """Translate let name = expression into a Python assignment."""
+        match = re.fullmatch(
+            r"\s*let\s+([A-Za-z_]\w*)\s*=\s*(.*?)\s*",
+            source,
+        )
+
         if not match:
             return source
+
         variable, expression = match.groups()
         expression = substitute_parameters(expression)
-        # In ChemQL function expressions, [i] means evaluate i, rather than
-        # create a Python list containing i. Keep this deliberately simple and
-        # avoid changing arbitrary Python list literals.
+        expression = _expand_definitions(expression)
+
+        # Translate simple ChemQL [variable] expressions into (variable).
         expression = re.sub(
-            r"\[\s*([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*\]",
+            r"\[\s*([A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)\s*\]",
             r"(\1)",
             expression,
         )
+
         return f"[{variable} = {expression}]"
 
-    try:
-        body = definition["body"]
+    def execute_function_lines(lines):
+        """Execute function statements and propagate return values."""
         i = 0
-        while i < len(body):
-            line = body[i].strip()
+
+        while i < len(lines):
+            line = lines[i].strip()
+
             if not line:
                 i += 1
                 continue
 
-            # A function may contain a multiline [[[ Python block ]]].
+            # Multiline Python block.
             if line == "[[[":
                 block = []
                 i += 1
-                while i < len(body) and body[i].strip() != "]]]":
-                    block.append(substitute_parameters(body[i]))
+
+                while i < len(lines) and lines[i].strip() != "]]]":
+                    source_line = substitute_parameters(lines[i])
+                    source_line = _expand_definitions(source_line)
+                    block.append(source_line)
                     i += 1
-                if i >= len(body):
-                    raise SyntaxError(f"Missing `]]]` in function `{name}`")
+
+                if i >= len(lines):
+                    raise SyntaxError(
+                        f"Missing `]]]` in function `{name}`"
+                    )
+
                 evaluate_python("\n".join(block))
                 i += 1
                 continue
 
-            # Support ChemQL's [for ...], [if ...], and [while ...] blocks
-            # inside functions, using the same block executors as the REPL.
-            if is_python_block_header(line):
-                end = find_endblock(body, i + 1)
+            # Recognize block headers generically, while excluding
+            # closing and branch markers from being treated as headers.
+            # generic_header = re.match(
+            #     r"^\[\s*(?!endblock\b|else\b|elif\b)"
+            #     r"[A-Za-z_]\w*\b.*\]\s*$",
+            #     line,
+            # )
+
+            if is_block_header(line):
+                end = find_endblock(lines, i + 1)
+
                 block_body = [
                     normalize_let_line(substitute_parameters(source_line))
-                    for source_line in body[i + 1:end]
+                    for source_line in lines[i + 1:end]
                 ]
+
                 code = line[1:-1].strip()
+
                 if code.startswith("for "):
                     execute_for_block(line, block_body)
+
                 elif code.startswith("while "):
                     execute_while_block(line, block_body)
+
                 elif code.startswith("if "):
-                    execute_if_block(line, block_body)
+                    # Expand parameters and definitions before evaluating.
+                    condition = code[3:].strip()
+                    condition = substitute_parameters(condition)
+                    condition = _expand_definitions(condition)
+
+                    # Find the top-level else branch.
+                    else_index = next(
+                        (
+                            j
+                            for j, source_line in enumerate(block_body)
+                            if source_line.strip() == "[else]"
+                        ),
+                        None,
+                    )
+
+                    if evaluate_python(condition):
+                        selected_body = (
+                            block_body
+                            if else_index is None
+                            else block_body[:else_index]
+                        )
+                    else:
+                        selected_body = (
+                            []
+                            if else_index is None
+                            else block_body[else_index + 1:]
+                        )
+
+                    # Execute only the selected branch. A return exits
+                    # this function immediately.
+                    result = execute_function_lines(selected_body)
+
+                    if result is not _NO_RETURN:
+                        return result
+
                 else:
-                    raise SyntaxError(f"Unsupported function block `{code}`")
+                    raise SyntaxError(
+                        f"Unsupported function block `{code}`"
+                    )
+
                 i = end + 1
                 continue
 
             if line == "[endblock]":
-                raise SyntaxError(f"Unexpected `[endblock]` in function `{name}`")
+                raise SyntaxError(
+                    f"Unexpected `[endblock]` in function `{name}`"
+                )
 
-            if line.startswith("return"):
-                expression = line[len("return"):].strip()
+            # Handle return statements inside the function.
+            if re.match(r"^return\b", line):
+                expression = re.sub(r"^return\b", "", line, count=1).strip()
+
                 if expression.startswith("[") and expression.endswith("]"):
-                    expression = expression[1:-1]
+                    expression = expression[1:-1].strip()
+
                 expression = substitute_parameters(expression)
+                expression = _expand_definitions(expression)
+
                 return evaluate_python(expression) if expression else None
 
             normalized = normalize_let_line(line)
+
             if normalized != line:
-                # The wrapper is ChemQL syntax; pass the assignment itself to Python.
                 evaluate_python(normalized[1:-1])
+            elif line.startswith("[") and line.endswith("]"):
+                expression = line[1:-1].strip()
+                expression = substitute_parameters(expression)
+                expression = _expand_definitions(expression)
+                evaluate_python(expression)
             else:
-                evaluate_python(substitute_parameters(line))
+                expression = substitute_parameters(line)
+                expression = _expand_definitions(expression)
+                evaluate_python(expression)
+
             i += 1
-        return None
+
+        return _NO_RETURN
+
+    try:
+        result = execute_function_lines(definition["body"])
+        return None if result is _NO_RETURN else result
+
     finally:
-        # Keep function-local assignments from leaking into the caller's namespace.
+        # Restore the caller's namespaces.
         python_globals.clear()
         python_globals.update(saved_globals)
+
         CHEMQL_VARIABLES.clear()
         CHEMQL_VARIABLES.update(saved_chemql_variables)
+
         if had_arguments:
             python_globals["arguments"] = saved_arguments
         else:
@@ -2416,14 +2521,29 @@ def find_endblock(lines, start):
     for i in range(start, len(lines)):
         stripped = lines[i].strip()
 
-        if is_python_block_header(stripped):
-            depth += 1
-
-        elif stripped == "[endblock]":
+        # Closing block.
+        if stripped == "[endblock]":
             depth -= 1
 
             if depth == 0:
                 return i
+
+            continue
+
+        # Branch markers do not start new blocks.
+        if stripped in ("[else]", "[endif]", "[endfor]", "[endwhile]"):
+            continue
+
+        # Recognize both validated Python headers and generic
+        # ChemQL block headers, consistently with _call_function().
+        generic_header = re.match(
+            r"^\[\s*(?!endblock\b|else\b|elif\b)"
+            r"[A-Za-z_]\w*\b.*\]\s*$",
+            stripped,
+        )
+
+        if is_block_header(stripped):
+            depth += 1
 
     raise SyntaxError("Missing `[endblock]`")
 
@@ -2593,7 +2713,7 @@ def execute_if_block(header, body):
     )
 
     for section_header, section_body in sections:
-        code = section_header[1:-1].strip()
+        code = _expand_definitions(section_header[1:-1].strip())
 
         if code.startswith("if "):
             condition = code[3:].strip()

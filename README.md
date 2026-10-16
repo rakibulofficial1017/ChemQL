@@ -4,15 +4,15 @@
 shell commands in one interactive environment.**
 
 ChemQL is a command-line chemistry query language for exploring chemical
-elements, molecules, and reactions. Version 1.2.2 combines database-style
+elements, molecules, and reactions. Version 1.2.4 combines database-style
 chemistry queries, reaction tools, Python interoperability, reusable functions
 and macros, and a persistent shell in one scriptable environment. It combines a small SQL-inspired
 query syntax with a persistent Python environment, reaction utilities,
 optional external molecule lookup, and tools for running repeatable
 scripts.
 
-> **Version covered by this README:** 1.2.2\
-> The examples below describe the ChemQL 1.2.2 source. Dataset
+> **Version covered by this README:** 1.2.4\
+> The examples below describe the ChemQL 1.2.4 source. Dataset
 > contents and external-service availability can affect individual
 > lookup results.
 
@@ -525,7 +525,7 @@ queried or inspected from Python.
 
 ## Preprocessor, functions, and macros
 
-ChemQL 1.2.2 adds three ways to reuse values and logic. These declarations
+ChemQL 1.2.4 adds three ways to reuse values and logic. These declarations
 are processed in source order: definitions affect later lines, not earlier
 ones. They persist during the current ChemQL process/session; they are not
 saved automatically between separate launches.
@@ -820,7 +820,7 @@ redirect a file into the command.
 ``` bash
 chemql --version
 chemql --upgrade
-chemql --upgrade 1.2.2
+chemql --upgrade 1.2.4
 ```
 
 `--upgrade` installs the latest published `chemql-python` release; supplying a
