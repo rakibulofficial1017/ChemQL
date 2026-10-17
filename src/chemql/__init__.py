@@ -1,33 +1,33 @@
+import argparse
+import ast
+import atexit
+import contextlib
+from fractions import Fraction
+from functools import reduce
+import io
 import json
 import math
-import shlex
+from math import gcd
 import os
-import re
-import ast
-import argparse
-import time
-import subprocess
-import sys
-import contextlib
-import io
 from pathlib import Path
 from prompt_toolkit import PromptSession
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.keys import Keys
 from prompt_toolkit.lexers import Lexer
-import atexit
-import uuid
-import select
-import queue
-import threading
 from prompt_toolkit.styles import Style
 from prompt_toolkit.completion import Completer, Completion
+import queue
+import re
+import shlex
+import subprocess
+import sys
+import select
+import time
+import threading
+import uuid
 import urllib.parse
 import urllib.request
 import urllib.error
-from fractions import Fraction
-from functools import reduce
-from math import gcd
 
 
 __all__ = [
@@ -47,7 +47,7 @@ __all__ = [
     "__version__"
 ]
 
-__version__ = "1.2.4"
+__version__ = "1.2.5"
 
 # Persistent preprocessor/function state for the current ChemQL session.
 DEFINITIONS = {}
@@ -367,13 +367,13 @@ _shell_prompt_ready = False
 _shell_output_streamed = False
 _shell_output_queue = None
 _shell_reader_thread = None
+_shell_script_path = None
 _shell_prompt = f"__CHEMQL_PROMPT_{uuid.uuid4().hex}__"
-
 
 def get_shell():
     """Return the persistent OS shell process for the current platform."""
     global _shell_process, _shell_master_fd, _shell_prompt_ready
-    global _shell_output_queue, _shell_reader_thread
+    global _shell_output_queue, _shell_reader_thread, _shell_script_path
 
     if _shell_process is not None and _shell_process.poll() is None:
         return _shell_process
@@ -382,20 +382,89 @@ def get_shell():
     close_shell()
 
     if os.name == "nt":
-        # Use PowerShell as ChemQL's native Windows shell. Its prompt function
-        # emits a private marker when a command finishes, so we do not append a
-        # marker to stdin (which would accidentally become Read-Host input).
-        setup = (
-            f"function global:prompt {{ [Console]::Out.WriteLine('{_shell_prompt}'); return '' }}"
+        # PowerShell reads its program from a file, leaving stdin available for
+        # the command/marker protocol and commands such as Read-Host.
+        import tempfile
+
+        setup = r'''$ErrorActionPreference = 'Continue'
+[Console]::InputEncoding = New-Object System.Text.UTF8Encoding($false)
+[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
+$OutputEncoding = New-Object System.Text.UTF8Encoding($false)
+[Console]::Out.WriteLine('__CHEMQL_READY__')
+[Console]::Out.Flush()
+
+while ($true) {
+    # One physical input line per request avoids command/marker line desync.
+    $request = [Console]::In.ReadLine()
+    if ($null -eq $request) { break }
+
+    $separatorIndex = $request.IndexOf('|')
+    if ($separatorIndex -le 0) {
+        [Console]::Out.WriteLine('CHEMQL_PROTOCOL_ERROR: malformed request')
+        [Console]::Out.Flush()
+        continue
+    }
+
+    $marker = $request.Substring(0, $separatorIndex)
+    $encodedCommand = $request.Substring($separatorIndex + 1)
+
+    try {
+        $commandText = [System.Text.Encoding]::UTF8.GetString(
+            [System.Convert]::FromBase64String($encodedCommand)
         )
+        if ([string]::IsNullOrWhiteSpace($commandText)) {
+            [Console]::Out.WriteLine('ChemQL received an empty PowerShell command.')
+        }
+        else {
+            # Invoke-Expression runs in this persistent script scope, preserving
+            # PowerShell variables between ChemQL requests. Format pipeline
+            # output explicitly for each request; otherwise PowerShell's default
+            # formatting subsystem can defer table output until the next request,
+            # making commands such as Get-Location appear blank or duplicated.
+            $formattedOutput = Invoke-Expression -Command $commandText | Out-String -Width 4096
+            if (-not [string]::IsNullOrEmpty($formattedOutput)) {
+                [Console]::Out.Write($formattedOutput)
+            }
+        }
+    }
+    catch {
+        [Console]::Out.WriteLine($_.ToString())
+    }
+    finally {
+        [Console]::Out.WriteLine($marker)
+        [Console]::Out.Flush()
+    }
+}
+''' # I have no idea what this is, this is code I wrote today at 4:00AM but it somehow works
+    # reminder to future self to not touch this
+        fd, _shell_script_path = tempfile.mkstemp(prefix="chemql_shell_", suffix=".ps1")
+        try:
+            with os.fdopen(fd, "w", encoding="ascii", newline="\n") as script_file:
+                script_file.write(setup)
+        except Exception:
+            try:
+                os.close(fd)
+            except OSError:
+                pass
+            try:
+                os.unlink(_shell_script_path)
+            except OSError:
+                pass
+            _shell_script_path = None
+            raise
+
         _shell_process = subprocess.Popen(
-            ["powershell.exe", "-NoLogo", "-NoProfile", "-NoExit", "-Command", setup],
+            ["powershell.exe", "-NoLogo", "-NoProfile",
+             "-ExecutionPolicy", "Bypass", "-File", _shell_script_path],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             bufsize=1,
         )
+
         output_queue = queue.Queue()
         _shell_output_queue = output_queue
         process = _shell_process
@@ -414,30 +483,67 @@ def get_shell():
 
         _shell_reader_thread = threading.Thread(target=read_output, daemon=True)
         _shell_reader_thread.start()
+
+        # Wait briefly for the PowerShell script to confirm it started. This
+        # prevents the first request from racing process startup and diagnoses
+        # startup failures instead of hanging later while waiting for a marker.
+        ready_text = ""
+        ready_deadline = time.monotonic() + 5
+        while "__CHEMQL_READY__" not in ready_text:
+            remaining = ready_deadline - time.monotonic()
+            if remaining <= 0:
+                startup_output = ready_text.replace("\\r\\n", "\\n").strip()
+                close_shell()
+                raise RuntimeError(
+                    "PowerShell request loop did not start within 5 seconds."
+                    + (f" Output: {startup_output}" if startup_output else "")
+                )
+            try:
+                character = output_queue.get(timeout=min(0.1, remaining))
+            except queue.Empty:
+                if _shell_process.poll() is not None:
+                    raise RuntimeError(
+                        "PowerShell exited during startup with code "
+                        f"{_shell_process.returncode}."
+                    )
+                continue
+            if character is None:
+                raise RuntimeError("PowerShell closed its output during startup.")
+            ready_text += character
+        ready_pos = ready_text.find("__CHEMQL_READY__")
+        # Any text before the readiness token is startup diagnostics. It is
+        # not command output and should not leak into the first request.
+        startup_extra = ready_text[:ready_pos]
+        if startup_extra.strip():
+            # Preserve startup diagnostics for the next request to display.
+            for char in startup_extra:
+                output_queue.put(char)
+
+        # Windows PowerShell uses the explicit command/marker protocol above.
+        # Do not run the POSIX PTY prompt handshake below: it waits for a shell
+        # prompt that this non-interactive PowerShell script intentionally has
+        # disabled, causing get_shell() to hang before the first command.
+        return _shell_process
+
     else:
+        # Leave the existing POSIX implementation unchanged.
         import fcntl
         import pty
         import termios
 
         master_fd, slave_fd = pty.openpty()
-        # Don't echo bytes sent by ChemQL or keyboard input twice. Keep ISIG
-        # enabled so forwarding Ctrl-C to the PTY interrupts the foreground job.
         attrs = termios.tcgetattr(slave_fd)
         attrs[3] &= ~termios.ECHO
         termios.tcsetattr(slave_fd, termios.TCSANOW, attrs)
 
         def attach_controlling_terminal():
-            # Popen(start_new_session=True) has already called setsid().
             fcntl.ioctl(slave_fd, termios.TIOCSCTTY, 0)
 
         try:
             _shell_process = subprocess.Popen(
                 ["bash", "--noprofile", "--norc"],
-                stdin=slave_fd,
-                stdout=slave_fd,
-                stderr=slave_fd,
-                close_fds=True,
-                start_new_session=True,
+                stdin=slave_fd, stdout=slave_fd, stderr=slave_fd,
+                close_fds=True, start_new_session=True,
                 preexec_fn=attach_controlling_terminal,
                 env={**os.environ, "PS1": _shell_prompt, "PS2": ""},
             )
@@ -450,7 +556,6 @@ def get_shell():
             os.close(slave_fd)
 
     return _shell_process
-
 
 def _run_shell_command_posix(command, marker=None):
     """Run a command through the persistent PTY and forward keyboard input.
@@ -469,6 +574,7 @@ def _run_shell_command_posix(command, marker=None):
     prompt_bytes = _shell_prompt.encode()
 
     def wait_for_prompt(forward_keyboard=False):
+        global _shell_output_streamed
         collected = bytearray()
         streamed_pos = 0
         stdin_fd = None
@@ -481,7 +587,7 @@ def _run_shell_command_posix(command, marker=None):
         while True:
             readers = [master_fd]
             if stdin_fd is not None:
-                readers.append(stdin_fd)
+                readers.append(stdin_fd) #type:ignore
             try:
                 ready, _, _ = select.select(readers, [], [])
             except KeyboardInterrupt:
@@ -562,129 +668,178 @@ def _run_shell_command_posix(command, marker=None):
         close_shell()
         return f"Shell error: {exc}"
 
-
 def _run_shell_command_windows(command):
-    """Run a command in persistent PowerShell and forward line input interactively."""
-    global _shell_prompt_ready, _shell_output_streamed
+    """Execute one command in the persistent PowerShell request loop."""
+    import base64
+    import msvcrt
+    import uuid
+
     shell = get_shell()
     output_queue = _shell_output_queue
     if output_queue is None:
         return "Shell error: PowerShell output reader was not initialized."
+    if shell.stdin is None:
+        return "Shell error: PowerShell stdin is unavailable."
 
-    import msvcrt
+    marker = f"__CHEMQL_DONE_{uuid.uuid4().hex}__"
+    encoded_command = base64.b64encode(command.encode("utf-8")).decode("ascii")
+    timeout_seconds=120
+    def wait_for_marker(timeout_seconds=120):
+        """Collect output while streaming prompts so interactive commands remain usable."""
+        global _shell_output_streamed
 
-    def wait_for_prompt(stream_output):
         collected = ""
         streamed_pos = 0
-        marker = _shell_prompt
-        marker_len = len(marker)
-        stdin_is_tty = False
+        started = time.monotonic()
         try:
             stdin_is_tty = sys.stdin is not None and sys.stdin.isatty()
         except (AttributeError, OSError, ValueError):
-            pass
+            stdin_is_tty = False
         pending_input = ""
 
+        def stream_until(end):
+            nonlocal streamed_pos
+            global _shell_output_streamed
+            if not stdin_is_tty or end <= streamed_pos:
+                return
+            visible = collected[streamed_pos:end]
+            if visible:
+                try:
+                    sys.stdout.write(visible)
+                    sys.stdout.flush()
+                    _shell_output_streamed = True
+                except (OSError, UnicodeError):
+                    pass
+                streamed_pos = end
+
         while True:
-            # While a shell command is running, pass complete lines typed by the
-            # user to PowerShell. This lets Read-Host receive real input rather
-            # than consuming a completion marker injected by ChemQL.
+            if time.monotonic() - started > timeout_seconds:
+                return (None, collected, True)
+
             if stdin_is_tty:
                 try:
-                    while msvcrt.kbhit(): #type:ignore
-                        key = msvcrt.getwch()  #type:ignore
-                        if key in ("\x00", "\xe0"):  #type:ignore
-                            # Consume the second half of a Windows special key.
-                            if msvcrt.kbhit():  #type:ignore
-                                msvcrt.getwch()  #type:ignore
+                    while msvcrt.kbhit():  # type: ignore
+                        key = msvcrt.getwch()  # type: ignore
+                        if key in ("\x00", "\xe0"):
+                            if msvcrt.kbhit():  # type: ignore
+                                msvcrt.getwch()  # type: ignore
                         elif key in ("\r", "\n"):
-                            shell.stdin.write(pending_input + "\r\n")  # type: ignore
+                            shell.stdin.write(pending_input + "\n")  # type: ignore  # text mode normalizes newlines on Windows
                             shell.stdin.flush()  # type: ignore
+                            sys.stdout.write("\n")
+                            sys.stdout.flush()
                             pending_input = ""
                         elif key == "\b":
-                            pending_input = pending_input[:-1]
+                            if pending_input:
+                                pending_input = pending_input[:-1]
+                                sys.stdout.write("\b \b")
+                                sys.stdout.flush()
                         elif key == "\x03":
-                            # Ctrl-C is sent as a line input; reset is safer than
-                            # leaving ChemQL stuck in a nested interactive prompt.
                             close_shell()
-                            return None
-                        elif key >= " " and key != "\x7f":
+                            return (None, collected, False)
+                        elif key >= " " and key != "\x7f": # I have no idea what I did but it workd
                             pending_input += key
+                            sys.stdout.write(key)
+                            sys.stdout.flush()
                 except (OSError, ValueError):
                     stdin_is_tty = False
 
             try:
                 character = output_queue.get(timeout=0.04)
             except queue.Empty:
+                if shell.poll() is not None:
+                    return (None, collected, False)
                 continue
             if character is None:
-                return None
+                return (None, collected, False)
 
             collected += character
             marker_pos = collected.find(marker)
             if marker_pos >= 0:
+                stream_until(marker_pos)
                 visible = collected[:marker_pos]
-                if stream_output and marker_pos > streamed_pos:
-                    sys.stdout.write(collected[streamed_pos:marker_pos])
-                    sys.stdout.flush()
-                    _shell_output_streamed = True
-                return visible.replace("\r\n", "\n").rstrip("\r\n ")
+                return (
+                    visible.replace("\r\n", "\n").rstrip("\r\n "),
+                    collected,
+                    False,
+                )
 
-            if stream_output:
-                # Stream immediately, retaining the full output for history and
-                # only withholding a suffix that could begin the prompt marker.
-                overlap = 0
-                max_overlap = min(marker_len - 1, len(collected))
-                for size in range(max_overlap, 0, -1):
-                    if collected.endswith(marker[:size]):
-                        overlap = size
-                        break
-                safe_end = len(collected) - overlap
-                if safe_end > streamed_pos:
-                    sys.stdout.write(collected[streamed_pos:safe_end])
-                    sys.stdout.flush()
-                    _shell_output_streamed = True
-                    streamed_pos = safe_end
-
-    if not _shell_prompt_ready:
-        initial = wait_for_prompt(stream_output=False)
-        if initial is None:
-            close_shell()
-            return "Shell session terminated."
-        _shell_prompt_ready = True
+            # Hold back a suffix that could be the beginning of the completion
+            # marker, so protocol text is never accidentally printed.
+            overlap = min(len(marker) - 1, len(collected))
+            while overlap and not collected.endswith(marker[:overlap]):
+                overlap -= 1
+            stream_until(len(collected) - overlap)
 
     try:
-        shell.stdin.write(command.replace("\n", "\r\n") + "\r\n")  # type: ignore
-        shell.stdin.flush()  # type: ignore
-        result = wait_for_prompt(stream_output=True)
+        shell.stdin.write(marker + "|" + encoded_command + "\n")  # text mode normalizes newlines on Windows
+        shell.stdin.flush()
+        result, collected, timed_out = wait_for_marker()
+        if timed_out:
+            close_shell()
+            debug = collected.replace("\r\n", "\n").rstrip()
+            detail = f"PowerShell did not return its completion marker within {timeout_seconds} seconds."
+            if debug:
+                detail += f"\nOutput received before timeout:\n{debug}"
+            else:
+                detail += "\nNo output was received. The PowerShell request loop may not have started or may not be reading stdin."
+            return detail
         if result is None:
             close_shell()
-            return "Shell session terminated."
+            return "Shell session terminated before PowerShell returned its completion marker."
         return result
     except (BrokenPipeError, OSError, ValueError) as exc:
         close_shell()
         return f"Shell error: {exc}"
 
-
 def run_shell_command(command):
     global _shell_output_streamed
-    command = command.replace("\r\n", "\n").replace("\r", "\n").rstrip("\n")
+
+    command = (
+        command.replace("\r\n", "\n")
+        .replace("\r", "\n")
+        .rstrip("\n")
+    )
+
     try:
         if os.name == "nt":
-            if command.strip().casefold() in {"powershell", "powershell.exe", "pwsh", "pwsh.exe"}:
-                return "ChemQL already uses PowerShell on Windows; run the command directly instead of starting a nested shell."
+            stripped = command.strip()
+
+            if stripped.casefold() in {
+                "powershell",
+                "powershell.exe",
+                "pwsh",
+                "pwsh.exe",
+            }:
+                return (
+                    "ChemQL already uses PowerShell on Windows; "
+                    "run the command directly instead of starting "
+                    "a nested shell."
+                )
+
+            # Clear the terminal without sending Clear-Host to PowerShell.
+            if stripped.casefold() in {
+                "clear",
+                "cls",
+                "clear-host",
+            }:
+                os.system("cls")
+                return ""
+
             _shell_output_streamed = False
             return _run_shell_command_windows(command)
+
+        # POSIX behavior remains unchanged.
         return _run_shell_command_posix(command)
+
     except KeyboardInterrupt:
         close_shell()
         return "Shell command interrupted. Shell session was reset."
 
-
 def close_shell():
     """Clean up the persistent shell and its pseudo-terminal on exit."""
     global _shell_process, _shell_master_fd, _shell_prompt_ready
-    global _shell_output_queue, _shell_reader_thread
+    global _shell_output_queue, _shell_reader_thread, _shell_script_path
 
     if _shell_process is not None:
         if _shell_process.poll() is None:
@@ -708,6 +863,13 @@ def close_shell():
     _shell_prompt_ready = False
     _shell_output_queue = None
     _shell_reader_thread = None
+
+    if _shell_script_path is not None:
+        try:
+            os.unlink(_shell_script_path)
+        except OSError:
+            pass
+        _shell_script_path = None
 
 
 atexit.register(close_shell)
@@ -2317,6 +2479,24 @@ def _space_query_operators(text):
             out.append(ch)
             i += 1
             continue
+                # Preserve the compound operator "like!" as a single token.
+        if text[i:i + 5].casefold() == "like!":
+            before_ok = (
+                i == 0 or not (
+                    text[i - 1].isalnum() or text[i - 1] == "_"
+                )
+            )
+            end = i + 5
+            after_ok = (
+                end == len(text) or not (
+                    text[end].isalnum() or text[end] == "_"
+                )
+            )
+
+            if before_ok and after_ok:
+                out.extend((" ", text[i:end], " "))
+                i = end
+                continue
         if ch in "()":
             out.extend((" ", ch, " "))
             i += 1
@@ -3111,7 +3291,7 @@ def process_lines(lines):
             result = strip_ansi(result) if NO_ANSI else result
             # POSIX PTY commands stream output live. Never print their returned
             # capture a second time; Windows pipe mode still needs normal printing.
-            if result and (os.name == "nt" or not _shell_output_streamed):
+            if result and not _shell_output_streamed:
                 print(result)
             _record_execution("```\n" + command + "\n```", result, not result.startswith("Shell error:"))
             globals()["_shell_output_streamed"] = False
@@ -3526,10 +3706,13 @@ def execute(arguments, query_text=None, positions=None):
     # Convenience aliases for very common lookups.
     # These are syntactic sugar for normal search queries.
     if arguments[0] == "findel":
-        if len(arguments) != 2:
+        if len(arguments) < 2:
             return "Usage: findel <name-or-symbol>"
 
         value = arguments[1]
+        
+        return_attributes = None
+
         return execute(
             ["search", "elements", "name", "like", value, "or", "symbol", "like", value]
         )

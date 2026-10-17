@@ -525,7 +525,7 @@ queried or inspected from Python.
 
 ## Preprocessor, functions, and macros
 
-ChemQL 1.2.4 adds three ways to reuse values and logic. These declarations
+ChemQL 1.2.5 adds three ways to reuse values and logic. These declarations
 are processed in source order: definitions affect later lines, not earlier
 ones. They persist during the current ChemQL process/session; they are not
 saved automatically between separate launches.
