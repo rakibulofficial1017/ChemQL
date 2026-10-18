@@ -47,7 +47,7 @@ __all__ = [
     "__version__"
 ]
 
-__version__ = "1.2.5"
+__version__ = "1.2.6"
 
 # Persistent preprocessor/function state for the current ChemQL session.
 DEFINITIONS = {}
@@ -222,11 +222,19 @@ def _call_function(name, arguments):
 
                 code = line[1:-1].strip()
 
+                # Function parameters must also be substituted in block
+                # headers, e.g. [for i in range(2, \1 + 1)].
+                resolved_header = (
+                    "["
+                    + _expand_definitions(substitute_parameters(code))
+                    + "]"
+                )
+
                 if code.startswith("for "):
-                    execute_for_block(line, block_body)
+                    execute_for_block(resolved_header, block_body)
 
                 elif code.startswith("while "):
-                    execute_while_block(line, block_body)
+                    execute_while_block(resolved_header, block_body)
 
                 elif code.startswith("if "):
                     # Expand parameters and definitions before evaluating.
