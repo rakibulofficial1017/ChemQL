@@ -52,7 +52,7 @@ __all__ = [
     "__version__"
 ]
 
-__version__ = "1.3.0"
+__version__ = "1.3.1"
 
 # Persistent preprocessor/function state for the current ChemQL session.
 DEFINITIONS = {}
@@ -2034,7 +2034,7 @@ def _reaction_api_json(url, timeout=REACTION_API_TIMEOUT):
     request = urllib.request.Request(
         url,
         headers={
-            "User-Agent": "ChemQL/1.3.0 (reaction lookup; contact: chemql-user)",
+            "User-Agent": f"ChemQL/{__version__} (reaction lookup; contact: chemql-user)",
             "Accept": "application/json",
         },
     )
@@ -2050,7 +2050,7 @@ def _reaction_api_text(url, timeout=REACTION_API_TIMEOUT):
     request = urllib.request.Request(
         url,
         headers={
-            "User-Agent": "ChemQL/1.3.0 (reaction lookup; contact: chemql-user)",
+            "User-Agent": f"ChemQL/{__version__} (reaction lookup; contact: chemql-user)",
             "Accept": "text/tab-separated-values,text/plain,*/*",
         },
     )
@@ -4045,7 +4045,7 @@ def process_lines(lines):
                     print(output, end="" if output.endswith("\n") else "\n")
                 _record_execution("[[[\n" + code + "\n]]]", output, True)
             except Exception as exc:
-                message = f"Error: {exc}"
+                message = f"\033[31mError: {exc}\033[0m"
                 print(strip_ansi(message) if NO_ANSI else message, file=sys.stderr)
                 _record_execution("[[[\n" + code + "\n]]]", message, False)
             i += 1
@@ -4164,7 +4164,7 @@ def process_lines(lines):
             except Exception as exc:
                 if _CHEMQL_RISK_DEPTH:
                     raise
-                message = f"Error: {exc}"
+                message = f"\033[31mError: {exc}\033[0m"
                 print(strip_ansi(message) if NO_ANSI else message, file=sys.stderr)
                 _record_execution(command, message, False)
 
@@ -4766,7 +4766,175 @@ def execute(arguments, query_text=None, positions=None):
 
     return format_error(f"Unknown command `{arguments[0]}`")
 
-HELP = '\x1b[1;94m╭──────────────────────────────────────────────────────────────────────────────╮\x1b[0m\n\x1b[1;94m│\x1b[0m  \x1b[1;96m✦ \x1b[1mChemQL\x1b[0m \x1b[97mv1.2.0\x1b[0m \x1b[90m│\x1b[0m \x1b[1m\x1b[97mTHE PYTHON CHEMISTRY QUERY LANGUAGE\x1b[0m                         \x1b[1;94m│\x1b[0m\n\x1b[1;94m│\x1b[0m  \x1b[90mQuery chemical datasets · balance equations · embed Python · automate workflows\x1b[0m   \x1b[1;94m│\x1b[0m\n\x1b[1;94m╰──────────────────────────────────────────────────────────────────────────────╯\x1b[0m\n\n\x1b[1;93m\x1b[1m▶  QUICK START\x1b[0m\n  \x1b[92msearch elements ...          \x1b[0m \x1b[90m│\x1b[0m Query the periodic-table dataset\n  \x1b[92msearch molecules ...         \x1b[0m \x1b[90m│\x1b[0m Query molecule records\n  \x1b[92msearch reactions ...         \x1b[0m \x1b[90m│\x1b[0m Query stored reaction records\n  \x1b[92mfindel "He"                  \x1b[0m \x1b[90m│\x1b[0m Find an element by name or symbol\n  \x1b[92mfindmol "Water"              \x1b[0m \x1b[90m│\x1b[0m Find a molecule by name or formula\n  \x1b[92mfindre "Haber process"       \x1b[0m \x1b[90m│\x1b[0m Find a reaction by name, ID, or equation\n  \x1b[92mlist all                     \x1b[0m \x1b[90m│\x1b[0m List available fields and sources\n  \x1b[92mhelp  or  ?                  \x1b[0m \x1b[90m│\x1b[0m Show this help reference\n  \x1b[92mversion                      \x1b[0m \x1b[90m│\x1b[0m Show the installed version\n  \x1b[92mexit                         \x1b[0m \x1b[90m│\x1b[0m Leave the interactive prompt\n\n\x1b[1;93m\x1b[1m◆  QUERY SOURCES & EXAMPLES\x1b[0m\n  \x1b[92msearch elements [where]      \x1b[0m \x1b[90m│\x1b[0m Search element data\n  \x1b[92msearch molecules [where]     \x1b[0m \x1b[90m│\x1b[0m Search molecule data\n  \x1b[92msearch reactions [where]     \x1b[0m \x1b[90m│\x1b[0m Search reaction data\n  \x1b[1;96msource elements|molecules|reactions\x1b[0m \x1b[90m│\x1b[0m Set the current source\n    \x1b[95msearch elements symbol = "Fe" return name symbol number atomic_mass\x1b[0m\n    \x1b[95msearch molecules molecular_weight < 50 sort molecular_weight limit 10\x1b[0m\n    \x1b[95msearch reactions reversible = true return name equation source\x1b[0m\n\n\x1b[1;93m\x1b[1m◆  FILTERS & LOGIC\x1b[0m\n  \x1b[1;96m=   !=   >   <   >=   <=     \x1b[0m \x1b[90m│\x1b[0m Comparison operators\n  \x1b[1;96mlike  /  like!               \x1b[0m \x1b[90m│\x1b[0m Case-insensitive / case-sensitive wildcard matching\n  \x1b[1;96mlikep  /  has                \x1b[0m \x1b[90m│\x1b[0m Pattern matching / contains an item\n  \x1b[1;96mand  /  or  /  ( ... )       \x1b[0m \x1b[90m│\x1b[0m Combine conditions; parentheses group logic\n    \x1b[95msearch elements number > 10 and number < 20\x1b[0m\n    \x1b[95msearch molecules name like "*water*"\x1b[0m\n    \x1b[95msearch molecules (name like "*water*" or formula = "H2O") and molecular_weight < 25\x1b[0m\n\n\x1b[1;93m\x1b[1m◆  RESULT OPERATIONS\x1b[0m\n  \x1b[92mfirst  /  last               \x1b[0m \x1b[90m│\x1b[0m Return the first or last match\n  \x1b[92msort FIELD [asc|desc]        \x1b[0m \x1b[90m│\x1b[0m Sort matching records\n  \x1b[92mlimit N                      \x1b[0m \x1b[90m│\x1b[0m Limit the number of results\n  \x1b[92mcount                        \x1b[0m \x1b[90m│\x1b[0m Count matches\n  \x1b[92mreturn FIELD ...             \x1b[0m \x1b[90m│\x1b[0m Choose fields; one field lists, multiple fields form a table\n  \x1b[92munion / intersection         \x1b[0m \x1b[90m│\x1b[0m Combine result sets\n    \x1b[95msearch molecules molecular_weight < 20 sort molecular_weight asc limit 5\x1b[0m\n    \x1b[95msearch elements number < 10 union search elements number > 90\x1b[0m\n\n\x1b[1;93m\x1b[1m◆  REACTION TOOLS & CONDITIONS\x1b[0m\n  \x1b[1;96mset temperature 723K|150C|300F|standard|room    \x1b[0m \x1b[90m│\x1b[0m Set reaction temperature\n  \x1b[1;96mset pressure 101325Pa|2bar|1atm|standard|room   \x1b[0m \x1b[90m│\x1b[0m Set reaction pressure\n  \x1b[1;96mset catalysts iron zinc      \x1b[0m \x1b[90m│\x1b[0m Set the catalyst list\n  \x1b[1;96mset catalysts                \x1b[0m \x1b[90m│\x1b[0m Clear the catalyst list\n  \x1b[1;96madd catalyst "Vanadium oxide"\x1b[0m \x1b[90m│\x1b[0m Add a catalyst\n  \x1b[1;96mremove catalyst "Vanadium oxide"\x1b[0m \x1b[90m│\x1b[0m Remove a catalyst\n  \x1b[1;96mconditions                   \x1b[0m \x1b[90m│\x1b[0m Show active temperature, pressure, and catalysts\n  \x1b[1;96mreact N2 3H2                 \x1b[0m \x1b[90m│\x1b[0m Find a stored reaction matching reactants\n  \x1b[1;96mbalance H2 + O2 -> H2O       \x1b[0m \x1b[90m│\x1b[0m Balance an irreversible equation\n  \x1b[1;96mbalance N2 + H2 <-> NH3      \x1b[0m \x1b[90m│\x1b[0m Balance a reversible equation\n  \x1b[2mTemperature units: C, F, K. Pressure units include Pa, N/m^2, Nm^-2, bar, and atm.\x1b[0m\n  \x1b[2mPresets: standard = 0 C and 100000 Pa; room = 25 C and 101325 Pa.\x1b[0m\n\n\x1b[1;93m\x1b[1m◆  PREPROCESSOR, FUNCTIONS & MACROS  ·  V1.2.0\x1b[0m\n  \x1b[95mdefine MAX 9                 \x1b[0m \x1b[90m│\x1b[0m Define a literal replacement used as @MAX\n  \x1b[95mdefinitions                  \x1b[0m \x1b[90m│\x1b[0m List current literal definitions\n  \x1b[95mremove definition MAX        \x1b[0m \x1b[90m│\x1b[0m Remove a definition\n    \x1b[95mdefine MAX 9\x1b[0m\n    \x1b[95msearch elements number <= @MAX\x1b[0m\n\n  \x1b[95mfunc square                  \x1b[0m \x1b[90m│\x1b[0m Begin a function; finish it with endfunc\n  \x1b[95mreturn [\\1 * \\1]             \x1b[0m \x1b[90m│\x1b[0m Return a value using positional argument \\1\n  \x1b[95mendfunc                      \x1b[0m \x1b[90m│\x1b[0m Close the function definition\n  \x1b[95msquare{5}                    \x1b[0m \x1b[90m│\x1b[0m Call the function with brace-delimited arguments\n\n  \x1b[95mdefine light{}               \x1b[0m \x1b[90m│\x1b[0m Begin a macro; finish it with enddefine\n    \x1b[95msearch molecules molecular_weight < \\1 return name formula\x1b[0m\n  \x1b[95menddefine                    \x1b[0m \x1b[90m│\x1b[0m Close the macro definition\n  \x1b[95m@light{50}                   \x1b[0m \x1b[90m│\x1b[0m Expand and execute a macro\n  \x1b[2mFunction and macro arguments use positional placeholders: \\1, \\2, and so on.\x1b[0m\n  \x1b[2mDefinitions are processed in source order and are local to the current session.\x1b[0m\n\n\x1b[1;93m\x1b[1m◆  PYTHON INTEGRATION\x1b[0m\n  \x1b[1;96m[x = 10]                     \x1b[0m \x1b[90m│\x1b[0m Execute a Python statement\n  \x1b[1;96m[print(x)]                   \x1b[0m \x1b[90m│\x1b[0m Use Python variables across commands\n  \x1b[1;96m[x * 2]                      \x1b[0m \x1b[90m│\x1b[0m Evaluate and display a Python expression\n    \x1b[95m{{ search elements name = "Hydrogen" }}\x1b[0m\n  \x1b[2mEmbedded {{ ... }} queries return their result as a value.\x1b[0m\n  Python control-flow blocks:\n    \x1b[95m[if condition] ... [elif condition] ... [else] ... [endblock]\x1b[0m\n    \x1b[95m[for item in iterable] ... [endblock]\x1b[0m\n    \x1b[95m[while condition] ... [endblock]\x1b[0m\n    \x1b[95m[break] and [continue] inside loops\x1b[0m\n  Multiline Python block:\n    \x1b[95m[[[\x1b[0m\n    \x1b[95mfor x in range(3):\x1b[0m\n    \x1b[95m    print(x)\x1b[0m\n    \x1b[95m]]]   # close on its own line\x1b[0m\n\n\x1b[1;93m\x1b[1m◆  SHELL, COMMENTS & COMMAND COMPOSITION\x1b[0m\n  \x1b[1;96m`command`                    \x1b[0m \x1b[90m│\x1b[0m Run a command in the persistent system shell\n  \x1b[1;96m```bash ... ```              \x1b[0m \x1b[90m│\x1b[0m Run a multiline shell block (also sh, cmd, terminal)\n  \x1b[1;96m// comment                   \x1b[0m \x1b[90m│\x1b[0m Single-line comment\n  \x1b[1;96m/// ... ///                  \x1b[0m \x1b[90m│\x1b[0m Multiline comment\n  \x1b[1;96mcommand1; command2           \x1b[0m \x1b[90m│\x1b[0m Run multiple commands on one line\n  \x1b[1;96mtrailing backslash           \x1b[0m \x1b[90m│\x1b[0m Continue a command on the next line\n  \x1b[1;96mview                         \x1b[0m \x1b[90m│\x1b[0m Open the bundled periodic-table viewer\n  \x1b[1;96mclear                        \x1b[0m \x1b[90m│\x1b[0m Clear the terminal\n\n\x1b[1;93m\x1b[1m◆  HISTORY EXPORT\x1b[0m\n  \x1b[92mdump FILE                    \x1b[0m \x1b[90m│\x1b[0m Export all recorded queries and results\n  \x1b[92mdump all|good|bad FILE       \x1b[0m \x1b[90m│\x1b[0m Export all, successful, or failed executions\n  \x1b[92mdump all|good|bad queries FILE\x1b[0m \x1b[90m│\x1b[0m Export query history\n  \x1b[92mdump all|good|bad results FILE\x1b[0m \x1b[90m│\x1b[0m Export result history\n\n\x1b[1;93m\x1b[1m◆  COMMAND-LINE OPTIONS\x1b[0m\n  \x1b[1;96mchemql                       \x1b[0m \x1b[90m│\x1b[0m Start the interactive prompt\n  \x1b[1;96mchemql -c "COMMAND"          \x1b[0m \x1b[90m│\x1b[0m Execute one command\n  \x1b[1;96mchemql -f FILE               \x1b[0m \x1b[90m│\x1b[0m Execute commands from a file\n  \x1b[1;96mchemql --version             \x1b[0m \x1b[90m│\x1b[0m Print the installed version\n  \x1b[1;96mchemql --no-ansi             \x1b[0m \x1b[90m│\x1b[0m Disable ANSI styling in output\n  \x1b[1;96mchemql -c "COMMAND" -o FILE  \x1b[0m \x1b[90m│\x1b[0m Write command output to a plain-text file\n  \x1b[1;96mchemql --upgrade [VERSION]   \x1b[0m \x1b[90m│\x1b[0m Upgrade to latest or a chosen release\n  \x1b[1;96mchemql --force               \x1b[0m \x1b[90m│\x1b[0m Force upgrade past system-package protections\n\n\x1b[1;93m\x1b[1m◆  PYTHON API\x1b[0m\n    \x1b[95mfrom chemql import execute_query_text, execute_query\x1b[0m\n    \x1b[95mresult = execute_query_text(\'search elements symbol = "O"\')\x1b[0m\n  \x1b[2mDistribution package: chemql-python  ·  import / CLI name: chemql\x1b[0m\n\n\x1b[1;93m\x1b[1m⚠  SAFETY & DATA NOTES\x1b[0m\n  \x1b[2mPython blocks and shell commands run real code with your user permissions.\x1b[0m\n  \x1b[2mRun only code and commands you trust. External lookups need network access\x1b[0m\n  \x1b[2mand can fail when a remote service is unavailable.\x1b[0m\n\n\x1b[1;94m────────────────────────────────────────────────────────────────────────────────\x1b[0m\n\x1b[90mChemQL 1.2.0  ·  Type \x1b[92mhelp\x1b[90m for this guide, or \x1b[92mexit\x1b[90m to quit.\x1b[0m\n'
+
+HELP = (
+    "\x1b[1;94m╭──────────────────────────────────────────────────────────────────────────────╮\x1b[0m\n"
+   f"\x1b[1;94m│\x1b[0m  \x1b[1;96m✦ \x1b[1mChemQL\x1b[0m \x1b[97mv{__version__}\x1b[0m    \x1b[90m│\x1b[0m \x1b[1m\x1b[97mTHE PYTHON CHEMISTRY QUERY LANGUAGE\x1b[0m                    \x1b[1;94m│\x1b[0m\n"
+    "\x1b[1;94m│\x1b[0m  \x1b[90mQuery chemistry · automate calculations · build reusable programs\x1b[0m           \x1b[1;94m│\x1b[0m\n"
+    "\x1b[1;94m╰──────────────────────────────────────────────────────────────────────────────╯\x1b[0m\n"
+    "\n"
+    "\x1b[1;93m\x1b[1m▶  QUICK START\x1b[0m\n"
+    "  \x1b[92msearch elements ...          \x1b[0m \x1b[90m│\x1b[0m Search the periodic table\n"
+    "  \x1b[92msearch molecules ...         \x1b[0m \x1b[90m│\x1b[0m Search molecule records\n"
+    "  \x1b[92msearch reactions ...         \x1b[0m \x1b[90m│\x1b[0m Search stored reactions\n"
+    "  \x1b[92mfindel \"He\"                  \x1b[0m \x1b[90m│\x1b[0m Find an element\n"
+    "  \x1b[92mfindmol \"Water\"              \x1b[0m \x1b[90m│\x1b[0m Find a molecule\n"
+    "  \x1b[92mfindre \"Haber process\"       \x1b[0m \x1b[90m│\x1b[0m Find a reaction\n"
+    "  \x1b[92mbalance H2 + O2 -> H2O       \x1b[0m \x1b[90m│\x1b[0m Balance a chemical equation\n"
+    "  \x1b[92mhelp  or  ?                  \x1b[0m \x1b[90m│\x1b[0m Display this help message\n"
+    "  \x1b[92mversion                      \x1b[0m \x1b[90m│\x1b[0m Display the installed version\n"
+    "  \x1b[92mexit                         \x1b[0m \x1b[90m│\x1b[0m Exit the interactive prompt\n"
+    "\n"
+    "\x1b[1;93m\x1b[1m◆  CHEMICAL DATA & SEARCH\x1b[0m\n"
+    "  \x1b[1;96msearch elements [conditions]  \x1b[0m      \x1b[90m│\x1b[0m Query element data\n"
+    "  \x1b[1;96msearch molecules [conditions] \x1b[0m      \x1b[90m│\x1b[0m Query molecule data\n"
+    "  \x1b[1;96msearch reactions [conditions] \x1b[0m      \x1b[90m│\x1b[0m Query stored reaction data\n"
+    "  \x1b[1;96msource elements|molecules|reactions\x1b[0m \x1b[90m│\x1b[0m Set the current source\n"
+    "  \x1b[1;96mlist all                      \x1b[0m      \x1b[90m│\x1b[0m List available fields and sources\n"
+    "    \x1b[95msearch elements symbol = \"Fe\" return name symbol number\x1b[0m\n"
+    "    \x1b[95msearch molecules molecular_weight < 50 sort molecular_weight limit 10\x1b[0m\n"
+    "    \x1b[95msearch reactions reversible = true return name equation source\x1b[0m\n"
+    "\n"
+    "\x1b[1;93m\x1b[1m◆  FILTERS & LOGIC\x1b[0m\n"
+    "  \x1b[1;96m= != > < >= <=               \x1b[0m \x1b[90m│\x1b[0m Comparison operators\n"
+    "  \x1b[1;96mlike                         \x1b[0m \x1b[90m│\x1b[0m Case-insensitive wildcard match\n"
+    "  \x1b[1;96mlike!                        \x1b[0m \x1b[90m│\x1b[0m Case-sensitive wildcard match\n"
+    "  \x1b[1;96mlikep                        \x1b[0m \x1b[90m│\x1b[0m Pattern-based matching\n"
+    "  \x1b[1;96mhas                          \x1b[0m \x1b[90m│\x1b[0m Check whether a collection contains an item\n"
+    "  \x1b[1;96mand / or                     \x1b[0m \x1b[90m│\x1b[0m Combine conditions\n"
+    "    \x1b[95msearch elements number > 10 and number < 20\x1b[0m\n"
+    "    \x1b[95msearch molecules name like \"*water*\"\x1b[0m\n"
+    "    \x1b[95msearch reactions reactants has \"O2\" and products has \"H2O\"\x1b[0m\n"
+    "\n"
+    "\x1b[1;93m\x1b[1m◆  RESULT OPERATIONS\x1b[0m\n"
+    "  \x1b[92mfirst / last                 \x1b[0m \x1b[90m│\x1b[0m Select the first or last result\n"
+    "  \x1b[92msort FIELD [asc|desc]        \x1b[0m \x1b[90m│\x1b[0m Sort matching records\n"
+    "  \x1b[92mlimit N                      \x1b[0m \x1b[90m│\x1b[0m Limit the number of results\n"
+    "  \x1b[92mcount                        \x1b[0m \x1b[90m│\x1b[0m Count matching records\n"
+    "  \x1b[92mreturn FIELD ...             \x1b[0m \x1b[90m│\x1b[0m Choose fields to display\n"
+    "  \x1b[92munion / intersection         \x1b[0m \x1b[90m│\x1b[0m Combine result sets\n"
+    "    \x1b[95msearch molecules molecular_weight < 20 sort molecular_weight asc limit 5\x1b[0m\n"
+    "\n"
+    "\x1b[1;93m\x1b[1m◆  REACTIONS & CONDITIONS\x1b[0m\n"
+    "  \x1b[1;96mbalance H2 + O2 -> H2O       \x1b[0m \x1b[90m│\x1b[0m Balance an equation\n"
+    "  \x1b[1;96mbalance N2 + H2 <-> NH3      \x1b[0m \x1b[90m│\x1b[0m Balance a reversible equation\n"
+    "  \x1b[1;96mreact N2 3H2                 \x1b[0m \x1b[90m│\x1b[0m Find a matching stored reaction\n"
+    "  \x1b[1;96mset temperature 150C         \x1b[0m \x1b[90m│\x1b[0m Set the reaction temperature\n"
+    "  \x1b[1;96mset pressure 1atm            \x1b[0m \x1b[90m│\x1b[0m Set the reaction pressure\n"
+    "  \x1b[1;96mset catalysts iron zinc      \x1b[0m \x1b[90m│\x1b[0m Set available catalysts\n"
+    "  \x1b[1;96mset catalysts                \x1b[0m \x1b[90m│\x1b[0m Clear the catalyst list\n"
+    "  \x1b[1;96madd catalyst \"Iron\"        \x1b[0m \x1b[90m│\x1b[0m Add a catalyst\n"
+    "  \x1b[1;96mremove catalyst \"Iron\"     \x1b[0m \x1b[90m│\x1b[0m Remove a catalyst\n"
+    "  \x1b[1;96mconditions                   \x1b[0m \x1b[90m│\x1b[0m Display current conditions\n"
+    "  \x1b[2mTemperature units: K, C, F. Pressure units include Pa, bar, and atm.\x1b[0m\n"
+    "\n"
+    "\x1b[1;93m\x1b[1m◆  VARIABLES & DEFINITIONS\x1b[0m\n"
+    "  \x1b[95mlet answer = 42              \x1b[0m \x1b[90m│\x1b[0m Create or assign a variable\n"
+    "  \x1b[95munset answer                 \x1b[0m \x1b[90m│\x1b[0m Remove a variable\n"
+    "  \x1b[95mvariables                    \x1b[0m \x1b[90m│\x1b[0m List current variables\n"
+    "  \x1b[95mdefine MAX 9                 \x1b[0m \x1b[90m│\x1b[0m Define a literal replacement\n"
+    "  \x1b[95m@MAX                         \x1b[0m \x1b[90m│\x1b[0m Use a definition\n"
+    "  \x1b[95mdefinitions                  \x1b[0m \x1b[90m│\x1b[0m List definitions\n"
+    "  \x1b[95mremove definition MAX        \x1b[0m \x1b[90m│\x1b[0m Remove a definition\n"
+    "    \x1b[95mdefine MAX 9\x1b[0m\n"
+    "    \x1b[95msearch elements number <= @MAX\x1b[0m\n"
+    "\n"
+    "\x1b[1;93m\x1b[1m◆  FUNCTIONS & MACROS\x1b[0m\n"
+    "  \x1b[95mfunc square                  \x1b[0m \x1b[90m│\x1b[0m Start a function definition\n"
+    "  \x1b[95mreturn [\\1 * \\1]             \x1b[0m \x1b[90m│\x1b[0m Return a value using argument \\1\n"
+    "  \x1b[95mendfunc                      \x1b[0m \x1b[90m│\x1b[0m Finish a function definition\n"
+    "  \x1b[95msquare{5}                    \x1b[0m \x1b[90m│\x1b[0m Call a function\n"
+    "  \x1b[95mdefine double{}              \x1b[0m \x1b[90m│\x1b[0m Start a macro definition\n"
+    "  \x1b[95menddefine                    \x1b[0m \x1b[90m│\x1b[0m Finish a macro definition\n"
+    "  \x1b[95m@double{5}                   \x1b[0m \x1b[90m│\x1b[0m Expand and execute a macro\n"
+    "  \x1b[95mmacros                        \x1b[0m \x1b[90m│\x1b[0m List defined macros\n"
+    "  \x1b[2mFunction and macro arguments use positional placeholders: \\1, \\2, and so on.\x1b[0m\n"
+    "\n"
+    "\x1b[1;93m\x1b[1m◆  CONTROL FLOW\x1b[0m\n"
+    "  \x1b[95mif condition ... endif         \x1b[0m \x1b[90m│\x1b[0m Conditional execution\n"
+    "  \x1b[95mif / elif / else / endif       \x1b[0m \x1b[90m│\x1b[0m Branch between conditions\n"
+    "  \x1b[95mfor item in iterable ... endfor\x1b[0m \x1b[90m│\x1b[0m Iterate over values\n"
+    "  \x1b[95mwhile condition ... endwhile   \x1b[0m \x1b[90m│\x1b[0m Repeat while a condition holds\n"
+    "  \x1b[95mbreak / continue               \x1b[0m \x1b[90m│\x1b[0m Control loop execution\n"
+    "    \x1b[95mfor i in range(5)\x1b[0m\n"
+    "        \x1b[95mlet value = i\x1b[0m\n"
+    "    \x1b[95mendfor\x1b[0m\n"
+    "  \x1b[2mPython-style blocks are also available: [for ...] ... [endblock].\x1b[0m\n"
+    "\n"
+    "\x1b[1;93m\x1b[1m◆  ERROR HANDLING\x1b[0m\n"
+    "  \x1b[95mrisk ... endrisk             \x1b[0m \x1b[90m│\x1b[0m Run a protected block\n"
+    "  \x1b[95mfix                          \x1b[0m \x1b[90m│\x1b[0m Handle an error from the risk block\n"
+    "  \x1b[95mcleanup                      \x1b[0m \x1b[90m│\x1b[0m Run cleanup whether successful or not\n"
+    "  \x1b[95msignal \"message\"             \x1b[0m \x1b[90m│\x1b[0m Raise a ChemQL signal\n"
+    "  \x1b[95merror                        \x1b[0m \x1b[90m│\x1b[0m Inspect the error type in a fix block\n"
+    "    \x1b[95mrisk\x1b[0m\n"
+    "        \x1b[95msignal \"Something went wrong\"\x1b[0m\n"
+    "    \x1b[95mfix\x1b[0m\n"
+    "        \x1b[95mlet handled = error\x1b[0m\n"
+    "    \x1b[95mcleanup\x1b[0m\n"
+    "        \x1b[95mlet finished = true\x1b[0m\n"
+    "    \x1b[95mendrisk\x1b[0m\n"
+    "  \x1b[2mThe variable error contains the error type, or None after success.\x1b[0m\n"
+    "\n"
+    "\x1b[1;93m\x1b[1m◆  STRUCTS & METHODS\x1b[0m\n"
+    "  \x1b[95mstruct Name                  \x1b[0m \x1b[90m│\x1b[0m Define a structured data type\n"
+    "  \x1b[95mrecord Name                  \x1b[0m \x1b[90m│\x1b[0m Define or use record data\n"
+    "  \x1b[95mfunc Type.__add__            \x1b[0m \x1b[90m│\x1b[0m Define an operator method\n"
+    "  \x1b[2mStruct methods can implement custom behaviour and operator overloads.\x1b[0m\n"
+    "\n"
+    "\x1b[1;93m\x1b[1m◆  PYTHON INTEGRATION\x1b[0m\n"
+    "  \x1b[1;96m[x = 10]                     \x1b[0m \x1b[90m│\x1b[0m Execute a Python statement\n"
+    "  \x1b[1;96m[print(x)]                   \x1b[0m \x1b[90m│\x1b[0m Run Python code\n"
+    "  \x1b[1;96m[x * 2]                      \x1b[0m \x1b[90m│\x1b[0m Evaluate a Python expression\n"
+    "    \x1b[95m{{ search elements name = \"Hydrogen\" }}\x1b[0m\n"
+    "  \x1b[2mEmbedded {{ ... }} queries return results as values.\x1b[0m\n"
+    "  Multiline Python blocks:\n"
+    "    \x1b[95m[[[\x1b[0m\n"
+    "    \x1b[95mfor x in range(3):\x1b[0m\n"
+    "    \x1b[95m    print(x)\x1b[0m\n"
+    "    \x1b[95m]]]\x1b[0m\n"
+    "\n"
+    "\x1b[1;93m\x1b[1m◆  SHELL, COMMENTS & COMPOSITION\x1b[0m\n"
+    "  \x1b[1;96m`command`                    \x1b[0m \x1b[90m│\x1b[0m Run a system-shell command\n"
+    "  \x1b[1;96m```bash ... ```              \x1b[0m \x1b[90m│\x1b[0m Run a multiline shell block\n"
+    "  \x1b[1;96m// comment                   \x1b[0m \x1b[90m│\x1b[0m Single-line comment\n"
+    "  \x1b[1;96m/// ... ///                  \x1b[0m \x1b[90m│\x1b[0m Multiline comment\n"
+    "  \x1b[1;96mcommand1; command2           \x1b[0m \x1b[90m│\x1b[0m Execute multiple commands\n"
+    "  \x1b[1;96m\\                            \x1b[0m \x1b[90m│\x1b[0m Continue input on the next line\n"
+    "  \x1b[1;96mview                         \x1b[0m \x1b[90m│\x1b[0m Open the periodic-table viewer\n"
+    "  \x1b[1;96mclear                        \x1b[0m \x1b[90m│\x1b[0m Clear the terminal\n"
+    "\n"
+    "\x1b[1;93m\x1b[1m◆  EXECUTION HISTORY\x1b[0m\n"
+    "  \x1b[92mdump FILE                     \x1b[0m \x1b[90m│\x1b[0m Export queries and results\n"
+    "  \x1b[92mdump all FILE                 \x1b[0m \x1b[90m│\x1b[0m Export all execution records\n"
+    "  \x1b[92mdump good FILE                \x1b[0m \x1b[90m│\x1b[0m Export successful executions\n"
+    "  \x1b[92mdump bad FILE                 \x1b[0m \x1b[90m│\x1b[0m Export failed executions\n"
+    "  \x1b[92mdump all|good|bad queries FILE\x1b[0m \x1b[90m│\x1b[0m Export query text only\n"
+    "  \x1b[92mdump all|good|bad results FILE\x1b[0m \x1b[90m│\x1b[0m Export results only\n"
+    "\n"
+    "\x1b[1;93m\x1b[1m◆  COMMAND-LINE OPTIONS\x1b[0m\n"
+    "  \x1b[1;96mchemql                       \x1b[0m \x1b[90m│\x1b[0m Start the interactive prompt\n"
+    "  \x1b[1;96mchemql -c \"COMMAND\"          \x1b[0m \x1b[90m│\x1b[0m Execute one command\n"
+    "  \x1b[1;96mchemql -f FILE               \x1b[0m \x1b[90m│\x1b[0m Execute a file\n"
+    "  \x1b[1;96mchemql --version             \x1b[0m \x1b[90m│\x1b[0m Display version information\n"
+    "  \x1b[1;96mchemql --no-ansi             \x1b[0m \x1b[90m│\x1b[0m Disable ANSI styling\n"
+    "  \x1b[1;96mchemql -c \"COMMAND\" -o FILE  \x1b[0m \x1b[90m│\x1b[0m Save command output to a file\n"
+    "  \x1b[1;96mchemql --upgrade [VERSION]   \x1b[0m \x1b[90m│\x1b[0m Upgrade ChemQL\n"
+    "  \x1b[1;96mchemql --force               \x1b[0m \x1b[90m│\x1b[0m Override package-manager protections\n"
+    "\n"
+    "\x1b[1;93m\x1b[1m◆  PYTHON API\x1b[0m\n"
+    "    \x1b[95mfrom chemql import execute_query_text, execute_query\x1b[0m\n"
+    "    \x1b[95mresult = execute_query_text('search elements symbol = \"O\"')\x1b[0m\n"
+    "  \x1b[2mDistribution: chemql-python · Import and CLI name: chemql\x1b[0m\n"
+    "\n"
+    "\x1b[1;93m\x1b[1m⚠  SAFETY NOTES\x1b[0m\n"
+    "  \x1b[2mPython blocks and shell commands execute real code with your permissions.\x1b[0m\n"
+    "  \x1b[2mOnly run code and commands you trust. External lookups require network access.\x1b[0m\n"
+    "\n"
+    "\x1b[1;94m────────────────────────────────────────────────────────────────────────────────\x1b[0m\n"
+   f"\x1b[90mChemQL {__version__} · Type \x1b[92mhelp\x1b[90m for help, or \x1b[92mexit\x1b[90m to quit.\x1b[0m\n"
+)
+
 
 import webbrowser
 from pathlib import Path
@@ -5517,7 +5685,7 @@ def run_interactive():
                 try:
                     print(_dump_history(first_line.strip()))
                 except Exception as exc:
-                    print(f"Error: {exc}")
+                    print(f"Error: {exc}" if NO_ANSI else "\033[31m" + f"Error: {exc}" + "\033[0m")
                 continue
         
             if not first_line.strip():

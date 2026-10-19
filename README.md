@@ -6,7 +6,7 @@ SQL-inspired syntax, inspect elements and molecules, look up reactions,
 balance equations, and combine chemistry queries with Python and shell
 commands.
 
--   **Version:** `1.3.0`
+-   **Version:** `1.3.1`
 -   **PyPI distribution:** `chemql-python`
 -   **Python import / CLI name:** `chemql`
 -   **Author:** Mohammad Rakibul Islam
