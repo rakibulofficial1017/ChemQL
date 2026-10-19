@@ -35,6 +35,11 @@ __all__ = [
     "Element",
     "Molecule",
     "Reaction",
+    "MOLECULES",
+    "REACTIONS",
+    "find_molecule",
+    "find_reaction",
+    "search_reactions",
     "ReturnTable",
     "Unknown",
     "balance_stoichiometry",
@@ -47,7 +52,7 @@ __all__ = [
     "__version__"
 ]
 
-__version__ = "1.2.6"
+__version__ = "1.3.0"
 
 # Persistent preprocessor/function state for the current ChemQL session.
 DEFINITIONS = {}
@@ -135,16 +140,23 @@ def _call_function(name, arguments):
     had_arguments = "arguments" in python_globals
     saved_arguments = python_globals.get("arguments")
 
-    # Expose only the supplied arguments.
+    # Expose arguments through temporary names rather than repr().  ChemQL
+    # structs display as `Fruit{...}`, which is not valid Python syntax; using
+    # names also preserves object identity and supports lists/dicts/custom types.
     python_globals["arguments"] = list(values)
+    parameter_names = []
+    for value in values:
+        parameter_name = "__chemql_func_arg_" + uuid.uuid4().hex
+        python_globals[parameter_name] = value
+        parameter_names.append(parameter_name)
 
     def substitute_parameters(source):
-        """Replace \\1, \\2, etc. without corrupting \\10 or longer indices."""
+        """Replace \\1, \\2, etc. with safe names bound to the actual values."""
         return re.sub(
             r"\\(\d+)",
             lambda match: (
-                repr(values[int(match.group(1)) - 1])
-                if 0 < int(match.group(1)) <= len(values)
+                parameter_names[int(match.group(1)) - 1]
+                if 0 < int(match.group(1)) <= len(parameter_names)
                 else match.group(0)
             ),
             source,
@@ -153,7 +165,7 @@ def _call_function(name, arguments):
     def normalize_let_line(source):
         """Translate let name = expression into a Python assignment."""
         match = re.fullmatch(
-            r"\s*let\s+([A-Za-z_]\w*)\s*=\s*(.*?)\s*",
+            r"\s*let\s+([A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)\s*=\s*(.*?)\s*",
             source,
         )
 
@@ -184,6 +196,50 @@ def _call_function(name, arguments):
                 i += 1
                 continue
 
+            # Structured error handling is available inside functions too.
+            if line.casefold() == "risk":
+                end_risk = i + 1
+                risk_depth = 1
+                while end_risk < len(lines):
+                    token = lines[end_risk].strip().casefold()
+                    if token == "risk": risk_depth += 1
+                    elif token == "endrisk":
+                        risk_depth -= 1
+                        if risk_depth == 0: break
+                    end_risk += 1
+                if end_risk >= len(lines):
+                    raise SyntaxError(f"Missing `endrisk` in function `{name}`")
+                sections = {"risk": [], "fix": [], "cleanup": []}
+                section = "risk"
+                for risk_line in lines[i + 1:end_risk]:
+                    marker = risk_line.strip().casefold()
+                    if marker in {"fix", "cleanup"}: section = marker
+                    else: sections[section].append(risk_line)
+                try:
+                    result = execute_function_lines(sections["risk"])
+                    if result is not _NO_RETURN:
+                        return result
+                    python_globals["error"] = None
+                except Exception as exc:
+                    python_globals["error"] = exc.error_type if isinstance(exc, ChemQLSignal) else type(exc).__name__
+                    if sections["fix"]:
+                        result = execute_function_lines(sections["fix"])
+                        if result is not _NO_RETURN:
+                            return result
+                    elif not isinstance(exc, ChemQLSignal):
+                        raise
+                finally:
+                    # Cleanup is for side effects; it must not override a return
+                    # from the risk/fix section (and returning from finally is unsafe).
+                    if sections["cleanup"]:
+                        execute_function_lines(sections["cleanup"])
+                i = end_risk + 1
+                continue
+
+            signal_match = re.fullmatch(r"signal\s+(.+)", line, re.IGNORECASE)
+            if signal_match:
+                raise ChemQLSignal(evaluate_python(signal_match.group(1)))
+
             # Multiline Python block.
             if line == "[[[":
                 block = []
@@ -212,15 +268,27 @@ def _call_function(name, arguments):
             #     line,
             # )
 
-            if is_block_header(line):
-                end = find_endblock(lines, i + 1)
+            # Resolve positional placeholders BEFORE parsing the header.
+            # Otherwise `[if \1 <= 1]` is rejected as non-Python syntax before
+            # `\1` can be replaced with the actual argument.
+            resolved_line = line
+            if line.startswith("[") and line.endswith("]"):
+                resolved_line = "[" + _expand_definitions(
+                    substitute_parameters(line[1:-1].strip())
+                ) + "]"
+
+            if is_block_header(resolved_line):
+                # Nested block discovery must see substituted headers too,
+                # or a nested `[if \1 ...]` won't increase the block depth.
+                resolved_lines = [substitute_parameters(source_line) for source_line in lines]
+                end = find_endblock(resolved_lines, i + 1)
 
                 block_body = [
                     normalize_let_line(substitute_parameters(source_line))
                     for source_line in lines[i + 1:end]
                 ]
 
-                code = line[1:-1].strip()
+                code = resolved_line[1:-1].strip()
 
                 # Function parameters must also be substituted in block
                 # headers, e.g. [for i in range(2, \1 + 1)].
@@ -242,15 +310,24 @@ def _call_function(name, arguments):
                     condition = substitute_parameters(condition)
                     condition = _expand_definitions(condition)
 
-                    # Find the top-level else branch.
-                    else_index = next(
-                        (
-                            j
-                            for j, source_line in enumerate(block_body)
-                            if source_line.strip() == "[else]"
-                        ),
-                        None,
-                    )
+                    # Find the `else` belonging to this `if`, not an `else`
+                    # nested inside one of its child blocks. Without tracking
+                    # nesting, the false branch of an inner `if` can be
+                    # mistaken for the outer `if`'s `else`.
+                    else_index = None
+                    nested_depth = 0
+                    for j, source_line in enumerate(block_body):
+                        token = source_line.strip()
+                        if is_block_header(token):
+                            nested_depth += 1
+                            continue
+                        if token in {"[endblock]", "[endif]", "[endfor]", "[endwhile]"}:
+                            if nested_depth:
+                                nested_depth -= 1
+                            continue
+                        if token == "[else]" and nested_depth == 0:
+                            else_index = j
+                            break
 
                     if evaluate_python(condition):
                         selected_body = (
@@ -666,7 +743,15 @@ def _run_shell_command_posix(command, marker=None):
         _shell_prompt_ready = True
 
     try:
-        os.write(master_fd, (command + "\n").encode())
+        # Send a fenced block as ONE shell input command. Feeding raw newlines
+        # to an interactive Bash PTY lets Bash emit PS1 after the first physical
+        # line, so wait_for_prompt() can return early while later lines remain
+        # queued and execute out of sync with the next ChemQL command. Quoting
+        # the complete script keeps its newlines inside one `eval` command;
+        # eval still runs in the persistent shell, so `cd` and shell variables
+        # remain effective for later commands.
+        shell_input = "eval " + shlex.quote(command)
+        os.write(master_fd, (shell_input + "\n").encode())
         result = wait_for_prompt(forward_keyboard=True)
         if result is None:
             close_shell()
@@ -902,6 +987,9 @@ class ChemQLError(Exception):
         super().__init__(message)
         self.position = position
         self.length = length
+
+
+_CHEMQL_RISK_DEPTH = 0
 
 
 def format_error(message, text=None, position=None, length=1):
@@ -1272,6 +1360,131 @@ def _find_local_molecule(value):
     return None
 
 
+CHEMSPIDER_BASE_URL = "https://api.rsc.org/compounds/v1"
+
+
+def _chemspider_request(method, endpoint, payload=None, timeout=12):
+    """Call the authenticated ChemSpider Compound API; return decoded JSON or None."""
+    api_key = os.getenv("CHEMSPIDER_API_KEY", "").strip()
+    if not api_key:
+        return None
+
+    url = f"{CHEMSPIDER_BASE_URL}/{endpoint.lstrip('/')}"
+    body = None if payload is None else json.dumps(payload).encode("utf-8")
+    headers = {
+        "apikey": api_key,
+        "Accept": "application/json",
+        "User-Agent": "ChemQL",
+    }
+    if body is not None:
+        headers["Content-Type"] = "application/json"
+
+    request = urllib.request.Request(
+        url, data=body, headers=headers, method=method.upper()
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            raw = response.read().decode("utf-8", errors="replace")
+            return json.loads(raw) if raw.strip() else {}
+    except (
+        urllib.error.HTTPError,
+        urllib.error.URLError,
+        TimeoutError,
+        OSError,
+        json.JSONDecodeError,
+        ValueError,
+    ):
+        return None
+
+
+def _chemspider_record_ids(target):
+    """Search ChemSpider by name and wait briefly for the asynchronous query."""
+    submitted = _chemspider_request("POST", "filter/name", {"name": target})
+    if not isinstance(submitted, dict):
+        return []
+
+    query_id = submitted.get("queryId") or submitted.get("query_id")
+    if not query_id:
+        ids = submitted.get("recordIds") or submitted.get("results") or []
+        return ids if isinstance(ids, list) else []
+
+    for attempt in range(10):
+        status_data = _chemspider_request("GET", f"filter/{query_id}/status")
+        if not isinstance(status_data, dict):
+            return []
+        status = str(status_data.get("status", "")).casefold()
+        if status in {"complete", "completed", "finished"}:
+            break
+        if status in {"failed", "error", "cancelled", "canceled"}:
+            return []
+        time.sleep(0.4 + attempt * 0.1)
+    else:
+        return []
+
+    results = _chemspider_request("GET", f"filter/{query_id}/results")
+    if isinstance(results, list):
+        return results
+    if isinstance(results, dict):
+        ids = results.get("recordIds") or results.get("results") or results.get("ids")
+        return ids if isinstance(ids, list) else []
+    return []
+
+
+def _fetch_chemspider_molecule(value):
+    """Fetch a ChemSpider compound and normalize it to ChemQL's Molecule model.
+
+    Requires CHEMSPIDER_API_KEY in the environment. Returns None when the key
+    is absent, the API fails, or no suitable record is returned.
+    """
+    target = _normalize_molecule_value(value)
+    if not target or not os.getenv("CHEMSPIDER_API_KEY", "").strip():
+        return None
+
+    record_ids = _chemspider_record_ids(target)
+    if not record_ids:
+        return None
+
+    record_id = record_ids[0]
+    if isinstance(record_id, dict):
+        record_id = record_id.get("recordId") or record_id.get("id") or record_id.get("csid")
+    if record_id is None:
+        return None
+
+    details = _chemspider_request("GET", f"records/{record_id}/details")
+    if not isinstance(details, dict):
+        return None
+
+    def pick(*names, default=None):
+        for name in names:
+            candidate = details.get(name)
+            if candidate is not None and candidate != "":
+                return candidate
+        return default
+
+    name = pick("commonName", "common_name", "name", default=target)
+    formula = pick("molecularFormula", "molecular_formula", "formula", default="")
+    weight = pick("molecularWeight", "molecular_weight", "averageMass", default=0)
+    smiles = pick("smiles", "SMILES", "canonicalSmiles", default="")
+    iupac_name = pick("iupacName", "iupac_name", "systematicName", default="")
+    try:
+        weight = float(weight or 0)
+    except (TypeError, ValueError):
+        weight = 0.0
+
+    return Molecule(
+        name=str(name),
+        formula=str(formula or ""),
+        elements=[],
+        molecular_weight=weight,
+        iupac_name=str(iupac_name or ""),
+        smiles=str(smiles or ""),
+        cid=None,
+        melting_point=None,
+        boiling_point=None,
+        density=None,
+        state=None,
+    )
+
 def _fetch_nist_molecule(value):
     """Try NIST WebBook as a fallback chemistry source."""
     target = _normalize_molecule_value(value)
@@ -1317,10 +1530,16 @@ def fetch_external_molecule(value):
     # PubChem is the first external source because it is the most complete.
     cid = _find_cid(target)
     if cid is None:
+        chemspider_molecule = _fetch_chemspider_molecule(target)
+        if chemspider_molecule is not None:
+            return chemspider_molecule
         return _fetch_nist_molecule(target)
 
     properties = _get_basic_properties(cid)
     if properties is None:
+        chemspider_molecule = _fetch_chemspider_molecule(target)
+        if chemspider_molecule is not None:
+            return chemspider_molecule
         return _fetch_nist_molecule(target)
 
     view_data = _get_view_data(cid)
@@ -1724,7 +1943,7 @@ def molecule_bond_energy(formula):
 
 class Reaction:
     __slots__ = ("id", "name", "equation", "reaction_type", "reversible", "reactants", "products", "conditions", "notes", "source")
-    def __init__(self, id_, name, reaction_type, reversible, reactants, products, conditions, notes, source=""):
+    def __init__(self, id_, name, reaction_type, reversible, reactants, products, conditions, notes, source="", equation=None):
         self.id = id_
         self.name = name
         self.reaction_type = reaction_type
@@ -1734,34 +1953,39 @@ class Reaction:
         self.conditions = conditions
         self.notes = notes
         self.source = source
-        subscript_digits = str.maketrans("0123456789", "₀₁₂₃₄₅₆₇₈₉")
 
-        reactant_text = " + ".join(
-            f"{item['stoichiometric_coefficient']} {item['molecule'].translate(subscript_digits)}"
-            for item in reactants
-        )
-        product_text = " + ".join(
-            f"{item['stoichiometric_coefficient']} {item['molecule'].translate(subscript_digits)}"
-            for item in products
-        )
-        arrow = " ⇌ " if self.reversible is True else " → " if self.reversible is False else " = "
-        self.equation = f"{reactant_text}{arrow}{product_text}"
-
-        if reversible is not None:
-            reactant_energy = sum(
-                molecule_bond_energy(item["molecule"]) * item["stoichiometric_coefficient"]
+        # Remote databases often provide a curated equation that should be preserved
+        # verbatim rather than reconstructed from the local participant schema.
+        if equation is not None:
+            self.equation = str(equation)
+        else:
+            subscript_digits = str.maketrans("0123456789", "₀₁₂₃₄₅₆₇₈₉")
+            reactant_text = " + ".join(
+                f"{item['stoichiometric_coefficient']} {item['molecule'].translate(subscript_digits)}"
                 for item in reactants
             )
-            product_energy = sum(
-                molecule_bond_energy(item["molecule"]) * item["stoichiometric_coefficient"]
+            product_text = " + ".join(
+                f"{item['stoichiometric_coefficient']} {item['molecule'].translate(subscript_digits)}"
                 for item in products
             )
-            total_energy = reactant_energy - product_energy
-            self.equation += f"\tΔH={total_energy}kJ/mol"
-        if self.conditions:
-            self.equation += "\nConditions:\n"
-            for i in self.conditions:
-                self.equation += f"\t{i}: {self.conditions[i]}\n"
+            arrow = " ⇌ " if self.reversible is True else " → " if self.reversible is False else " = "
+            self.equation = f"{reactant_text}{arrow}{product_text}"
+
+            if reversible is not None:
+                reactant_energy = sum(
+                    molecule_bond_energy(item["molecule"]) * item["stoichiometric_coefficient"]
+                    for item in reactants
+                )
+                product_energy = sum(
+                    molecule_bond_energy(item["molecule"]) * item["stoichiometric_coefficient"]
+                    for item in products
+                )
+                total_energy = reactant_energy - product_energy
+                self.equation += f"\tΔH={total_energy}kJ/mol"
+            if self.conditions:
+                self.equation += "\nConditions:\n"
+                for i in self.conditions:
+                    self.equation += f"\t{i}: {self.conditions[i]}\n"
     def __str__(self):
         return self.equation
     def __repr__(self):
@@ -1769,6 +1993,284 @@ class Reaction:
 
 
 REACTIONS = [Reaction(item["id"], item["name"], item["reaction_type"], item["reversible"], item["reactants"], item["products"], item["conditions"], item["notes"], item.get("source", "")) for item in reactions]
+
+
+def find_molecule(value):
+    """Find a built-in molecule by name, formula, or IUPAC name."""
+    return _find_local_molecule(value)
+
+
+def find_reaction(value, external=True):
+    """Find a local reaction first, then optionally query Rhea and Chempirical."""
+    target = str(value).strip()
+    folded = target.casefold()
+    if not folded:
+        return None
+    for reaction in REACTIONS:
+        if str(reaction.id).casefold() == folded:
+            return reaction
+    local = next((r for r in REACTIONS if folded in r.name.casefold() or folded in r.equation.casefold()), None)
+    if local is not None or not external:
+        return local
+    # External sources are strictly a fallback: the bundled Reactions.json remains
+    # the first source and all existing offline searches continue to work.
+    for lookup in (_fetch_chempirical_reaction, _fetch_rhea_reaction):
+        try:
+            found = lookup(target)
+        except Exception:
+            found = None
+        if found is not None:
+            return found
+    return None
+
+
+REACTION_API_TIMEOUT = 8
+RHEA_API_URL = "https://www.rhea-db.org/rhea/"
+CHEMPIRICAL_API_URL = "https://chempirical.com/api/reactions"
+
+
+def _reaction_api_json(url, timeout=REACTION_API_TIMEOUT):
+    """Fetch a JSON API response; failures are non-fatal for optional lookups."""
+    request = urllib.request.Request(
+        url,
+        headers={
+            "User-Agent": "ChemQL/1.3.0 (reaction lookup; contact: chemql-user)",
+            "Accept": "application/json",
+        },
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            return json.loads(response.read().decode("utf-8", errors="replace"))
+    except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, OSError, ValueError):
+        return None
+
+
+def _reaction_api_text(url, timeout=REACTION_API_TIMEOUT):
+    """Fetch plain-text (TSV) data from Rhea."""
+    request = urllib.request.Request(
+        url,
+        headers={
+            "User-Agent": "ChemQL/1.3.0 (reaction lookup; contact: chemql-user)",
+            "Accept": "text/tab-separated-values,text/plain,*/*",
+        },
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            return response.read().decode("utf-8", errors="replace")
+    except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, OSError):
+        return ""
+
+
+def _remote_reaction(reaction_id, name, equation, reaction_type, source, notes="", conditions=None, reversible=None, reactants=None, products=None):
+    """Adapt a remote reaction into ChemQL's Reaction type with participant data."""
+    if not name and not equation:
+        return None
+    reactants = reactants if isinstance(reactants, list) else []
+    products = products if isinstance(products, list) else []
+    if reversible is None and equation:
+        reversible = "⇌" in equation or "<=>" in equation or "<->" in equation
+    return Reaction(
+        str(reaction_id or f"{source}:unknown"),
+        str(name or reaction_id or "External reaction"),
+        str(reaction_type or "Unknown"),
+        reversible,
+        reactants,
+        products,
+        conditions if isinstance(conditions, dict) else {},
+        str(notes or ""),
+        str(source),
+        equation=str(equation or "Equation unavailable"),
+    )
+
+
+def _chempirical_participant(item):
+    """Convert a Chempirical participant to ChemQL's participant shape."""
+    if not isinstance(item, dict):
+        return None
+    molecule = item.get("formula") or item.get("chemical_formula") or item.get("name") or item.get("molecule")
+    if not molecule:
+        return None
+    coefficient = item.get("stoichiometry", item.get("coefficient", item.get("equivalents", 1)))
+    try:
+        coefficient = float(coefficient)
+        if coefficient.is_integer():
+            coefficient = int(coefficient)
+    except (TypeError, ValueError):
+        coefficient = 1
+    return {"molecule": str(molecule), "stoichiometric_coefficient": coefficient}
+
+
+def _fetch_chempirical_reaction(value):
+    """Search Chempirical, requiring a relevant, reaction-like result."""
+    url = CHEMPIRICAL_API_URL + "?" + urllib.parse.urlencode({"q": value, "limit": 10, "offset": 0})
+    data = _reaction_api_json(url)
+    if not isinstance(data, dict):
+        return None
+    results = data.get("results", [])
+    if not isinstance(results, list) or not results:
+        return None
+    target = str(value).strip().casefold()
+
+    # Never accept the API's first result blindly. Require the query to match a
+    # meaningful reaction field, then prefer exact name/slug matches.
+    candidates = [item for item in results if isinstance(item, dict)]
+    def fields(item):
+        return [str(item.get(key, "")).casefold() for key in ("name", "slug", "equation", "summary", "reaction_type")]
+    relevant = [item for item in candidates if any(target in field for field in fields(item) if field)]
+    if not relevant:
+        return None
+    row = next((item for item in relevant if target in {
+        str(item.get("name", "")).casefold(), str(item.get("slug", "")).casefold()
+    }), relevant[0])
+    slug = row.get("slug")
+    detail = _reaction_api_json(CHEMPIRICAL_API_URL + "/" + urllib.parse.quote(str(slug), safe="")) if slug else None
+    record = detail if isinstance(detail, dict) else row
+    participants = record.get("participants", [])
+    if not isinstance(participants, list):
+        participants = []
+    reactants = []
+    products = []
+    for participant in participants:
+        if not isinstance(participant, dict):
+            continue
+        role = str(participant.get("role", "")).casefold()
+        converted = _chempirical_participant(participant)
+        if converted is None:
+            continue
+        if role in {"reactant", "reagent", "substrate"}:
+            reactants.append(converted)
+        elif role in {"product", "products"}:
+            products.append(converted)
+
+    equation = str(record.get("equation") or row.get("equation") or "").strip()
+    if not equation and reactants and products:
+        def term(item):
+            coeff = item["stoichiometric_coefficient"]
+            return (f"{coeff} " if coeff != 1 else "") + item["molecule"]
+        equation = " + ".join(term(item) for item in reactants) + " → " + " + ".join(term(item) for item in products)
+    # Some API responses provide a display equation but omit structured
+    # participants. Parse the equation as a fallback so the object is useful.
+    if equation and (not reactants or not products):
+        parsed_reactants, parsed_products = _parse_remote_equation(equation)
+        if not reactants:
+            reactants = parsed_reactants
+        if not products:
+            products = parsed_products
+
+    # An external hit must actually describe a reaction. Reject records that
+    # only have a product/name (which caused outputs like "→ (S)-1-Phenylpropanol").
+    has_both_sides = bool(reactants and products)
+    if not has_both_sides and equation:
+        arrow = next((a for a in ("⇌", "<=>", "<->", "→", "->", "=") if a in equation), None)
+        if arrow:
+            left, right = equation.split(arrow, 1)
+            has_both_sides = bool(left.strip() and right.strip())
+    if not has_both_sides:
+        return None
+
+    conditions = record.get("conditions", {})
+    if isinstance(conditions, list):
+        conditions = {f"condition_{i + 1}": item for i, item in enumerate(conditions)}
+    notes = record.get("summary", row.get("summary", ""))
+    source = record.get("source", row.get("source", "Chempirical"))
+    if isinstance(source, dict):
+        source = source.get("name") or source.get("label") or "Chempirical"
+    return _remote_reaction(
+        record.get("slug") or row.get("slug"), record.get("name") or row.get("name"),
+        equation, record.get("reaction_type") or row.get("reaction_type"),
+        "Chempirical: " + str(source or "Chempirical"), notes, conditions,
+        reactants=reactants, products=products,
+    )
+
+
+def _parse_remote_equation(equation):
+    """Best-effort participant extraction from a plain-text chemical equation."""
+    if not equation:
+        return [], []
+    arrow = next((a for a in ("⇌", "<=>", "<->", "→", "->", "=", "⇄") if a in equation), None)
+    if not arrow:
+        return [], []
+    left, right = equation.split(arrow, 1)
+    def parse_side(side):
+        output = []
+        for raw_term in re.split(r"\s+\+\s+", side.strip()):
+            term = raw_term.strip()
+            if not term:
+                continue
+            match = re.match(r"^([0-9]+(?:\.[0-9]+)?)\s+(.+)$", term)
+            if match:
+                coefficient, molecule = match.groups()
+                number = float(coefficient)
+                if number.is_integer():
+                    number = int(number)
+            else:
+                number, molecule = 1, term
+            output.append({"molecule": molecule.strip(), "stoichiometric_coefficient": number})
+        return output
+    return parse_side(left), parse_side(right)
+
+
+def _fetch_rhea_reaction(value):
+    """Search Rhea's TSV REST endpoint and only accept a relevant result."""
+    target = value.strip()
+    if target.casefold().startswith("rhea:"):
+        query = "rhea-id:" + target.split(":", 1)[1]
+    else:
+        # Rhea supports fielded queries; a general query is useful for equation or
+        # participant-name searches and keeps all query escaping in urlencode.
+        query = target
+    params = urllib.parse.urlencode({
+        "query": query,
+        "columns": "rhea-id,equation,chebi,ec",
+        "format": "tsv",
+        "limit": 5,
+    })
+    text = _reaction_api_text(RHEA_API_URL + "?" + params)
+    lines = [line for line in text.splitlines() if line.strip()]
+    if len(lines) < 2:
+        return None
+    headers = lines[0].split("\t")
+    rows = [dict(zip(headers, line.split("\t"))) for line in lines[1:]]
+    target_folded = target.casefold()
+    row = next((item for item in rows if item.get("rhea-id", "").casefold() == target_folded), None)
+    if row is None:
+        row = next((item for item in rows if any(
+            target_folded in item.get(field, "").casefold()
+            for field in ("equation", "chebi", "ec")
+        )), None)
+    if row is None:
+        return None
+    reaction_id = row.get("rhea-id", "")
+    ec = row.get("ec", "")
+    chebi = row.get("chebi", "")
+    notes = ""
+    if ec:
+        notes += "EC: " + ec
+    if chebi:
+        notes += ("; " if notes else "") + "Participants: " + chebi
+    equation = row.get("equation", "")
+    reactants, products = _parse_remote_equation(equation)
+    if not reactants or not products:
+        return None
+    return _remote_reaction(
+        reaction_id, reaction_id, equation, "Biochemical", "Rhea", notes,
+        reactants=reactants, products=products,
+    )
+
+
+def search_reactions(**criteria):
+    """Search reactions by fields; string criteria are case-insensitive substrings."""
+    unknown = set(criteria) - set(reactionKeys)
+    if unknown:
+        raise ValueError("Unknown reaction field(s): " + ", ".join(sorted(unknown)))
+    result = []
+    for reaction in REACTIONS:
+        if all((str(expected).casefold() in str(getattr(reaction, key)).casefold())
+               if isinstance(expected, str) and isinstance(getattr(reaction, key), str)
+               else getattr(reaction, key) == expected for key, expected in criteria.items()):
+            result.append(reaction)
+    return result
+
 reactionKeys = ("id", "name", "equation", "reaction_type", "reversible", "reactants", "products", "conditions", "notes", "source")
 del elements
 del reactions
@@ -2193,13 +2695,43 @@ def parse_condition(tokens, index, source, keys, positions=None):
         return (lambda item, fn=like_condition: not fn(item)) if negated else like_condition, consumed
 
     if operator == "has":
+        def contains_nested(actual, expected, field_name=None):
+            """Search nested values, matching chemical molecule IDs exactly.
+
+            A molecule field must use equality rather than substring matching:
+            ``O2`` is not a reactant just because the formula ``CO2`` contains
+            those characters. Other descriptive strings may use substring
+            matching, preserving the general-purpose behavior of ``has``.
+            """
+            if isinstance(actual, str):
+                if isinstance(field_name, str) and field_name.casefold() == "molecule":
+                    return actual.casefold() == expected.casefold()
+                return expected.casefold() in actual.casefold()
+
+            if isinstance(actual, dict):
+                for nested_key, nested_value in actual.items():
+                    if contains_nested(nested_value, expected, nested_key):
+                        return True
+                return any(
+                    isinstance(nested_key, str)
+                    and nested_key.casefold() == expected.casefold()
+                    for nested_key in actual.keys()
+                )
+
+            if isinstance(actual, (list, tuple, set, frozenset)):
+                return any(
+                    contains_nested(value_item, expected, field_name)
+                    for value_item in actual
+                )
+
+            if actual is None:
+                return False
+
+            return str(actual).casefold() == expected.casefold()
+
         def has_condition(item):
             actual = getattr(item, key)
-
-            try:
-                return value in actual
-            except TypeError:
-                return False
+            return contains_nested(actual, value)
 
         return (lambda item, fn=has_condition: not fn(item)) if negated else has_condition, consumed
 
@@ -2359,7 +2891,16 @@ reaction_state = {
 }
 
 # Python variables persist for the whole session.
-python_globals = {"__builtins__": __builtins__, "math": math}
+python_globals = {"__builtins__": __builtins__, "math": math, "error": None}
+STRUCTS = {}
+RECORDS = {}
+
+class ChemQLSignal(Exception):
+    """A user-raised, recoverable ChemQL error."""
+    def __init__(self, error_type):
+        self.error_type = str(error_type)
+        super().__init__(self.error_type)
+
 CHEMQL_VARIABLES = set()
 
 def _chemql_value(expression):
@@ -2649,6 +3190,9 @@ def evaluate_python(code):
         i += 1
 
     rewritten = "".join(rewritten)
+    for type_name in (*STRUCTS.keys(), *RECORDS.keys()):
+        rewritten = re.sub(r"\b" + re.escape(type_name) + r"\s*\{([^{}]*)\}",
+                           lambda m, n=type_name: n + "(" + m.group(1) + ")", rewritten)
     rewritten = _expand_function_calls(rewritten)
 
     python_globals.update(query_values)
@@ -2676,7 +3220,12 @@ def is_python_block_header(text):
 
     code = text[1:-1].strip()
 
-    # Replace {{...}} queries with valid Python variable names
+    # Function placeholders such as \1 are substituted only when the function
+    # is called. Replace them with harmless identifiers for block detection so
+    # they cannot make a real `if`/`for`/`while` header look like an expression.
+    code = re.sub(r"\\\d+", "__chemql_arg", code)
+
+    # Replace {{...}} queries with valid Python variable names.
     while "{{" in code:
         start = code.index("{{")
         end = find_matching(code, start, "{{", "}}")
@@ -2703,37 +3252,29 @@ def is_python_block_header(text):
 
 
 def find_endblock(lines, start):
-    """Find the matching [endblock], allowing nested blocks."""
+    """Find the matching terminator, including headers with \\N placeholders."""
     depth = 1
-
     for i in range(start, len(lines)):
-        stripped = lines[i].strip()
+        stripped = lines[i].strip().casefold()
 
-        # Closing block.
-        if stripped == "[endblock]":
+        # Typed terminators and the normalized generic terminator close the
+        # current block. Older source forms may still contain typed closers.
+        if stripped in {"[endblock]", "endfor", "endwhile", "endif", "[endfor]", "[endwhile]", "[endif]"}:
             depth -= 1
-
             if depth == 0:
                 return i
-
             continue
 
-        # Branch markers do not start new blocks.
-        if stripped in ("[else]", "[endif]", "[endfor]", "[endwhile]"):
+        if stripped in {"[else]"} or stripped.startswith("[elif "):
             continue
 
-        # Recognize both validated Python headers and generic
-        # ChemQL block headers, consistently with _call_function().
-        generic_header = re.match(
-            r"^\[\s*(?!endblock\b|else\b|elif\b)"
-            r"[A-Za-z_]\w*\b.*\]\s*$",
-            stripped,
-        )
-
-        if is_block_header(stripped):
+        # Detect structural headers by keyword, not by parsing their complete
+        # expression. At this stage \\1 may still be unresolved or may
+        # expand to a ChemQL struct representation that is not Python syntax.
+        if re.match(r"^\[\s*(?:if|for|while)\b", stripped):
             depth += 1
+    raise SyntaxError("Missing block terminator (`endblock`, `endfor`, `endwhile`, or `endif`)")
 
-    raise SyntaxError("Missing `[endblock]`")
 
 def remove_comments(line):
     in_quote = None
@@ -3000,31 +3541,45 @@ def _dump_history(command):
     if len(parts) == 2:
         category, mode, filename = "all", "both", parts[1]
     elif len(parts) == 4:
-        category, mode, filename = parts[1:]
-        if category not in {"all", "good", "bad"} or mode not in {"queries", "results"}:
-            raise ChemQLError("Usage: dump [all|good|bad] [queries|results] FILE")
+        _, category, mode, filename = parts
+        if category not in {"all", "good", "bad"} or mode not in {
+            "queries", "results"
+        }:
+            raise ChemQLError(
+                "Usage: dump [all|good|bad] [queries|results] FILE"
+            )
     elif len(parts) == 3 and parts[1] in {"all", "good", "bad"}:
-        category, mode, filename = parts[1], "both", parts[2]
+        _, category, filename = parts
+        mode = "both"
     else:
-        raise ChemQLError("Usage: dump [all|good|bad] [queries|results] FILE")
-
-    records = EXECUTION_HISTORY
-    if category == "good":
-        records = [record for record in records if record["success"]]
-    elif category == "bad":
-        records = [record for record in records if not record["success"]]
-
-    if mode == "queries":
-        content = "\n".join(record["query"] for record in records)
-    elif mode == "results":
-        content = "\n".join(record["result"] for record in records)
-    else:
-        content = "\n\n".join(
-            f"QUERY:\n{record['query']}\nRESULT:\n{record['result']}"
-            for record in records
+        raise ChemQLError(
+            "Usage: dump [all|good|bad] [queries|results] FILE"
         )
 
-    Path(filename).write_text(strip_ansi(content), encoding="utf-8")
+    records = EXECUTION_HISTORY
+
+    if category == "good":
+        records = [r for r in records if r.get("success") is True]
+    elif category == "bad":
+        records = [r for r in records if r.get("success") is False]
+
+    if mode == "queries":
+        lines = [str(r["query"]) for r in records]
+        content = "\n".join(lines)
+    elif mode == "results":
+        lines = [str(r["result"]) for r in records]
+        content = "\n".join(lines)
+    else:
+        content = "\n\n".join(
+            f"QUERY:\n{r['query']}\nRESULT:\n{r['result']}"
+            for r in records
+        )
+
+    content = strip_ansi(content)
+    if content:
+        content += "\n"
+
+    Path(filename).write_text(content, encoding="utf-8")
     return f"Dumped {len(records)} execution record(s) to {filename}"
 
 
@@ -3042,12 +3597,15 @@ def process_inline(text):
         return
 
     # Native dynamically typed variables: `let name = expression`.
-    let_match = re.fullmatch(r"let\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+)", stripped, re.DOTALL)
+    let_match = re.fullmatch(r"let\s+([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*=\s*(.+)", stripped, re.DOTALL)
     if let_match:
         name, expression = let_match.groups()
-        value = evaluate_python(expression)
-        python_globals[name] = value
-        CHEMQL_VARIABLES.add(name)
+        if "." in name:
+            evaluate_python(name + " = (" + expression + ")")
+        else:
+            value = evaluate_python(expression)
+            python_globals[name] = value
+            CHEMQL_VARIABLES.add(name)
         return None
 
     if stripped.casefold() == "variables":
@@ -3066,9 +3624,24 @@ def process_inline(text):
     if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", stripped) and stripped in CHEMQL_VARIABLES:
         return python_globals.get(stripped)
 
+    # Attribute reads on ChemQL variables (e.g. `apple.price`).
+    if re.fullmatch(r"[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)+", stripped):
+        root = stripped.split(".", 1)[0]
+        if root in CHEMQL_VARIABLES:
+            return evaluate_python(stripped)
+
     # History dump command.
     if stripped.casefold().startswith("dump "):
         return _dump_history(stripped)
+
+    # A bare struct/record constructor is an expression, not a ChemQL query.
+    # `let fruit = Fruit{...}` already reaches evaluate_python through the let
+    # handler above; this handles the same constructor when entered by itself.
+    type_call = re.fullmatch(
+        r"([A-Za-z_][A-Za-z0-9_]*)\s*\{(.*)\}", stripped, re.DOTALL
+    )
+    if type_call and type_call.group(1) in (*STRUCTS.keys(), *RECORDS.keys()):
+        return evaluate_python(stripped)
 
     # A standalone user-defined function call returns its value directly.
     function_call = re.fullmatch(r"([A-Za-z_][A-Za-z0-9_]*(?:::[A-Za-z_][A-Za-z0-9_]*)?)\s*\{(.*)\}", stripped, re.DOTALL)
@@ -3093,8 +3666,47 @@ def process_inline(text):
         return run_shell_command(command)
 
 
-    # Everything else is query language.
-    return execute_query_text(stripped)
+    # Native variables can participate in ordinary Python expressions without
+    # square brackets (for example `q+w`). Try Python expression parsing before
+    # the query parser whenever the line references a known ChemQL variable.
+    # This handles compact operators as well as spaced expressions.
+    known_expression_names = (CHEMQL_VARIABLES | {
+        name for name in python_globals
+        if isinstance(name, str) and name.isidentifier() and not name.startswith("__")
+    })
+    references_variable = any(
+        re.search(r"\b" + re.escape(name) + r"\b", stripped)
+        for name in known_expression_names
+    )
+    if references_variable:
+        try:
+            ast.parse(stripped, mode="eval")
+        except SyntaxError:
+            pass
+        else:
+            try:
+                return evaluate_python(stripped)
+            except (SyntaxError, NameError):
+                pass
+
+    # Try ChemQL first. If the parser specifically reports an unknown command,
+    # treat the input as a possible Python expression. Only Python SyntaxError
+    # or NameError falls back to the original ChemQL error; other Python errors
+    # (e.g. TypeError) are meaningful and should remain visible.
+    result = execute_query_text(stripped)
+    plain_result = strip_ansi(result) if isinstance(result, str) else ""
+    # The query engine formats unknown-command failures as text (including a
+    # caret line), so detect the diagnostic independently of any leading ANSI
+    # styling or extra whitespace.
+    if isinstance(result, str) and re.search(
+        r"Error:\s*Unknown command\b", plain_result
+    ):
+        try:
+            return evaluate_python(stripped)
+        except (SyntaxError, NameError):
+            # If Python also rejects it, preserve ChemQL's more useful error.
+            return result
+    return result
 
 
 def join_continuations(lines):
@@ -3150,6 +3762,27 @@ def _find_unquoted_marker(text, marker, start=0):
 def process_lines(lines):
     """Process ChemQL source, including multiline Python, terminal, and comments."""
     lines = join_continuations(list(lines))
+    # Natural headers (for/if/while) and typed terminators are accepted in v1.3.
+    normalized_lines = []
+    in_python_block = False
+    for source_line in lines:
+        stripped_source = source_line.strip()
+        if stripped_source == "[[[":
+            in_python_block = True
+            normalized_lines.append(source_line)
+            continue
+        if stripped_source == "]]]":
+            in_python_block = False
+            normalized_lines.append(source_line)
+            continue
+        if not in_python_block:
+            if re.match(r"^(for|while|if)\s+.+$", stripped_source) and not stripped_source.startswith("["):
+                # Existing block parser supplies the trailing colon to Python's AST.
+                source_line = "[" + stripped_source + "]"
+            elif stripped_source.casefold() in {"endfor", "endwhile", "endif"}:
+                source_line = "[endblock]"
+        normalized_lines.append(source_line)
+    lines = normalized_lines
     i = 0
 
     while i < len(lines):
@@ -3159,6 +3792,110 @@ def process_lines(lines):
         if not stripped:
             i += 1
             continue
+
+        type_match = re.fullmatch(r"(struct|record)\s+([A-Za-z_]\w*)", stripped, re.IGNORECASE)
+        if type_match:
+            kind, type_name = type_match.group(1).casefold(), type_match.group(2)
+            terminator = "endstruct" if kind == "struct" else "endrecord"
+            end = i + 1
+            while end < len(lines) and lines[end].strip().casefold() != terminator:
+                end += 1
+            if end >= len(lines):
+                raise SyntaxError(f"Missing `{terminator}` for {kind} `{type_name}`")
+            fields, defaults = [], {}
+            for field_line in lines[i + 1:end]:
+                field_line = remove_comments(field_line).strip()
+                if not field_line:
+                    continue
+                match = re.fullmatch(r"([A-Za-z_]\w*)(?:\s*=\s*(.+))?", field_line)
+                if not match:
+                    raise SyntaxError(f"Invalid {kind} field declaration: {field_line}")
+                field, default = match.groups()
+                if field in fields:
+                    raise SyntaxError(f"Duplicate field `{field}` in {type_name}")
+                fields.append(field)
+                if default is not None:
+                    defaults[field] = evaluate_python(_expand_definitions(default))
+            if not fields:
+                raise SyntaxError(f"{kind.title()} `{type_name}` must declare fields")
+            if kind == "struct":
+                def make_struct(class_name, field_names, field_defaults):
+                    def __init__(self, *args, **kwargs):
+                        if len(args) > len(field_names):
+                            raise TypeError(f"{class_name} expected at most {len(field_names)} positional arguments")
+                        values = dict(zip(field_names, args))
+                        overlap = values.keys() & kwargs.keys()
+                        if overlap:
+                            raise TypeError(f"Multiple values for field `{next(iter(overlap))}`")
+                        values.update(kwargs)
+                        extra = values.keys() - set(field_names)
+                        if extra:
+                            raise TypeError(f"Unexpected field(s): {', '.join(sorted(extra))}")
+                        for field_name in field_names:
+                            setattr(self, field_name, values.get(field_name, field_defaults.get(field_name)))
+                    def __repr__(self):
+                        return class_name + "{ " + ", ".join(f"{f}={getattr(self, f)!r}" for f in field_names) + " }"
+                    def __eq__(self, other):
+                        return type(other) is type(self) and all(getattr(self, f) == getattr(other, f) for f in field_names)
+                    return type(class_name, (), {"__init__": __init__, "__repr__": __repr__, "__str__": __repr__, "__eq__": __eq__, "__slots__": tuple(field_names)})
+                generated = make_struct(type_name, fields, defaults)
+                STRUCTS[type_name] = generated
+            else:
+                from collections import namedtuple
+                first_default = next((n for n, f in enumerate(fields) if f in defaults), len(fields))
+                if any(f not in defaults for f in fields[first_default:]):
+                    raise SyntaxError(f"Record `{type_name}` fields with defaults must be trailing fields")
+                generated = namedtuple(type_name, fields, defaults=[defaults[f] for f in fields[first_default:]])
+                generated.__str__ = lambda self, _name=type_name: _name + " -> " + ", ".join(f"{f}: {getattr(self, f)}" for f in self._fields)
+                RECORDS[type_name] = generated
+            python_globals[type_name] = generated
+            i = end + 1
+            continue
+
+        if stripped.casefold() == "risk":
+            end = i + 1
+            nesting = 1
+            while end < len(lines):
+                token = lines[end].strip().casefold()
+                if token == "risk": nesting += 1
+                elif token == "endrisk":
+                    nesting -= 1
+                    if nesting == 0: break
+                end += 1
+            if end >= len(lines):
+                raise SyntaxError("Missing `endrisk`")
+            sections = {"risk": [], "fix": [], "cleanup": []}
+            section = "risk"
+            for risk_line in lines[i + 1:end]:
+                marker = risk_line.strip().casefold()
+                if marker in {"fix", "cleanup"}:
+                    section = marker
+                else:
+                    sections[section].append(risk_line)
+            global _CHEMQL_RISK_DEPTH
+            _CHEMQL_RISK_DEPTH += 1
+            try:
+                try:
+                    process_lines(sections["risk"])
+                    python_globals["error"] = None
+                except Exception as exc:
+                    python_globals["error"] = exc.error_type if isinstance(exc, ChemQLSignal) else type(exc).__name__
+                    if sections["fix"]:
+                        process_lines(sections["fix"])
+                    elif not isinstance(exc, ChemQLSignal):
+                        raise
+            finally:
+                try:
+                    if sections["cleanup"]:
+                        process_lines(sections["cleanup"])
+                finally:
+                    _CHEMQL_RISK_DEPTH = max(0, _CHEMQL_RISK_DEPTH - 1)
+            i = end + 1
+            continue
+
+        signal_match = re.fullmatch(r"signal\s+(.+)", stripped, re.IGNORECASE)
+        if signal_match:
+            raise ChemQLSignal(evaluate_python(signal_match.group(1)))
 
         # Definitions are processed in source order and affect only later lines.
         define_match = re.fullmatch(r"define\s+(" + _DEFINITION_NAME + r")\s+(.+)", stripped)
@@ -3191,7 +3928,7 @@ def process_lines(lines):
             continue
 
         # Function definitions use `func NAME ... endfunc`.
-        function_match = re.fullmatch(r"func\s+(" + _DEFINITION_NAME + r")", stripped, re.IGNORECASE)
+        function_match = re.fullmatch(r"func\s+(" + _DEFINITION_NAME + r"(?:\." + _DEFINITION_NAME + r")?)", stripped, re.IGNORECASE)
         if function_match:
             name = function_match.group(1)
             end = i + 1
@@ -3200,6 +3937,36 @@ def process_lines(lines):
             if end >= len(lines):
                 raise SyntaxError(f"Missing `endfunc` for function `{name}`")
             FUNCTIONS[name] = {"body": [_expand_definitions(source_line) for source_line in lines[i + 1:end]]}
+            if "." in name:
+                owner_name, method_name = name.split(".", 1)
+                owner = STRUCTS.get(owner_name)
+                if owner is None:
+                    raise NameError(f"Cannot define method `{name}`: struct `{owner_name}` does not exist")
+                def _make_struct_method(function_name):
+                    def _method(instance, *args):
+                        had_this = "this" in python_globals
+                        old_this = python_globals.get("this")
+                        # Pass method arguments through temporary Python globals.
+                        # repr(struct_instance) uses ChemQL's `Fruit{...}` display
+                        # syntax, which is not valid Python and breaks nested
+                        # constructor expressions when substituted into a method.
+                        temporary_names = []
+                        python_globals["this"] = instance
+                        try:
+                            for arg in args:
+                                temp_name = "__chemql_method_arg_" + uuid.uuid4().hex
+                                python_globals[temp_name] = arg
+                                temporary_names.append(temp_name)
+                            return _call_function(function_name, temporary_names)
+                        finally:
+                            for temp_name in temporary_names:
+                                python_globals.pop(temp_name, None)
+                            if had_this:
+                                python_globals["this"] = old_this
+                            else:
+                                python_globals.pop("this", None)
+                    return _method
+                setattr(owner, method_name, _make_struct_method(name))
             i = end + 1
             continue
 
@@ -3367,6 +4134,13 @@ def process_lines(lines):
                     result = _dump_history(command)
                 else:
                     result = process_inline(command)
+                    # Query parsing can report an error as formatted text instead
+                    # of raising. Inside `risk`, promote that result to an exception
+                    # so `fix` runs and the `error` variable is populated.
+                    if _CHEMQL_RISK_DEPTH and isinstance(result, str):
+                        plain_result = strip_ansi(result).lstrip()
+                        if plain_result.startswith("Error:"):
+                            raise ChemQLError(plain_result[6:].strip())
                 rendered = "" if result is None else str(result)
                 if result is not None:
                     if NO_ANSI:
@@ -3381,9 +4155,15 @@ def process_lines(lines):
                     )
                     if not is_streamed_shell and not _shell_output_streamed:
                         print(rendered)
-                _record_execution(command, rendered, True)
+                # Some commands return formatted errors instead of raising exceptions.
+                plain_result = strip_ansi(rendered).lstrip()
+                success = not plain_result.startswith("Error:")
+
+                _record_execution(command, rendered, success)
                 globals()["_shell_output_streamed"] = False
             except Exception as exc:
+                if _CHEMQL_RISK_DEPTH:
+                    raise
                 message = f"Error: {exc}"
                 print(strip_ansi(message) if NO_ANSI else message, file=sys.stderr)
                 _record_execution(command, message, False)
@@ -3812,7 +4592,9 @@ def execute(arguments, query_text=None, positions=None):
         ])
 
         if result == [] or result == "No matching item":
-            return f"Could not find reaction `{value}`"
+            result = find_reaction(value, external=True)
+            if result is None:
+                return f"Could not find reaction `{value}` in Reactions.json, Rhea, or Chempirical"
 
         if return_attributes:
             if isinstance(result, list):
@@ -3995,347 +4777,299 @@ def view_periodic_table():
 
 
 class ChemqlLexer(Lexer):
-    """Syntax highlighting for ChemQL, native variables, and embedded Python."""
+    """Dynamic syntax highlighting for ChemQL and its interactive objects."""
 
     COMMANDS = {
-        "search", "source", "list", "clear", "exit", "findel",
-        "findmol", "findre", "set", "add", "remove", "react",
-        "balance", "conditions", "view", "help", "dump", "version",
-        "return", "union", "intersection", "let", "unset", "variables",
-        "macros", "definitions", "arguments",
+        "search", "source", "list", "clear", "exit", "findel", "findmol",
+        "findre", "set", "add", "remove", "react", "balance", "conditions",
+        "view", "help", "dump", "version", "return", "union", "intersection",
+        "let", "unset", "variables", "macros", "definitions", "arguments",
+        "define", "func", "struct", "record", "risk", "fix", "cleanup",
+        "signal", "import", "remove", "install",
     }
-
     OPERATORS = {
-        "and", "or", "has", "like", "like!", "likep", "sort",
-        "limit", "count", "asc", "desc",
+        "and", "or", "has", "like", "like!", "likep", "sort", "limit",
+        "count", "asc", "desc", "in", "not", "is",
     }
-
     CONTROL_WORDS = {
-        "if", "elif", "else", "for", "while", "in", "break",
-        "continue", "endblock", "endfunc", "func", "enddefine",
-        "define", "import", "as",
+        "if", "elif", "else", "for", "while", "break", "continue", "endblock",
+        "endfor", "endwhile", "endif", "endrisk", "endstruct", "endrecord",
+        "endfunc", "enddefine", "func", "define", "struct", "record", "risk",
+        "fix", "cleanup", "signal", "import", "as", "return",
+    }
+    CONDITIONS = {
+        "temperature", "pressure", "catalyst", "catalysts", "standard", "room",
+        "c", "f", "k", "pa", "bar",
     }
 
-    CONDITIONS = {
-        "temperature", "pressure", "catalyst", "catalysts",
-        "standard", "room", "c", "f", "k", "pa", "bar",
-    }
+    @staticmethod
+    def _dynamic_names():
+        return {
+            "variables": set(CHEMQL_VARIABLES) | {
+                name for name in python_globals
+                if isinstance(name, str) and not name.startswith("__")
+            },
+            "structs": set(STRUCTS),
+            "records": set(RECORDS),
+            "functions": set(FUNCTIONS),
+            "macros": set(MACROS),
+            "definitions": set(DEFINITIONS),
+        }
 
     def lex_document(self, document):
         lines = document.lines
+        names = self._dynamic_names()
+        function_names = {n.split(".")[-1] for n in names["functions"]}
 
         def get_line(lineno):
             if lineno >= len(lines):
                 return []
-
             line = lines[lineno]
             tokens = []
             i = 0
 
-            # Preserve leading indentation.
+            # Leading indentation is kept verbatim for prompt_toolkit.
             while i < len(line) and line[i].isspace():
                 start = i
                 while i < len(line) and line[i].isspace():
                     i += 1
                 tokens.append(("", line[start:i]))
 
-            # Highlight a leading ChemQL command.
-            first_match = re.match(r"[A-Za-z_][A-Za-z0-9_]*", line[i:])
-            if first_match:
-                word = first_match.group(0)
-                if word in self.COMMANDS:
-                    tokens.append(("class:command", word))
-                    i += len(word)
+            # Mark declaration names according to the declaration being edited.
+            declaration = re.match(
+                r"(?:struct|record|func)\s+([A-Za-z_]\w*(?:\.[A-Za-z_]\w*)?)", line[i:], re.I
+            )
+            macro_declaration = re.match(r"define\s+([A-Za-z_]\w*)\s*\{\s*\}", line[i:], re.I)
+            definition_declaration = re.match(r"define\s+([A-Za-z_]\w*)\s+", line[i:], re.I)
+            declared_name = None
+            declared_style = None
+            if declaration:
+                prefix = line[i:]
+                keyword = prefix.split(None, 1)[0].casefold()
+                declared_name = declaration.group(1)
+                declared_style = "struct" if keyword == "struct" else "record" if keyword == "record" else "function"
+            elif macro_declaration:
+                declared_name, declared_style = macro_declaration.group(1), "macro"
+            elif definition_declaration:
+                declared_name, declared_style = definition_declaration.group(1), "definition"
 
             while i < len(line):
-                # Whitespace
-                if line[i].isspace():
-                    start = i
-                    while i < len(line) and line[i].isspace():
-                        i += 1
-                    tokens.append(("", line[start:i]))
+                ch = line[i]
+                if ch.isspace():
+                    j = i + 1
+                    while j < len(line) and line[j].isspace():
+                        j += 1
+                    tokens.append(("", line[i:j]))
+                    i = j
                     continue
-
-                # Comments
                 if line.startswith("//", i):
                     tokens.append(("class:comment", line[i:]))
                     break
-
-                # # Embedded ChemQL expressions: {{ ... }}
-                # # Embedded ChemQL expressions: {{ ... }}
-                # if line.startswith("{{", i):
-                #     try:
-                #         end = find_matching(line, i + 2, "{{", "}}")
-                #     except SyntaxError:
-                #         # The user may still be typing the expression.
-                #         tokens.append(("class:interpolation", line[i:]))
-                #         break
-
-                #     if end is None:
-                #         tokens.append(("class:interpolation", line[i:]))
-                #         break
-
-                #     end += 2
-                #     tokens.append(("class:interpolation", line[i:end]))
-                #     i = end
-                #     continue
-
-                # Backtick shell commands
-                if line[i] == "`":
-                    end = line.find("`", i + 1)
-                    if end == -1:
-                        end = len(line) - 1
-
-                    tokens.append((
-                        "class:terminalcommand",
-                        line[i:end + 1]
-                    ))
-                    i = end + 1
+                if line.startswith("///", i):
+                    tokens.append(("class:comment", line[i:]))
+                    break
+                if ch == "`":
+                    j = line.find("`", i + 1)
+                    j = len(line) - 1 if j < 0 else j
+                    tokens.append(("class:terminalcommand", line[i:j + 1]))
+                    i = j + 1
                     continue
-
-                # # Python blocks and single-line Python statements
-                # if line[i] == "[":
-                #     try:
-                #         end = find_matching(line, i + 1, "[", "]")
-                #     except SyntaxError:
-                #         # An unfinished bracket is valid while editing.
-                #         tokens.append(("class:python", line[i:]))
-                #         break
-
-                #     if end is not None:
-                #         end += 1
-                #         tokens.append(("class:python", line[i:end]))
-                #         i = end
-                #         continue
-
-                #     tokens.append(("class:python", line[i]))
-                #     i += 1
-                #     continue
-
-                # Strings
-                if line[i] in "\"'":
-                    quote = line[i]
-                    start = i
-                    i += 1
-
-                    while i < len(line):
-                        if line[i] == "\\":
-                            i += 2
+                if line.startswith("[[[", i) or line.startswith("]]]", i):
+                    marker = line[i:i + 3]
+                    tokens.append(("class:python", marker))
+                    i += 3
+                    continue
+                if line.startswith("{{", i):
+                    j = line.find("}}", i + 2)
+                    j = len(line) if j < 0 else j + 2
+                    tokens.append(("class:interpolation", line[i:j]))
+                    i = j
+                    continue
+                if ch in "'\"":
+                    quote, j = ch, i + 1
+                    while j < len(line):
+                        if line[j] == "\\":
+                            j += 2
                             continue
-                        if line[i] == quote:
-                            i += 1
+                        if line[j] == quote:
+                            j += 1
                             break
-                        i += 1
-
-                    tokens.append(("class:string", line[start:i]))
+                        j += 1
+                    tokens.append(("class:string", line[i:j]))
+                    i = j
                     continue
-
-                # Numbers
-                if line[i].isdigit():
-                    start = i
-                    i += 1
-                    while i < len(line) and (
-                        line[i].isdigit() or line[i] == "."
-                    ):
-                        i += 1
-
-                    tokens.append(("class:number", line[start:i]))
+                if ch == "@":
+                    match = re.match(r"@[A-Za-z_]\w*(?:\{[^}]*\})?", line[i:])
+                    if match:
+                        value = match.group(0)
+                        key = value[1:].split("{", 1)[0]
+                        style = "class:macro" if key in names["macros"] else "class:definition" if key in names["definitions"] else "class:operator"
+                        tokens.append((style, value))
+                        i += len(value)
+                        continue
+                if ch.isdigit():
+                    match = re.match(r"(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?", line[i:])
+                    value = match.group(0) #type:ignore
+                    tokens.append(("class:number", value))
+                    i += len(value)
                     continue
-
-                # Operators
-                operator = next(
-                    (
-                        op for op in (
-                            "!=", ">=", "<=", "==", "=", ">", "<",
-                            "+=", "-=", "*=", "/=", "+", "-", "*", "/",
-                    )
-                        if line.startswith(op, i)
-                    ),
-                    None,
-                )
-
+                if ch.isalpha() or ch == "_":
+                    match = re.match(r"[A-Za-z_]\w*", line[i:])
+                    word = match.group(0) #type:ignore
+                    folded = word.casefold()
+                    style = ""
+                    if declared_name and word == declared_name.split(".")[-1]:
+                        style = "class:" + declared_style #type:ignore
+                        declared_name = None
+                    elif not line[:i].strip():
+                        style = "class:command" if folded in self.COMMANDS else ""
+                    if not style:
+                        if word in names["structs"]:
+                            style = "class:struct"
+                        elif word in names["records"]:
+                            style = "class:record"
+                        elif word in names["functions"] or word in function_names:
+                            style = "class:function"
+                        elif word in names["macros"]:
+                            style = "class:macro"
+                        elif word in names["definitions"]:
+                            style = "class:definition"
+                        elif word in names["variables"]:
+                            style = "class:variable"
+                        elif folded in self.CONTROL_WORDS:
+                            style = "class:control"
+                        elif word in {"True", "False", "None"}:
+                            style = "class:number"
+                        elif word in {"print", "len", "str", "int", "float", "range", "enumerate", "zip", "list", "dict", "set", "tuple", "sum", "min", "max", "abs", "type", "isinstance"}:
+                            style = "class:python"
+                        elif word in SOURCES:
+                            style = "class:source"
+                        elif folded in self.CONDITIONS:
+                            style = "class:condition"
+                        elif folded in self.OPERATORS:
+                            style = "class:operator"
+                        elif word in elementKeys or word in moleculeKeys or word in reactionKeys:
+                            style = "class:key"
+                    tokens.append((style, word))
+                    i += len(word)
+                    continue
+                operator = next((op for op in ("**", "//", "!=", ">=", "<=", "==", "+=", "-=", "*=", "/=", "->", "<->", "=", ">", "<", "+", "-", "*", "/", "%") if line.startswith(op, i)), None)
                 if operator:
                     tokens.append(("class:operator", operator))
                     i += len(operator)
                     continue
-
-                # Identifiers and keywords
-                if line[i].isalpha() or line[i] == "_":
-                    start = i
-                    while i < len(line) and (
-                        line[i].isalnum() or line[i] == "_"
-                    ):
-                        i += 1
-
-                    word = line[start:i]
-
-                    if word in self.COMMANDS:
-                        style = "class:command"
-                    elif word in self.CONTROL_WORDS:
-                        style = "class:control"
-                    elif word in {"True", "False", "None"}:
-                        style = "class:number"
-                    elif word in {"print", "len", "str", "int", "float", "range"}:
-                        style = "class:python"
-                    elif word in SOURCES:
-                        style = "class:source"
-                    elif word.casefold() in self.CONDITIONS:
-                        style = "class:condition"
-                    elif word in self.OPERATORS:
-                        style = "class:operator"
-                    elif (
-                        word in CHEMQL_VARIABLES
-                        or word in python_globals
-                    ):
-                        style = "class:variable"
-                    elif (
-                        word in elementKeys
-                        or word in moleculeKeys
-                        or word in reactionKeys
-                    ):
-                        style = "class:key"
-                    else:
-                        style = ""
-
-                    tokens.append((style, word))
-                    continue
-
-                # Other punctuation
-                tokens.append(("", line[i]))
+                tokens.append(("", ch))
                 i += 1
-
             return tokens
-
         return get_line
 
 
 class ChemqlCompleter(Completer):
-    """Context-aware completion for ChemQL commands and variables."""
+    """Context-aware completion for commands and dynamically created objects."""
 
     COMMANDS = (
-        "search", "source", "list", "clear", "return", "exit",
-        "findel", "findmol", "findre", "set", "add", "remove",
-        "react", "balance", "conditions", "version", "help", "view",
-        "dump", "let", "unset", "variables", "func", "define",
-        "import", "definitions", "macros",
+        "search", "source", "list", "clear", "return", "exit", "findel", "findmol",
+        "findre", "set", "add", "remove", "react", "balance", "conditions", "version",
+        "help", "view", "dump", "let", "unset", "variables", "func", "define", "struct",
+        "record", "risk", "fix", "cleanup", "signal", "import", "definitions", "macros",
+        "endfor", "endwhile", "endif", "endrisk", "endstruct", "endrecord", "endfunc", "enddefine",
     )
+    QUERY_OPERATORS = ["=", "!=", ">", "<", ">=", "<=", "like", "like!", "likep", "has", "sort", "limit", "count", "asc", "desc", "return", "and", "or", "union", "intersection"]
+    CONTROL_COMPLETIONS = ["if ", "for ", "while ", "endfor", "endwhile", "endif", "risk", "fix", "cleanup", "endrisk", "struct ", "endstruct", "record ", "endrecord", "func ", "endfunc", "define ", "enddefine"]
 
-    QUERY_OPERATORS = [
-        "=", "!=", ">", "<", ">=", "<=", "like", "like!",
-        "likep", "has", "sort", "limit", "count", "asc",
-        "desc", "return", "and", "or",
-    ]
+    @staticmethod
+    def _names():
+        variables = set(CHEMQL_VARIABLES) | {
+            name for name in python_globals
+            if isinstance(name, str) and not name.startswith("__") and name.isidentifier()
+        }
+        return {
+            "variables": variables,
+            "structs": set(STRUCTS),
+            "records": set(RECORDS),
+            "functions": set(FUNCTIONS),
+            "macros": set(MACROS),
+            "definitions": set(DEFINITIONS),
+        }
 
     def get_completions(self, document, complete_event):
         text = document.text_before_cursor
-        parts = text.split()
+        stripped = text.lstrip()
+        parts = stripped.split()
         trailing_space = bool(text and text[-1].isspace())
-
         current = "" if trailing_space or not parts else parts[-1]
         command_words = parts if trailing_space else parts[:-1]
+        names = self._names()
 
-        def emit(suggestions):
+        def emit(values):
             seen = set()
-            for suggestion in suggestions:
-                suggestion = str(suggestion)
-                key = suggestion.casefold()
-
-                if (
-                    key not in seen
-                    and key.startswith(current.casefold())
-                ):
+            for value in values:
+                value = str(value)
+                key = value.casefold()
+                if key not in seen and key.startswith(current.casefold()):
                     seen.add(key)
-                    yield Completion(
-                        suggestion,
-                        start_position=-len(current),
-                    )
+                    yield Completion(value, start_position=-len(current))
 
-        # At the beginning of a command, suggest commands and variables.
+        dynamic = sorted(set().union(*names.values()), key=str.casefold)
         if not command_words:
-            suggestions = list(self.COMMANDS)
-            suggestions.extend(
-                sorted(CHEMQL_VARIABLES)
-            )
-            yield from emit(suggestions)
+            yield from emit(list(self.COMMANDS) + self.CONTROL_COMPLETIONS + dynamic)
             return
 
-        command = command_words[0]
+        command = command_words[0].casefold()
         suggestions = []
-
-        # Native variable syntax
         if command == "let":
-            if len(command_words) == 1:
-                suggestions = ["name = value"]
-            elif len(command_words) >= 2:
-                suggestions = ["="]
-
+            suggestions = ["name = value"] if len(command_words) == 1 else ["="]
         elif command == "unset":
-            suggestions = sorted(CHEMQL_VARIABLES)
-
-        elif command == "variables":
-            suggestions = []
-
-        # Source names
-        elif command in {"search", "source"}:
+            suggestions = sorted(names["variables"])
+        elif command == "source":
+            suggestions = list(SOURCES)
+        elif command == "search":
             if len(command_words) == 1:
                 suggestions = list(SOURCES)
-            elif command == "search" and len(command_words) >= 2:
-                source_name = command_words[1]
-                if source_name in SOURCES:
-                    _, keys = SOURCES[source_name]
-                    suggestions = list(keys) + self.QUERY_OPERATORS
-
-        # Reaction settings
+            elif len(command_words) >= 2 and command_words[1] in SOURCES:
+                _, keys = SOURCES[command_words[1]]
+                suggestions = list(keys) + self.QUERY_OPERATORS
         elif command == "set":
             if len(command_words) == 1:
-                suggestions = [
-                    "temperature", "pressure", "catalysts"
-                ]
+                suggestions = ["temperature", "pressure", "catalysts"]
             elif len(command_words) == 2:
                 setting = command_words[1].casefold()
-
-                if setting == "temperature":
-                    suggestions = [
-                        "standard", "room", "0C", "0F", "0K"
-                    ]
-                elif setting == "pressure":
-                    suggestions = [
-                        "standard", "room", "0Pa",
-                        "0N/m^2", "0Nm^-2", "0bar",
-                    ]
-                elif setting == "catalysts":
-                    suggestions = list(
-                        reaction_state["catalysts"]
-                    )
-
-        # Catalyst management
+                suggestions = {
+                    "temperature": ["standard", "room", "0C", "0F", "0K"],
+                    "pressure": ["standard", "room", "0Pa", "0N/m^2", "0Nm^-2", "0bar", "1atm"],
+                    "catalysts": list(reaction_state["catalysts"]),
+                }.get(setting, [])
         elif command in {"add", "remove"}:
             if len(command_words) == 1:
-                suggestions = ["catalyst"]
-            elif (
-                command == "remove"
-                and len(command_words) == 2
-                and command_words[1] == "catalyst"
-            ):
-                suggestions = list(
-                    reaction_state["catalysts"]
-                )
+                suggestions = ["catalyst", "definition"] if command == "remove" else ["catalyst"]
+            elif command == "remove" and command_words[1].casefold() == "catalyst":
+                suggestions = list(reaction_state["catalysts"])
+            elif command == "remove" and command_words[1].casefold() == "definition":
+                suggestions = sorted(names["definitions"])
+        elif command == "variables":
+            suggestions = sorted(names["variables"])
+        elif command == "definitions":
+            suggestions = sorted(names["definitions"])
+        elif command == "macros":
+            suggestions = sorted(names["macros"])
+        elif command == "func":
+            suggestions = sorted(names["structs"])
+        elif command == "struct":
+            suggestions = sorted(names["structs"])
+        elif command == "record":
+            suggestions = sorted(names["records"])
+        elif command in {"print", "return", "unset"}:
+            suggestions = sorted(names["variables"])
+        elif command in {"risk", "fix", "cleanup", "endrisk", "endstruct", "endrecord", "endfunc", "enddefine", "endfor", "endwhile", "endif"}:
+            suggestions = self.CONTROL_COMPLETIONS
 
-        # Variable names can be useful in expressions.
-        elif command in {"print", "return"}:
-            suggestions = sorted(CHEMQL_VARIABLES)
-
-        # Offer native variables in other expression contexts too.
-        if not suggestions and (
-            "{{" in text
-            or text.lstrip().startswith("[")
-        ):
-            suggestions = sorted(CHEMQL_VARIABLES)
-
+        # In expressions, Python blocks, attribute access, and function calls,
+        # offer all user-defined symbols, not just built-in commands.
+        if not suggestions or "{{" in text or text.lstrip().startswith("[") or "." in current:
+            suggestions += dynamic
         yield from emit(suggestions)
 
 
-        
 chemql_style = Style.from_dict({
     "command": "ansicyan",
     "terminalcommand": "ansipurple",
@@ -4348,9 +5082,14 @@ chemql_style = Style.from_dict({
     "control": "ansired",
     "python": "ansibrightcyan",
     "condition": "ansibrightyellow",
+    "variable": "ansibrightgreen",
+    "struct": "ansibrightblue bold",
+    "record": "ansicyan bold",
+    "function": "ansiyellow bold",
+    "macro": "ansimagenta bold",
+    "definition": "ansibrightmagenta",
+    "interpolation": "ansibrightcyan italic",
 })
-
-
 
 
 class _ChemQLField:
@@ -4495,6 +5234,83 @@ ChemQLQuery.__name__ = "ChemQLQuery"
 ChemQLQuery.__qualname__ = "ChemQLQuery"
 
 
+
+def _unclosed_expression_delimiters(lines):
+    """Return expected closing delimiters for an unfinished expression.
+
+    This scanner is intentionally for REPL continuation only. It recognizes
+    ChemQL's {{...}} query delimiters before ordinary braces and ignores
+    delimiters inside quoted strings and // comments. The dedicated [[[...]]]
+    block is handled separately by the REPL and must not be treated as a stack
+    of ordinary square brackets.
+    """
+    expected = []
+    quote = None
+    escaped = False
+    openers = ("{{", "{", "(", "[")
+    closers = ("}}", "}", ")", "]")
+
+    for line in lines:
+        i = 0
+        while i < len(line):
+            ch = line[i]
+
+            if quote is not None:
+                if escaped:
+                    escaped = False
+                elif ch == "\\":
+                    escaped = True
+                elif ch == quote:
+                    quote = None
+                i += 1
+                continue
+
+            if ch in ("'", '"'):
+                quote = ch
+                i += 1
+                continue
+
+            # ChemQL's single-line comments must not affect delimiter balance.
+            if line.startswith("//", i):
+                break
+
+            # The triple-bracket multiline Python form is managed elsewhere.
+            if line.startswith("[[[", i):
+                i += 3
+                continue
+            if line.startswith("]]]", i):
+                i += 3
+                continue
+
+            token = next((t for t in openers if line.startswith(t, i)), None)
+            if token is not None:
+                expected.append({"{{": "}}", "{": "}", "(": ")", "[": "]"}[token])
+                i += len(token)
+                continue
+
+            token = next((t for t in closers if line.startswith(t, i)), None)
+            if token is not None:
+                if expected:
+                    if expected[-1] != token:
+                        raise SyntaxError(
+                            f"Mismatched delimiter: expected {expected[-1]!r}, got {token!r}"
+                        )
+                    expected.pop()
+                else:
+                    # An unmatched closer belongs to the normal ChemQL parser
+                    # to diagnose; it should not cause continuation prompting.
+                    return []
+                i += len(token)
+                continue
+
+            i += 1
+
+        # A single-line string cannot legitimately span REPL input lines in
+        # ordinary ChemQL expressions; retain quote state only for completeness.
+
+    return expected
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Chemql query and chemistry language"
@@ -4619,17 +5435,40 @@ def run_interactive():
             if "///" in first:
                 return sum(line.count("///") for line in source_lines) < 2
 
-            if is_python_block_header(first):
-                depth = 0
-                for line in source_lines:
-                    stripped = line.strip()
-                    if is_python_block_header(stripped):
-                        depth += 1
-                    elif stripped == "[endblock]":
-                        depth -= 1
-                return depth > 0
+            # Track every block that requires a closing keyword. Named declarations
+            # such as `struct Fruit` and `record Point` are headers too.
+            stack = []
+            closers = {
+                "endrisk": "risk", "endstruct": "struct", "endrecord": "record",
+                "endfunc": "func", "enddefine": "macro", "endfor": "for",
+                "endwhile": "while", "endif": "if", "[endblock]": "bracket",
+            }
+            for source_line in source_lines:
+                stripped = source_line.strip()
+                folded = stripped.casefold()
+                if not stripped or stripped.startswith("//"):
+                    continue
 
-            return False
+                if re.fullmatch(r"struct\s+[A-Za-z_]\w*", stripped, re.IGNORECASE):
+                    stack.append("struct")
+                elif re.fullmatch(r"record\s+[A-Za-z_]\w*", stripped, re.IGNORECASE):
+                    stack.append("record")
+                elif re.fullmatch(r"func\s+[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)?", stripped, re.IGNORECASE):
+                    stack.append("func")
+                elif re.fullmatch(r"define\s+[A-Za-z_]\w*\s*\{\s*\}", stripped, re.IGNORECASE):
+                    stack.append("macro")
+                elif folded == "risk":
+                    stack.append("risk")
+                elif re.match(r"^(for|while|if)\s+.+$", stripped, re.IGNORECASE) and not stripped.startswith("["):
+                    stack.append(folded.split(None, 1)[0])
+                elif is_python_block_header(stripped):
+                    stack.append("bracket")
+                elif folded in closers:
+                    expected = closers[folded]
+                    if stack and stack[-1] == expected:
+                        stack.pop()
+
+            return bool(stack)
 
         @bindings.add(Keys.Enter)
         def _handle_enter(event):
@@ -4754,6 +5593,44 @@ def run_interactive():
                         lines = []
                         break
                     lines.append(next_line)
+                if not lines:
+                    continue
+
+            # Collect multiline expressions only when a physical line ends
+            # with an expression opener. Structured constructs are handled by
+            # their existing collectors above/below and must retain newlines.
+            structured_start = bool(lines) and (
+                lines[0].strip() == "[[["
+                or lines[0].strip().startswith(("```", "func ", "define "))
+                or "///" in lines[0]
+                or is_python_block_header(lines[0].strip())
+            )
+            opens_at_line_end = bool(lines) and any(
+                line.rstrip().endswith(("{{", "{", "(", "["))
+                for line in lines
+            )
+            if lines and not structured_start and opens_at_line_end:
+                try:
+                    pending = _unclosed_expression_delimiters(lines)
+                    while pending:
+                        next_line = session.prompt("... ")
+                        lines.extend(next_line.splitlines() or [next_line])
+                        pending = _unclosed_expression_delimiters(lines)
+                    if len(lines) > 1:
+                        # These delimiters represent one expression: collapse
+                        # physical lines before handing it to ChemQL evaluation.
+                        lines = [" ".join(part.strip() for part in lines if part.strip())]
+                except KeyboardInterrupt:
+                    print()
+                    lines = []
+                except EOFError:
+                    message = "Error: Incomplete expression; missing closing delimiter"
+                    print("\n" + (message if NO_ANSI else "\033[31m" + message + "\033[0m"))
+                    lines = []
+                except SyntaxError as exc:
+                    message = f"Error: {exc}"
+                    print(message if NO_ANSI else f"\033[31m{message}\033[0m")
+                    lines = []
                 if not lines:
                     continue
 
