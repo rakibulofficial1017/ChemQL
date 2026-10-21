@@ -5,10 +5,12 @@ import contextlib
 from fractions import Fraction
 from functools import reduce
 import io
+import importlib
 import json
 import math
 from math import gcd
 import os
+import operator
 from pathlib import Path
 from prompt_toolkit import PromptSession
 from prompt_toolkit.key_binding import KeyBindings
@@ -32,6 +34,13 @@ import urllib.error
 
 __all__ = [
     "ChemQLError",
+    "ChemQLBuiltinError",
+    "TooFewArguments",
+    "TooManyArguments",
+    "InvalidArgumentType",
+    "InvalidArgumentValue",
+    "FileReadError",
+    "FileWriteError",
     "Element",
     "Molecule",
     "Reaction",
@@ -52,7 +61,7 @@ __all__ = [
     "__version__"
 ]
 
-__version__ = "1.3.1"
+__version__ = "1.4.1"
 
 # Persistent preprocessor/function state for the current ChemQL session.
 DEFINITIONS = {}
@@ -61,6 +70,7 @@ MACROS = {}
 EXECUTION_HISTORY = []
 _DEFINITION_NAME = r"[A-Za-z_][A-Za-z0-9_]*"
 _NO_RETURN = object()
+NO_ANSI = True
 
 def _expand_definitions(line):
     """Replace @NAME literally, including inside strings, using current definitions."""
@@ -126,16 +136,372 @@ def is_block_header(line):
         or code.startswith("while ")
     )
 
+class ChemQLBuiltinError(Exception):
+    """Base class for errors raised by ChemQL's native built-ins."""
+
+class TooFewArguments(ChemQLBuiltinError):
+    pass
+
+class TooManyArguments(ChemQLBuiltinError):
+    pass
+
+class InvalidArgumentType(ChemQLBuiltinError):
+    pass
+
+class InvalidArgumentValue(ChemQLBuiltinError):
+    pass
+
+class FileReadError(ChemQLBuiltinError):
+    pass
+
+class FileWriteError(ChemQLBuiltinError):
+    pass
+
+
+def _builtin_sum(*values):
+    if len(values) == 1:
+        return sum(values[0])
+    return sum(values)
+
+
+def _builtin_type(value):
+    """Return a readable ChemQL type name."""
+    if value is None: return "NoneType"
+    if isinstance(value, bool): return "bool"
+    if isinstance(value, int): return "int"
+    if isinstance(value, float): return "float"
+    if isinstance(value, str): return "str"
+    if isinstance(value, list): return "list"
+    if isinstance(value, tuple): return "tuple"
+    if isinstance(value, dict): return "dict"
+    return type(value).__name__
+
+
+def _builtin_read_text(path, encoding="utf-8"):
+    try:
+        return Path(os.fspath(path)).read_text(encoding=encoding)
+    except (OSError, UnicodeError, TypeError, ValueError) as exc:
+        raise FileReadError(f"Cannot read text file {path!r}: {exc}") from exc
+
+
+def _builtin_read_lines(path, encoding="utf-8"):
+    return _builtin_read_text(path, encoding).splitlines()
+
+
+def _builtin_read_json(path, encoding="utf-8"):
+    try:
+        with open(os.fspath(path), "r", encoding=encoding) as stream:
+            return json.load(stream)
+    except (OSError, UnicodeError, json.JSONDecodeError, TypeError, ValueError) as exc:
+        raise FileReadError(f"Cannot read JSON file {path!r}: {exc}") from exc
+
+
+def _builtin_read_csv(path, delimiter=",", encoding="utf-8", headers=True):
+    import csv
+    if not isinstance(delimiter, str) or len(delimiter) != 1:
+        raise InvalidArgumentValue("read_csv delimiter must be a single character")
+    if not isinstance(headers, bool):
+        raise InvalidArgumentType("read_csv headers must be a boolean")
+    try:
+        with open(os.fspath(path), "r", newline="", encoding=encoding) as stream:
+            if headers:
+                return list(csv.DictReader(stream, delimiter=delimiter))
+            return list(csv.reader(stream, delimiter=delimiter))
+    except (OSError, UnicodeError, csv.Error, TypeError, ValueError) as exc:
+        raise FileReadError(f"Cannot read CSV file {path!r}: {exc}") from exc
+
+
+def _builtin_element(symbol, field="symbol"):
+    if not isinstance(symbol, str):
+        raise InvalidArgumentType("element expects an element symbol as its first argument")
+    found = next((item for item in ELEMENTS if str(item.symbol).casefold() == symbol.casefold()), None)
+    if found is None:
+        raise InvalidArgumentValue(f"Unknown element symbol {symbol!r}")
+    if not isinstance(field, str):
+        raise InvalidArgumentType("element field must be a string")
+    if not hasattr(found, field) or field.startswith("_"):
+        raise InvalidArgumentValue(f"Unknown element field {field!r}")
+    return getattr(found, field)
+
+
+def _builtin_count_atoms(formula, symbol):
+    if not isinstance(formula, str) or not isinstance(symbol, str):
+        raise InvalidArgumentType("count_atoms expects a formula string and an element symbol")
+    try:
+        return _formula_counts(formula).get(symbol, 0)
+    except ValueError as exc:
+        raise InvalidArgumentValue(str(exc)) from exc
+
+
+def _builtin_molar_mass(formula):
+    if not isinstance(formula, str):
+        raise InvalidArgumentType("molar_mass expects a chemical formula string")
+    try:
+        counts = _formula_counts(formula)
+    except ValueError as exc:
+        raise InvalidArgumentValue(str(exc)) from exc
+    masses = {str(item.symbol): item.atomic_mass for item in ELEMENTS}
+    total = 0.0
+    for symbol, count in counts.items():
+        try:
+            mass = float(masses[symbol])
+        except (KeyError, TypeError, ValueError):
+            raise InvalidArgumentValue(f"No atomic mass is available for element {symbol!r}")
+        total += mass * count
+    return total
+
+
+def _builtin_empirical_formula(formula):
+    if not isinstance(formula, str):
+        raise InvalidArgumentType("empirical_formula expects a chemical formula string")
+    try:
+        counts = _formula_counts(formula)
+    except ValueError as exc:
+        raise InvalidArgumentValue(str(exc)) from exc
+    divisor = reduce(gcd, counts.values())
+    return "".join(symbol + (str(count // divisor) if count // divisor != 1 else "")
+                   for symbol, count in counts.items())
+
+
+def _builtin_write_csv(path, rows, delimiter=",", encoding="utf-8"):
+    import csv
+    if not isinstance(delimiter, str) or len(delimiter) != 1:
+        raise InvalidArgumentValue("write_csv delimiter must be a single character")
+    try:
+        with open(os.fspath(path), "w", newline="", encoding=encoding) as stream:
+            if not isinstance(rows, (list, tuple)):
+                raise InvalidArgumentType("write_csv rows must be a list")
+            if rows and isinstance(rows[0], dict):
+                fieldnames = list(rows[0].keys())
+                writer = csv.DictWriter(stream, fieldnames=fieldnames, delimiter=delimiter)
+                writer.writeheader()
+                writer.writerows(rows)
+            else:
+                writer = csv.writer(stream, delimiter=delimiter)
+                writer.writerows(rows)
+        return True
+    except ChemQLBuiltinError:
+        raise
+    except (OSError, UnicodeError, csv.Error, TypeError, ValueError) as exc:
+        raise FileWriteError(f"Cannot write CSV file {path!r}: {exc}") from exc
+
+
+def _builtin_file_exists(path):
+    try:
+        return Path(os.fspath(path)).is_file()
+    except (TypeError, ValueError):
+        raise InvalidArgumentType("file_exists expects a path string")
+
+
+def _builtin_list_files(path=".", pattern="*"):
+    try:
+        return sorted(str(p) for p in Path(os.fspath(path)).glob(str(pattern)))
+    except (OSError, TypeError, ValueError) as exc:
+        raise InvalidArgumentValue(f"Cannot list files: {exc}") from exc
+
+
+def _builtin_write_text(path, content, encoding="utf-8"):
+    try:
+        Path(os.fspath(path)).write_text(str(content), encoding=encoding)
+        return True
+    except (OSError, UnicodeError, TypeError, ValueError) as exc:
+        raise FileWriteError(f"Cannot write text file {path!r}: {exc}") from exc
+
+
+def _builtin_write_json(path, value, encoding="utf-8", indent=2):
+    try:
+        with open(os.fspath(path), "w", encoding=encoding) as stream:
+            json.dump(value, stream, ensure_ascii=False, indent=indent)
+        return True
+    except (OSError, UnicodeError, TypeError, ValueError) as exc:
+        raise FileWriteError(f"Cannot write JSON file {path!r}: {exc}") from exc
+
+
+# name: (callable, minimum positional arguments, maximum positional arguments)
+# Built-ins are native Python-backed operations; user-defined ChemQL functions
+# retain precedence when a name is defined in FUNCTIONS.
+BUILTIN_FUNCTIONS = {
+    "abs": (abs, 1, 1),
+    "round": (round, 1, 2),
+    "min": (min, 1, None),
+    "max": (max, 1, None),
+    "sum": (_builtin_sum, 1, None),
+    "len": (len, 1, 1),
+    "type": (_builtin_type, 1, 1),
+    "str": (str, 1, 1),
+    "int": (int, 1, 2),
+    "float": (float, 1, 1),
+    "bool": (bool, 1, 1),
+    "upper": (lambda value: str(value).upper(), 1, 1),
+    "lower": (lambda value: str(value).lower(), 1, 1),
+    "contains": (lambda container, item: item in container, 2, 2),
+    "replace": (lambda value, old, new: str(value).replace(str(old), str(new)), 3, 3),
+    "split": (lambda value, separator=None: str(value).split(separator), 1, 2),
+    "join": (lambda separator, values: str(separator).join(str(v) for v in values), 2, 2),
+    "first": (lambda values: next(iter(values)), 1, 1),
+    "last": (lambda values: list(values)[-1], 1, 1),
+    "unique": (lambda *values: list(dict.fromkeys(values[0] if len(values) == 1 and isinstance(values[0], (list, tuple, str)) else values)), 1, None),
+    "sort": (lambda values: sorted(values), 1, 1),
+    "reversed": (lambda values: list(reversed(values)), 1, 1),
+    "read_text": (_builtin_read_text, 1, 2),
+    "read_lines": (_builtin_read_lines, 1, 2),
+    "read_json": (_builtin_read_json, 1, 2),
+    "read_csv": (_builtin_read_csv, 1, 4),
+    "file_exists": (_builtin_file_exists, 1, 1),
+    "element": (_builtin_element, 1, 2),
+    "count_atoms": (_builtin_count_atoms, 2, 2),
+    "molar_mass": (_builtin_molar_mass, 1, 1),
+    "empirical_formula": (_builtin_empirical_formula, 1, 1),
+    "write_csv": (_builtin_write_csv, 2, 4),
+    "list_files": (_builtin_list_files, 0, 2),
+    "write_text": (_builtin_write_text, 2, 3),
+    "write_json": (_builtin_write_json, 2, 4),
+    "help": (lambda *args: None, 0, 1),
+}
+
+
+# User-facing documentation for built-ins. Keep examples in ChemQL syntax.
+_BUILTIN_HELP = {
+    "help": ("Help", "help{topic?}", "Show the help index or detailed documentation for a built-in, syntax topic, error signal, or file/chemistry category.", ['help', 'help{read_csv}', 'help{errors}']),
+    "abs": ("Numbers", "abs{number}", "Return the absolute value.", ['abs{-15}  # 15']),
+    "round": ("Numbers", "round{number, digits?}", "Round a number to the requested number of decimal places.", ['round{3.14159, 2}  # 3.14']),
+    "min": ("Numbers", "min{value, ...}", "Return the smallest supplied value.", ['min{4, 2, 9}  # 2']),
+    "max": ("Numbers", "max{value, ...}", "Return the largest supplied value.", ['max{4, 2, 9}  # 9']),
+    "sum": ("Numbers", "sum{value, ...}", "Add numeric values or sum an iterable.", ['sum{1, 2, 3, 4}  # 10']),
+    "len": ("Core", "len{value}", "Return the number of items in a string or collection.", ['len{"Hello world"}  # 11']),
+    "type": ("Core", "type{value}", "Return a readable ChemQL/Python type name.", ['type{42}']),
+    "str": ("Conversion", "str{value}", "Convert a value to text.", ['str{42}  # "42"']),
+    "int": ("Conversion", "int{value, base?}", "Convert a value to an integer.", ['int{"101", 2}  # 5']),
+    "float": ("Conversion", "float{value}", "Convert a value to a floating-point number.", ['float{"3.5"}']),
+    "bool": ("Conversion", "bool{value}", "Convert a value to a Boolean.", ['bool{0}  # False']),
+    "upper": ("Strings", "upper{text}", "Return text converted to uppercase.", ['upper{"chemql"}  # CHEMQL']),
+    "lower": ("Strings", "lower{text}", "Return text converted to lowercase.", ['lower{"CHEMQL"}  # chemql']),
+    "contains": ("Strings / Collections", "contains{container, item}", "Return whether a string or collection contains an item.", ['contains{"ChemQL", "QL"}  # True']),
+    "replace": ("Strings", "replace{text, old, new}", "Replace every occurrence of one substring with another.", ['replace{"H2O", "2", "4"}  # H4O']),
+    "split": ("Strings", "split{text, separator?}", "Split text into a list of pieces.", ['split{"red,green,blue", ","}']),
+    "join": ("Strings", "join{separator, values}", "Join an iterable of values into a string.", ['join{",", ["a", "b", "c"]}']),
+    "first": ("Collections", "first{values}", "Return the first item of an iterable.", ['first{[10, 20, 30]}  # 10']),
+    "last": ("Collections", "last{values}", "Return the last item of an iterable.", ['last{[10, 20, 30]}  # 30']),
+    "unique": ("Collections", "unique{values...}", "Return unique values while preserving their first-seen order.", ['unique{1, 2, 2, 3}  # [1, 2, 3]']),
+    "sort": ("Collections", "sort{values}", "Return a sorted list.", ['sort{[3, 1, 2]}  # [1, 2, 3]']),
+    "reversed": ("Collections", "reversed{values}", "Return the values in reverse order as a list.", ['reversed{[1, 2, 3]}  # [3, 2, 1]']),
+    "read_text": ("Files", "read_text{path, encoding?}", "Read an entire text file. Defaults to UTF-8.", ['let text = read_text{"notes.txt"}']),
+    "read_lines": ("Files", "read_lines{path, encoding?}", "Read a text file into a list of lines.", ['let lines = read_lines{"notes.txt"}']),
+    "write_text": ("Files", "write_text{path, content, encoding?}", "Write text to a file. Returns true on success.", ['write_text{"output.txt", "Hello ChemQL!"}']),
+    "read_csv": ("Files / Data", "read_csv{path, delimiter?, encoding?, header?}", "Read a CSV file. By default, the first row is treated as column names and rows are returned as dictionaries. Set header to false for row lists.", ['let rows = read_csv{"data.csv"}', 'let rows = read_csv{"data.csv", ";", "utf-8", false}']),
+    "write_csv": ("Files / Data", "write_csv{path, rows, delimiter?, encoding?}", "Write rows to a CSV file.", ['write_csv{"output.csv", rows}']),
+    "read_json": ("Files / Data", "read_json{path, encoding?}", "Read JSON from a file into ChemQL dictionaries/lists/scalars.", ['let data = read_json{"data.json"}']),
+    "write_json": ("Files / Data", "write_json{path, value, encoding?, indent?}", "Write a value as JSON. Indentation defaults to 2 spaces.", ['write_json{"output.json", data}']),
+    "file_exists": ("Files", "file_exists{path}", "Return true if a file or path exists.", ['file_exists{"data.csv"}']),
+    "list_files": ("Files", "list_files{directory?, pattern?}", "List files in a directory, optionally matching a glob pattern.", ['list_files{".", "*.csv"}']),
+    "element": ("Chemistry", "element{symbol, field?}", "Look up a periodic-table element, optionally returning one field.", ['element{"Na", "atomic_mass"}']),
+    "count_atoms": ("Chemistry", "count_atoms{formula, element_symbol}", "Count atoms of an element in a chemical formula.", ['count_atoms{"H2SO4", "O"}  # 4']),
+    "molar_mass": ("Chemistry", "molar_mass{formula}", "Calculate the molar mass of a chemical formula.", ['molar_mass{"H2O"}']),
+    "empirical_formula": ("Chemistry", "empirical_formula{formula}", "Calculate the empirical formula from a molecular formula.", ['empirical_formula{"C6H12O6"}  # CH2O']),
+}
+
+_HELP_TOPICS = {
+    "syntax": ("ChemQL Syntax", ["Function calls use braces: `name{arg1, arg2}`.", "Quote text containing spaces: `upper{\"hello world\"}`.", "Separate arguments with commas, not spaces.", "Python statements/expressions can be embedded in `[ ... ]`.", "Multiline Python uses `[[[ ... ]]]`; embedded queries use `{{ ... }}`."]),
+    "errors": ("ChemQL Error Signals", ["SyntaxError — the input could not be parsed as valid syntax.", "TooFewArguments — a function received fewer arguments than required.", "TooManyArguments — a function received more arguments than allowed.", "InvalidArgumentType — an argument has an unsupported type.", "InvalidArgumentValue — an argument's value is invalid.", "FileReadError — reading a file failed.", "FileWriteError — writing a file failed.", "NameError — a name or function is unknown.", "PermissionError — a private namespace function was called externally."]),
+    "files": ("File Functions", ["read_text{path, encoding?}", "read_lines{path, encoding?}", "read_csv{path, delimiter?, encoding?, header?}", "read_json{path, encoding?}", "write_text{path, content, encoding?}", "write_csv{path, rows, delimiter?, encoding?}", "write_json{path, value, encoding?, indent?}", "file_exists{path}", "list_files{directory?, pattern?}"]),
+    "chemistry": ("Chemistry Functions", ["molar_mass{formula}", "count_atoms{formula, element_symbol}", "empirical_formula{formula}", "element{symbol, field?}"]),
+}
+
+
+def _help_text(topic=None):
+    if topic is None or not str(topic).strip():
+        names = sorted(_BUILTIN_HELP)
+        categories = {}
+        for name in names:
+            category = _BUILTIN_HELP[name][0]
+            categories.setdefault(category, []).append(name)
+        lines = [f"ChemQL {__version__} help", "", "Usage: help{topic} or help topic", "Use help{function_name} for details, or help{syntax}, help{errors}, help{files}, help{chemistry}.", ""]
+        for category, items in categories.items():
+            lines.append(f"{category}: " + ", ".join(items))
+        lines += ["", "User-defined functions:"]
+        lines += [f"  {name}{{...}}" for name in sorted(FUNCTIONS)] or ["  (none defined in this session)"]
+        lines += ["", "Packages: load package_name; then use package_name::function{...}."]
+        return "\n".join(lines)
+
+    key = str(topic).strip().strip("`\"'")
+    key = key.replace("::", "::")
+    if key in _BUILTIN_HELP:
+        category, signature, description, examples = _BUILTIN_HELP[key]
+        return "\n".join([f"{key} — {category}", f"Signature: {signature}", description, "", "Examples:", *[f"  {line}" for line in examples]])
+    if key in _HELP_TOPICS:
+        title, lines = _HELP_TOPICS[key]
+        return "\n".join([title, *[f"  {line}" for line in lines]])
+    if key in FUNCTIONS:
+        return f"User-defined ChemQL function: {key}{{...}}\nDefined in the current session. Use `view`/`dump` where appropriate to inspect program state."
+    if "::" in key:
+        resolved = _resolve_package_qualified_name(key)
+        if resolved in FUNCTIONS:
+            return f"ChemQL package function: {key}{{...}}\nCanonical name: {resolved}"
+        package = key.rsplit("::", 1)[0]
+        return f"Package/member help is not registered for `{key}`.\nTry `load {package}` and inspect the package namespace, or use `help{{{package}}}` if documented."
+    return f"No help available for `{key}`. Try `help` to list built-ins, or `help{{syntax}}`, `help{{errors}}`, `help{{files}}`, and `help{{chemistry}}`."
+
+
+def _call_builtin(name, arguments):
+    entry = BUILTIN_FUNCTIONS.get(name)
+    if entry is None:
+        raise NameError(f"Unknown ChemQL built-in `{name}`")
+    function, minimum, maximum = entry
+    count = len(arguments)
+    if count < minimum:
+        raise TooFewArguments(f"Too few arguments for `{name}`: expected at least {minimum}, got {count}")
+    if maximum is not None and count > maximum:
+        raise TooManyArguments(f"Too many arguments for `{name}`: expected at most {maximum}, got {count}")
+    if name == "help":
+        if len(arguments) > 1:
+            raise TooManyArguments("Too many arguments for `help`: expected at most 1, got " + str(len(arguments)))
+        topic = arguments[0].strip() if arguments else None
+        if topic is not None and len(topic) >= 2 and topic[0] in ("\"", "'") and topic[-1] == topic[0]:
+            try:
+                topic = ast.literal_eval(topic)
+            except (ValueError, SyntaxError):
+                topic = topic[1:-1]
+        return _help_text(topic)
+    values = [evaluate_python(arg) for arg in arguments]
+    try:
+        return function(*values)
+    except ChemQLBuiltinError:
+        raise
+    except TypeError as exc:
+        raise InvalidArgumentType(f"Invalid argument type for `{name}`: {exc}") from exc
+    except ValueError as exc:
+        raise InvalidArgumentValue(f"Invalid argument value for `{name}`: {exc}") from exc
+    except IndexError as exc:
+        raise InvalidArgumentValue(f"Invalid argument value for `{name}`: {exc}") from exc
+
+
 def _call_function(name, arguments):
     """Call a ChemQL function, including let assignments and block syntax."""
+    global _CURRENT_NAMESPACE
     if name not in FUNCTIONS:
         raise NameError(f"Unknown ChemQL function `{name}`")
 
     values = [evaluate_python(arg) for arg in arguments]
     definition = FUNCTIONS[name]
 
+    # While a namespace function runs, its private members are available to it
+    # and to other functions in the same namespace, but not to external callers.
+    previous_namespace = _CURRENT_NAMESPACE
+    if "::" in name:
+        _CURRENT_NAMESPACE = NAMESPACES.get(name.rsplit("::", 1)[0], previous_namespace)
+
     saved_globals = python_globals.copy()
     saved_chemql_variables = CHEMQL_VARIABLES.copy()
+
+    # Namespace members shadow same-named globals only while a function in
+    # that namespace executes. Never leak namespace variables into the caller's
+    # global scope, and preserve private-member access for internal functions.
+    active_namespace = _CURRENT_NAMESPACE
+    if active_namespace is not None:
+        for member_name in active_namespace._chemql_public: # type: ignore
+            if member_name in active_namespace.__dict__:
+                python_globals[member_name] = active_namespace.__dict__[member_name]
+        python_globals.update(active_namespace._chemql_private) # type: ignore
 
     had_arguments = "arguments" in python_globals
     saved_arguments = python_globals.get("arguments")
@@ -408,6 +774,34 @@ def _call_function(name, arguments):
             python_globals["arguments"] = saved_arguments
         else:
             python_globals.pop("arguments", None)
+        _CURRENT_NAMESPACE = previous_namespace
+
+def _resolve_package_qualified_name(name):
+    """Resolve an explicit package alias at the start of a qualified name."""
+    if "::" not in name:
+        return name
+    bindings = globals().get("CHEMQL_PACKAGE_BINDINGS", {})
+    parts = name.split("::")
+    for prefix_length in range(len(parts) - 1, 0, -1):
+        prefix = "::".join(parts[:prefix_length])
+        canonical = bindings.get(prefix)
+        if canonical:
+            return "::".join([canonical, *parts[prefix_length:]])
+    return name
+
+
+def _namespace_function_is_callable(name):
+    """Return whether a namespaced function is public or called internally."""
+    name = _resolve_package_qualified_name(name)
+    if "::" not in name:
+        return True
+    namespace_name, member_name = name.rsplit("::", 1)
+    namespace = NAMESPACES.get(namespace_name)
+    if namespace is None:
+        return True  # Preserve the normal unknown-function error path.
+    if member_name in namespace._chemql_public:
+        return True
+    return _CURRENT_NAMESPACE is not None and _CURRENT_NAMESPACE._chemql_name == namespace_name # type: ignore
 
 def _expand_function_calls(text):
     """Expand function calls of the form name{arg1, arg2} in query text."""
@@ -428,18 +822,26 @@ def _expand_function_calls(text):
                 continue
             if ch in ("'", '"'):
                 quote = ch; i += 1; continue
-            match = re.match(r"([A-Za-z_][A-Za-z0-9_]*(?:::[A-Za-z_][A-Za-z0-9_]*)?)\{", text[i:])
+            match = re.match(r"([A-Za-z_][A-Za-z0-9_]*(?:::[A-Za-z_][A-Za-z0-9_]*)*(?:\.[A-Za-z_][A-Za-z0-9_]*)?)\{", text[i:])
             if match:
                 name = match.group(1)
-                if name in FUNCTIONS:
-                    opening = i + match.end() - 1
-                    end = find_matching(text, opening, "{", "}")
-                    args = _split_function_arguments(text[opening + 1:end])
-                    value = _call_function(name, args)
-                    replacement = repr(value) if isinstance(value, str) else ("None" if value is None else str(value))
-                    text = text[:i] + replacement + text[end + 1:]
-                    changed = True
-                    break
+                resolved_name = _resolve_package_qualified_name(name)
+                opening = i + match.end() - 1
+                end = find_matching(text, opening, "{", "}")
+                args = _split_function_arguments(text[opening + 1:end])
+                if resolved_name in FUNCTIONS:
+                    if not _namespace_function_is_callable(resolved_name):
+                        raise PermissionError(f"Function `{name}` is private")
+                    value = _call_function(resolved_name, args)
+                elif "::" not in resolved_name and resolved_name in BUILTIN_FUNCTIONS:
+                    value = _call_builtin(resolved_name, args)
+                else:
+                    i += 1
+                    continue
+                replacement = repr(value) if isinstance(value, str) else ("None" if value is None else str(value))
+                text = text[:i] + replacement + text[end + 1:]
+                changed = True
+                break
             i += 1
         if not changed:
             return text
@@ -993,10 +1395,11 @@ _CHEMQL_RISK_DEPTH = 0
 
 
 def format_error(message, text=None, position=None, length=1):
-    output = f"Error: {message}"
+    output = ""
+    if (text is not None) and (position is not None) and (not NO_ANSI):
+        output += f"\033[1;31m{' ' * (position+4)}{'^' * max(1, length)}\n\033[0m"
+    output += f"Error: {message}" if NO_ANSI else f"\033[31mError: {message}\033[0m"
 
-    if text is not None and position is not None:
-        output += f"\n{text}\n{' ' * position}{'^' * max(1, length)}"
 
     return output
 
@@ -2293,40 +2696,40 @@ def _formula_counts(formula):
             if char == "(":
                 group, index = parse_group(index + 1, True)
                 if index >= len(formula) or formula[index] != ")":
-                    raise ValueError(f"Unclosed parenthesis in formula `{formula}`")
+                    raise ValueError((f"Unclosed parenthesis in formula `{formula}`" if NO_ANSI else f"Unclosed parenthesis in formula \033[1m{formula}\033[22m"))
                 index += 1
                 match = re.match(r"\d+", formula[index:])
                 multiplier = int(match.group()) if match else 1
                 if multiplier <= 0:
-                    raise ValueError(f"Invalid atom count in formula `{formula}`")
+                    raise ValueError((f"Invalid atom count in formula `{formula}`" if NO_ANSI else f"Invalid atom count in formula \033[1m{formula}\033[22m"))
                 if match:
                     index += len(match.group())
                 for symbol, amount in group.items():
                     counts[symbol] = counts.get(symbol, 0) + amount * multiplier
                 continue
             if not char.isupper():
-                raise ValueError(f"Invalid chemical formula `{formula}`")
+                raise ValueError((f"Invalid chemical formula `{formula}`" if NO_ANSI else f"Invalid chemical formula \033[1m{formula}\033[22m"))
             end = index + 1
             if end < len(formula) and formula[end].islower():
                 end += 1
             symbol = formula[index:end]
             if symbol not in symbols:
-                raise ValueError(f"Unknown element `{symbol}` in formula `{formula}`")
+                raise ValueError((f"Unknown element `{symbol}` in formula `{formula}`" if NO_ANSI else f"Unknown element `{symbol}` in formula \033[1m{formula}\033[22m"))
             index = end
             match = re.match(r"\d+", formula[index:])
             amount = int(match.group()) if match else 1
             if amount <= 0:
-                raise ValueError(f"Invalid atom count in formula `{formula}`")
+                raise ValueError((f"Invalid atom count in formula `{formula}`" if NO_ANSI else f"Invalid atom count in formula \033[1m{formula}\033[22m"))
             if match:
                 index += len(match.group())
             counts[symbol] = counts.get(symbol, 0) + amount
         if nested:
-            raise ValueError(f"Unclosed parenthesis in formula `{formula}`")
+            raise ValueError((f"Unclosed parenthesis in formula `{formula}`" if NO_ANSI else f"Unclosed parenthesis in formula \033[1m{formula}\033[22m"))
         return counts, index
 
     counts, end = parse_group(0)
     if end != len(formula) or not counts:
-        raise ValueError(f"Invalid chemical formula `{formula}`")
+        raise ValueError((f"Invalid chemical formula `{formula}`" if NO_ANSI else f"Invalid chemical formula \033[1m{formula}\033[22m"))
     return counts
 
 
@@ -2455,7 +2858,7 @@ def queryElement(key, func, value, *params):
 
 def queryElementLast(key, func, value, *params):
     if key not in elementKeys:
-        raise KeyError(f"There is no key `{key}`")
+        raise KeyError((f"There is no key `{key}`" if NO_ANSI else f"There is no key \033[1m{key}\033[22m"))
 
     for element in reversed(ELEMENTS):
         if getattr(element[key], func)(value, *params):
@@ -2466,7 +2869,7 @@ def queryElementLast(key, func, value, *params):
 
 def queryElementAll(key, func, value, *params):
     if key not in elementKeys:
-        raise KeyError(f"There is no key `{key}`")
+        raise KeyError((f"There is no key `{key}`" if NO_ANSI else f"There is no key \033[1m{key}\033[22m"))
 
     found = False
 
@@ -2527,7 +2930,7 @@ def sort_results(results, key, descending=False):
             reverse=descending
         )
     except (TypeError, AttributeError):
-        raise ValueError(f"Cannot sort by `{key}`")
+        raise ValueError((f"Cannot sort by `{key}`" if NO_ANSI else f"Cannot sort by \033[1m{key}\033[22m"))
 
 def apply_query_operations(results, tokens, keys, positions=None):
     i = 0
@@ -2538,13 +2941,13 @@ def apply_query_operations(results, tokens, keys, positions=None):
         # sort
         if token == "sort":
             if i + 1 >= len(tokens):
-                raise ChemQLError("Expected a key after `sort`", *(error_position(positions, i) if positions else (None, 1))) #type:ignore
+                raise ChemQLError(("Expected a key after `sort`" if NO_ANSI else "Expected a key after \033[1msort\033[22m"), *(error_position(positions, i) if positions else (None, 1))) #type:ignore
 
             key = tokens[i + 1]
 
             if key not in keys:
                 pos, length = error_position(positions, i + 1) if positions else (None, 1)
-                raise ChemQLError(f"There is no key `{key}`", pos, length)
+                raise ChemQLError((f"There is no key `{key}`" if NO_ANSI else f"There is no key \033[1m{key}\033[22m"), pos, length)
 
             descending = False
 
@@ -2573,17 +2976,17 @@ def apply_query_operations(results, tokens, keys, positions=None):
         # limit
         elif token == "limit":
             if i + 1 >= len(tokens):
-                raise ChemQLError("Expected a number after `limit`", *(error_position(positions, i) if positions else (None, 1)))#type:ignore
+                raise ChemQLError(("Expected a number after `limit`" if NO_ANSI else "Expected a number after \033[1mlimit\033[22m"), *(error_position(positions, i) if positions else (None, 1)))#type:ignore
 
             try:
                 amount = int(tokens[i + 1])
             except ValueError:
                 pos, length = error_position(positions, i + 1) if positions else (None, 1)
-                raise ChemQLError("`limit` requires an integer", pos, length)
+                raise ChemQLError(("`limit` requires an integer" if NO_ANSI else "\033[1mlimit\033[22m requires an integer"), pos, length)
 
             if amount < 0:
                 pos, length = error_position(positions, i + 1) if positions else (None, 1)
-                raise ChemQLError("`limit` cannot be negative", pos, length)
+                raise ChemQLError(("`limit` cannot be negative" if NO_ANSI else "\033[1mlimit\033[22m cannot be negative"), pos, length)
 
             results = results[:amount] # type: ignore
 
@@ -2593,14 +2996,14 @@ def apply_query_operations(results, tokens, keys, positions=None):
         elif token == "count":
             if i + 1 < len(tokens):
                 pos, length = error_position(positions, i) if positions else (None, 1)
-                raise ChemQLError("`count` must be the final query operation", pos, length)
+                raise ChemQLError(("`count` must be the final query operation" if NO_ANSI else "\033[1mcount\033[22m must be the final query operation"), pos, length)
 
             results = len(results) # type: ignore
             i += 1
 
         else:
             pos, length = error_position(positions, i) if positions else (None, 1)
-            raise ChemQLError(f"Unknown query operation `{token}`", pos, length)
+            raise ChemQLError((f"Unknown query operation `{token}`" if NO_ANSI else f"Unknown query operation \033[1m{token}\033[22m"), pos, length)
 
     return results
 
@@ -2619,7 +3022,7 @@ def convert_value(value, sample):
         if value.lower() == "false":
             return False
 
-        raise ValueError(f"`{value}` is not a boolean")
+        raise ValueError((f"`{value}` is not a boolean" if NO_ANSI else f"\033[1m{value}\033[22m is not a boolean"))
 
     if isinstance(sample, (int, float)):
 
@@ -2632,7 +3035,7 @@ def convert_value(value, sample):
             return number
 
         except ValueError:
-            raise ValueError(f"`{value}` is not a number")
+            raise ValueError((f"`{value}` is not a number" if NO_ANSI else f"\033[1m{value}\033[22m is not a number"))
 
     return value
 
@@ -2652,7 +3055,7 @@ def parse_condition(tokens, index, source, keys, positions=None):
     negated = operator.casefold() == "not"
     if negated:
         if index + 3 >= len(tokens):
-            raise ChemQLError("Expected an operator and value after `not`", *(error_position(positions, index + 1) if positions else (None, 1)))  # type: ignore
+            raise ChemQLError(("Expected an operator and value after `not`" if NO_ANSI else "Expected an operator and value after \033[1mnot\033[22m"), *(error_position(positions, index + 1) if positions else (None, 1)))  # type: ignore
         operator = tokens[index + 2]
         value = tokens[index + 3]
         consumed = index + 4
@@ -2662,7 +3065,7 @@ def parse_condition(tokens, index, source, keys, positions=None):
 
     if key not in keys:
         pos, length = error_position(positions, index) if positions else (None, 1)
-        raise ChemQLError(f"There is no key `{key}`", pos, length)
+        raise ChemQLError((f"There is no key `{key}`" if NO_ANSI else f"There is no key \033[1m{key}\033[22m"), pos, length)
 
     if operator in {"like", "like!", "likep"}:
         pattern = value
@@ -2737,7 +3140,7 @@ def parse_condition(tokens, index, source, keys, positions=None):
 
     if operator not in functionMap:
         pos, length = error_position(positions, index + 1) if positions else (None, 1)
-        raise ChemQLError(f"Unknown operator `{operator}`", pos, length)
+        raise ChemQLError((f"Unknown operator `{operator}`" if NO_ANSI else f"Unknown operator \033[1m{operator}\033[22m"), pos, length)
 
     sample = getattr(source[0], key)
 
@@ -2779,7 +3182,7 @@ def parse_primary(tokens, index, source, keys, positions=None):
 
         if index >= len(tokens) or tokens[index] != ")":
             pos = positions[index][0] if positions and index < len(positions) else None
-            raise ChemQLError("Missing `)`", pos)
+            raise ChemQLError(("Missing `)`" if NO_ANSI else "Missing \033[1m)\033[22m"), pos)
 
         return expression, index + 1
 
@@ -2867,7 +3270,7 @@ def parse_query(tokens, source, keys, positions=None):
     if index < len(tokens) and tokens[index] not in queryOperations:
         pos, length = error_position(positions, index) if positions else (None, 1)
         raise ChemQLError(
-            f"Unexpected `{tokens[index]}`", pos, length
+            (f"Unexpected `{tokens[index]}`" if NO_ANSI else f"Unexpected \033[1m{tokens[index]}\033[22m"), pos, length
         )
 
     return condition, index
@@ -2902,6 +3305,31 @@ class ChemQLSignal(Exception):
         super().__init__(self.error_type)
 
 CHEMQL_VARIABLES = set()
+
+class ChemQLNamespace:
+    """A namespace exposing only explicitly public members as attributes."""
+    def __init__(self, name, parent=None):
+        self.__dict__["_chemql_name"] = name
+        self.__dict__["_chemql_parent"] = parent
+        self.__dict__["_chemql_public"] = set()
+        self.__dict__["_chemql_private"] = {}
+
+    def _set_member(self, name, value, public=False):
+        # Redefining a public member as private must revoke the old public binding.
+        self.__dict__.pop(name, None)
+        self.__dict__["_chemql_public"].discard(name)
+        self.__dict__["_chemql_private"].pop(name, None)
+        if public:
+            self.__dict__[name] = value
+            self.__dict__["_chemql_public"].add(name)
+        else:
+            self.__dict__["_chemql_private"][name] = value
+            # Private names are available to code executing in the namespace,
+            # but are deliberately not exposed through namespace.member.
+
+NAMESPACES = {}
+_CURRENT_NAMESPACE = None
+_CURRENT_VISIBILITY = "private"
 
 def _chemql_value(expression):
     """Resolve a native ChemQL variable, otherwise evaluate a query expression."""
@@ -2950,7 +3378,7 @@ def find_matching(text, start, opening, closing):
 
         i += 1
 
-    raise SyntaxError(f"Missing `{closing}`")
+    raise SyntaxError((f"Missing `{closing}`" if NO_ANSI else f"Missing \033[1m{closing}\033[22m"))
 
 
 def interpolate_query(text):
@@ -3194,6 +3622,9 @@ def evaluate_python(code):
         rewritten = re.sub(r"\b" + re.escape(type_name) + r"\s*\{([^{}]*)\}",
                            lambda m, n=type_name: n + "(" + m.group(1) + ")", rewritten)
     rewritten = _expand_function_calls(rewritten)
+    # ChemQL uses :: for namespace qualification; Python uses attribute dots.
+    rewritten = re.sub(r"\b([A-Za-z_]\w*(?:::[A-Za-z_]\w*)+)",
+                       lambda m: m.group(1).replace("::", "."), rewritten)
 
     python_globals.update(query_values)
 
@@ -3273,7 +3704,7 @@ def find_endblock(lines, start):
         # expand to a ChemQL struct representation that is not Python syntax.
         if re.match(r"^\[\s*(?:if|for|while)\b", stripped):
             depth += 1
-    raise SyntaxError("Missing block terminator (`endblock`, `endfor`, `endwhile`, or `endif`)")
+    raise SyntaxError(("Missing block terminator (`endblock`, `endfor`, `endwhile`, or `endif`)" if NO_ANSI else "Missing block terminator (\033[1mendblock\033[22m, \033[1mendfor\033[22m, \033[1mendwhile\033[22m, or \033[1mendif\033[22m)"))
 
 
 def remove_comments(line):
@@ -3319,7 +3750,7 @@ def execute_for_block(header, body):
     node = tree.body[0]
 
     if not isinstance(node, ast.For):
-        raise SyntaxError("Expected a `for` block")
+        raise SyntaxError(("Expected a `for` block" if NO_ANSI else "Expected a \033[1mfor\033[22m block"))
 
     iterable = eval(
         compile(ast.Expression(node.iter), "<embedded-python>", "eval"),
@@ -3378,7 +3809,7 @@ def execute_while_block(header, body):
     node = tree.body[0]
 
     if not isinstance(node, ast.While):
-        raise SyntaxError("Expected a `while` block")
+        raise SyntaxError(("Expected a `while` block" if NO_ANSI else "Expected a \033[1mwhile\033[22m block"))
 
     while eval(
         compile(
@@ -3456,7 +3887,7 @@ def execute_if_block(header, body):
 
         else:
             raise SyntaxError(
-                f"Invalid conditional `{code}`"
+                (f"Invalid conditional `{code}`" if NO_ANSI else f"Invalid conditional \033[1m{code}\033[22m")
             )
 
         if evaluate_python(condition):
@@ -3600,10 +4031,19 @@ def process_inline(text):
     let_match = re.fullmatch(r"let\s+([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*=\s*(.+)", stripped, re.DOTALL)
     if let_match:
         name, expression = let_match.groups()
-        if "." in name:
+        value = evaluate_python(expression)
+        if _CURRENT_NAMESPACE is not None and "." not in name:
+            qualified = _CURRENT_NAMESPACE._chemql_name + "::" + name # type: ignore
+            _CURRENT_NAMESPACE._set_member(name, value, _CURRENT_VISIBILITY == "public")
+            # Keep a compatibility alias, but do not overwrite a same-named
+            # variable in the caller's global scope. Namespace-qualified access
+            # resolves through the namespace object, not this alias.
+            python_globals[qualified.replace("::", "__")] = value
+        elif "::" in name:
+            evaluate_python(name + " = (" + expression + ")")
+        elif "." in name:
             evaluate_python(name + " = (" + expression + ")")
         else:
-            value = evaluate_python(expression)
             python_globals[name] = value
             CHEMQL_VARIABLES.add(name)
         return None
@@ -3644,9 +4084,14 @@ def process_inline(text):
         return evaluate_python(stripped)
 
     # A standalone user-defined function call returns its value directly.
-    function_call = re.fullmatch(r"([A-Za-z_][A-Za-z0-9_]*(?:::[A-Za-z_][A-Za-z0-9_]*)?)\s*\{(.*)\}", stripped, re.DOTALL)
-    if function_call and function_call.group(1) in FUNCTIONS:
-        return _call_function(function_call.group(1), _split_function_arguments(function_call.group(2)))
+    function_call = re.fullmatch(r"([A-Za-z_][A-Za-z0-9_]*(?:::[A-Za-z_][A-Za-z0-9_]*)*)\s*\{(.*)\}", stripped, re.DOTALL)
+    if function_call:
+        function_name = _resolve_package_qualified_name(function_call.group(1))
+        arguments = _split_function_arguments(function_call.group(2))
+        if function_name in FUNCTIONS:
+            return _call_function(function_name, arguments)
+        if "::" not in function_name and function_name in BUILTIN_FUNCTIONS:
+            return _call_builtin(function_name, arguments)
 
     # [ ... ] is Python.
     if stripped.startswith("["):
@@ -3759,8 +4204,179 @@ def _find_unquoted_marker(text, marker, start=0):
     return -1
 
 
+# Canonical ChemQL package names and user-defined aliases are deliberately
+# tracked separately. An alias must never replace a canonical package binding.
+CHEMQL_PACKAGE_BINDINGS = {}
+CHEMQL_PACKAGE_SOURCE_LOADED = set()
+
+
+def _package_relative_path(package_name):
+    """Convert a canonical `a::b` package name to a relative source path."""
+    parts = package_name.split("::")
+    if not parts or any(not re.fullmatch(r"[A-Za-z_]\w*", part) for part in parts):
+        raise ImportError(f"Invalid ChemQL package name: `{package_name}`")
+    return Path(*parts[:-1], parts[-1] + ".cql")
+
+
+def _find_cql_package_file(package_name):
+    """Find a .cql package locally first, then in ChemQL's bundled stdlib."""
+    relative = _package_relative_path(package_name)
+    local_path = Path.cwd() / relative
+    if local_path.is_file():
+        return local_path
+    stdlib_path = Path(__file__).resolve().parent / "stdlib" / relative
+    if stdlib_path.is_file():
+        return stdlib_path
+    return None
+
+
+def _ensure_package_namespace(package_name, allow_namespace_only=False):
+    """Load a canonical ChemQL package and return its namespace object."""
+    if not re.fullmatch(r"[A-Za-z_]\w*(?:::[A-Za-z_]\w*)*", package_name):
+        raise ImportError(f"Invalid ChemQL package name: `{package_name}`")
+    cached = NAMESPACES.get(package_name)
+    if cached is not None and package_name in CHEMQL_PACKAGE_SOURCE_LOADED:
+        return cached
+
+    parent_name, separator, leaf_name = package_name.rpartition("::")
+    path = _find_cql_package_file(package_name)
+    if path is None and not allow_namespace_only:
+        raise ImportError(
+            f"Cannot find ChemQL package `{package_name}`. Searched the current "
+            f"directory and ChemQL's bundled `stdlib` directory for .cql files."
+        )
+    parent = _ensure_package_namespace(parent_name, allow_namespace_only=True) if separator else None
+
+    namespace = NAMESPACES.get(package_name)
+    if namespace is None:
+        namespace = ChemQLNamespace(package_name, parent)
+        NAMESPACES[package_name] = namespace
+    if parent is not None:
+        # The canonical path must remain traversable (math::statistics).
+        parent._set_member(leaf_name, namespace, True)
+
+    if path is not None and CHEMQL_PACKAGE_BINDINGS.get(package_name) != package_name:
+        source_lines = path.read_text(encoding="utf-8").splitlines()
+        old_namespace, old_visibility = _CURRENT_NAMESPACE, _CURRENT_VISIBILITY
+        try:
+            globals()["_CURRENT_NAMESPACE"] = namespace
+            globals()["_CURRENT_VISIBILITY"] = "private"
+            process_lines(source_lines)
+        except Exception:
+            # Do not mark a partially executed package as successfully loaded.
+            NAMESPACES.pop(package_name, None)
+            if parent is not None:
+                parent._set_member(leaf_name, namespace, False)
+            raise
+        finally:
+            globals()["_CURRENT_NAMESPACE"] = old_namespace
+            globals()["_CURRENT_VISIBILITY"] = old_visibility
+        CHEMQL_PACKAGE_SOURCE_LOADED.add(package_name)
+
+    # A namespace-only parent is a canonical container, not an independently
+    # loadable package unless it has its own .cql source file.
+    if path is not None:
+        CHEMQL_PACKAGE_BINDINGS.setdefault(package_name, package_name)
+    return namespace
+
+
+def _execute_load_statement(statement):
+    """Load a ChemQL .cql package, optionally binding an explicit alias."""
+    match = re.fullmatch(
+        r"load\s+([A-Za-z_]\w*(?:::[A-Za-z_]\w*)*)(?:\s+as\s+([A-Za-z_]\w*))?",
+        statement,
+    )
+    if not match:
+        if statement.startswith("load"):
+            raise SyntaxError("Expected `load package::name` or `load package::name as alias`")
+        return False
+
+    package_name, alias = match.groups()
+
+    # Detect binding conflicts before executing package source, so a failed
+    # load cannot run code or partially initialize the conflicting package.
+    if alias:
+        existing = CHEMQL_PACKAGE_BINDINGS.get(alias)
+        if existing is not None and existing != package_name:
+            raise ImportError(
+                f"Package name `{alias}` is already bound to `{existing}`; "
+                f"cannot also bind it to `{package_name}`. Use a different alias, "
+                f"for example `load {package_name} as {alias}_pkg`."
+            )
+        if alias in CHEMQL_VARIABLES and alias not in CHEMQL_PACKAGE_BINDINGS:
+            raise ImportError(
+                f"Name `{alias}` is already defined and cannot be used as a package alias. "
+                f"Choose another alias."
+            )
+    elif "::" not in package_name:
+        existing = CHEMQL_PACKAGE_BINDINGS.get(package_name)
+        if existing is not None and existing != package_name:
+            raise ImportError(
+                f"Name `{package_name}` is already bound to `{existing}`. "
+                f"Use an explicit alias to load `{package_name}` under another name."
+            )
+        if package_name in CHEMQL_VARIABLES and package_name not in CHEMQL_PACKAGE_BINDINGS:
+            raise ImportError(f"Name `{package_name}` is already defined; cannot bind package to it.")
+
+    namespace = _ensure_package_namespace(package_name)
+
+    # A nested package's canonical path needs its root namespace bound, but
+    # this does not create an alias for the nested package's final component.
+    if "::" in package_name:
+        root_name = package_name.split("::", 1)[0]
+        root_namespace = NAMESPACES[root_name]
+        root_binding = CHEMQL_PACKAGE_BINDINGS.get(root_name)
+        if root_binding is not None and root_binding != root_name:
+            raise ImportError(
+                f"Canonical namespace `{root_name}` is already bound to `{root_binding}`; "
+                f"cannot expose `{package_name}` through its canonical path."
+            )
+        if root_name in CHEMQL_VARIABLES and root_name not in CHEMQL_PACKAGE_BINDINGS:
+            raise ImportError(f"Name `{root_name}` is already defined; cannot expose `{package_name}`.")
+        CHEMQL_PACKAGE_BINDINGS[root_name] = root_name
+        python_globals[root_name] = root_namespace
+        CHEMQL_VARIABLES.add(root_name)
+
+    if alias:
+        existing = CHEMQL_PACKAGE_BINDINGS.get(alias)
+        if existing is not None and existing != package_name:
+            raise ImportError(
+                f"Package name `{alias}` is already bound to `{existing}`; "
+                f"cannot also bind it to `{package_name}`. Use a different alias, "
+                f"for example `load {package_name} as {alias}_pkg`."
+            )
+        # Avoid silently overwriting a non-package ChemQL variable either.
+        if alias in CHEMQL_VARIABLES and alias not in CHEMQL_PACKAGE_BINDINGS:
+            raise ImportError(
+                f"Name `{alias}` is already defined and cannot be used as a package alias. "
+                f"Choose another alias."
+            )
+        CHEMQL_PACKAGE_BINDINGS[alias] = package_name
+        python_globals[alias] = namespace
+        CHEMQL_VARIABLES.add(alias)
+    else:
+        # A canonical top-level package binds its own short name. Nested
+        # packages do not acquire an implicit short-name alias. When a nested
+        # package is loaded, its root namespace (e.g. `math`) is available so
+        # the full canonical path can be traversed.
+        if "::" not in package_name:
+            existing = CHEMQL_PACKAGE_BINDINGS.get(package_name)
+            if existing is not None and existing != package_name:
+                raise ImportError(
+                    f"Name `{package_name}` is already bound to `{existing}`. "
+                    f"Use an explicit alias to load `{package_name}` under another name."
+                )
+            if package_name in CHEMQL_VARIABLES and package_name not in CHEMQL_PACKAGE_BINDINGS:
+                raise ImportError(f"Name `{package_name}` is already defined; cannot bind package to it.")
+            CHEMQL_PACKAGE_BINDINGS[package_name] = package_name
+            python_globals[package_name] = namespace
+            CHEMQL_VARIABLES.add(package_name)
+    return True
+
+
 def process_lines(lines):
     """Process ChemQL source, including multiline Python, terminal, and comments."""
+    global _CURRENT_NAMESPACE, _CURRENT_VISIBILITY
     lines = join_continuations(list(lines))
     # Natural headers (for/if/while) and typed terminators are accepted in v1.3.
     normalized_lines = []
@@ -3793,6 +4409,87 @@ def process_lines(lines):
             i += 1
             continue
 
+        # Namespace blocks can be nested. Visibility defaults to private.
+        namespace_match = re.fullmatch(r"namespace\s+([A-Za-z_]\w*)", stripped, re.IGNORECASE)
+        if namespace_match:
+            ns_name = namespace_match.group(1)
+            end = i + 1
+            depth = 1
+            while end < len(lines):
+                candidate = lines[end].strip()
+                if re.fullmatch(r"(?:(?:public|private)\s+)?namespace\s+[A-Za-z_]\w*", candidate, re.IGNORECASE):
+                    depth += 1
+                elif candidate.casefold() == "endnamespace":
+                    depth -= 1
+                    if depth == 0:
+                        break
+                end += 1
+            if end >= len(lines):
+                raise SyntaxError(f"Missing `endnamespace` for namespace `{ns_name}`")
+            parent = _CURRENT_NAMESPACE
+            full_name = (parent._chemql_name + "::" + ns_name) if parent else ns_name # type: ignore
+            ns = NAMESPACES.get(full_name)
+            if ns is None:
+                ns = ChemQLNamespace(full_name, parent)
+                NAMESPACES[full_name] = ns
+            if parent is not None:
+                parent._set_member(ns_name, ns, _CURRENT_VISIBILITY == "public")
+            else:
+                python_globals[ns_name] = ns
+                CHEMQL_VARIABLES.add(ns_name)
+            old_ns, old_visibility = _CURRENT_NAMESPACE, _CURRENT_VISIBILITY
+            _CURRENT_NAMESPACE, _CURRENT_VISIBILITY = ns, "private"
+            try:
+                process_lines(lines[i + 1:end])
+            finally:
+                _CURRENT_NAMESPACE, _CURRENT_VISIBILITY = old_ns, old_visibility
+            i = end + 1
+            continue
+        if stripped.casefold() == "endnamespace":
+            raise SyntaxError("Unexpected `endnamespace`")
+        visibility_match = re.match(r"^(public|private)\s+(.+)$", stripped, re.IGNORECASE)
+        if visibility_match:
+            visibility, declaration = visibility_match.groups()
+            old_visibility = _CURRENT_VISIBILITY
+            _CURRENT_VISIBILITY = visibility.casefold()
+            try:
+                # Visibility prefixes may precede block declarations, so pass the
+                # complete declaration (including its body) to the normal parser.
+                block_end = i
+                if re.match(r"^(?:(?:static\s+func|func\s+static|func)\s+)", declaration, re.IGNORECASE):
+                    block_end = i + 1
+                    while block_end < len(lines) and lines[block_end].strip().casefold() != "endfunc":
+                        block_end += 1
+                    if block_end >= len(lines):
+                        raise SyntaxError("Missing `endfunc` after visibility declaration")
+                elif re.match(r"^namespace\s+", declaration, re.IGNORECASE):
+                    depth = 1
+                    block_end = i + 1
+                    while block_end < len(lines):
+                        item = lines[block_end].strip()
+                        if re.match(r"^(?:(?:public|private)\s+)?namespace\s+", item, re.IGNORECASE):
+                            depth += 1
+                        elif item.casefold() == "endnamespace":
+                            depth -= 1
+                            if depth == 0:
+                                break
+                        block_end += 1
+                    if block_end >= len(lines):
+                        raise SyntaxError("Missing `endnamespace` after visibility declaration")
+                elif re.match(r"^(struct|record)\s+[A-Za-z_]\w*\s*$", declaration, re.IGNORECASE):
+                    kind = re.match(r"^(struct|record)", declaration, re.IGNORECASE).group(1).casefold() # type:ignore
+                    terminator = "endstruct" if kind == "struct" else "endrecord"
+                    block_end = i + 1
+                    while block_end < len(lines) and lines[block_end].strip().casefold() != terminator:
+                        block_end += 1
+                    if block_end >= len(lines):
+                        raise SyntaxError(f"Missing `{terminator}` after visibility declaration")
+                process_lines([declaration] + lines[i + 1:block_end + 1])
+            finally:
+                _CURRENT_VISIBILITY = old_visibility
+            i = block_end + 1
+            continue
+
         type_match = re.fullmatch(r"(struct|record)\s+([A-Za-z_]\w*)", stripped, re.IGNORECASE)
         if type_match:
             kind, type_name = type_match.group(1).casefold(), type_match.group(2)
@@ -3801,52 +4498,100 @@ def process_lines(lines):
             while end < len(lines) and lines[end].strip().casefold() != terminator:
                 end += 1
             if end >= len(lines):
-                raise SyntaxError(f"Missing `{terminator}` for {kind} `{type_name}`")
-            fields, defaults = [], {}
+                raise SyntaxError((f"Missing `{terminator}` for {kind} `{type_name}`" if NO_ANSI else f"Missing \033[1m{terminator}\033[22m for {kind} \033[1m{type_name}\033[22m"))
+            fields, defaults, required_fields, optional_fields = [], {}, [], []
             for field_line in lines[i + 1:end]:
                 field_line = remove_comments(field_line).strip()
                 if not field_line:
                     continue
-                match = re.fullmatch(r"([A-Za-z_]\w*)(?:\s*=\s*(.+))?", field_line)
-                if not match:
-                    raise SyntaxError(f"Invalid {kind} field declaration: {field_line}")
-                field, default = match.groups()
-                if field in fields:
-                    raise SyntaxError(f"Duplicate field `{field}` in {type_name}")
-                fields.append(field)
-                if default is not None:
-                    defaults[field] = evaluate_python(_expand_definitions(default))
+                required_match = re.fullmatch(r"required\s+([A-Za-z_]\w*)", field_line, re.IGNORECASE)
+                if required_match:
+                    if kind != "struct":
+                        raise SyntaxError("`required` fields are supported only in structs")
+                    field = required_match.group(1)
+                    default = None
+                    is_required = True
+                else:
+                    match = re.fullmatch(r"([A-Za-z_]\w*)(?:\s*=\s*(.+))?", field_line)
+                    if not match:
+                        raise SyntaxError(f"Invalid {kind} field declaration: {field_line}")
+                    field, default = match.groups()
+                    is_required = False
+                if field in fields or field in required_fields or field in optional_fields:
+                    raise SyntaxError((f"Duplicate field `{field}` in {type_name}" if NO_ANSI else f"Duplicate field \033[1m{field}\033[22m in {type_name}"))
+                if is_required:
+                    required_fields.append(field)
+                else:
+                    optional_fields.append(field)
+                    if default is not None:
+                        defaults[field] = evaluate_python(_expand_definitions(default))
+            # Required struct fields always come first, preserving order within
+            # the required and optional groups. This makes positional calls
+            # consistent with the generated constructor signature.
+            fields = required_fields + optional_fields if kind == "struct" else optional_fields
             if not fields:
-                raise SyntaxError(f"{kind.title()} `{type_name}` must declare fields")
+                raise SyntaxError((f"{kind.title()} `{type_name}` must declare fields" if NO_ANSI else f"{kind.title()} \033[1m{type_name}\033[22m must declare fields"))
             if kind == "struct":
-                def make_struct(class_name, field_names, field_defaults):
+                def make_struct(class_name, field_names, field_defaults, required_names):
                     def __init__(self, *args, **kwargs):
                         if len(args) > len(field_names):
                             raise TypeError(f"{class_name} expected at most {len(field_names)} positional arguments")
                         values = dict(zip(field_names, args))
                         overlap = values.keys() & kwargs.keys()
                         if overlap:
-                            raise TypeError(f"Multiple values for field `{next(iter(overlap))}`")
+                            raise TypeError((f"Multiple values for field `{next(iter(overlap))}`" if NO_ANSI else f"Multiple values for field \033[1m{next(iter(overlap))}\033[22m"))
                         values.update(kwargs)
                         extra = values.keys() - set(field_names)
                         if extra:
                             raise TypeError(f"Unexpected field(s): {', '.join(sorted(extra))}")
+                        missing = [name for name in required_names if name not in values]
+                        if missing:
+                            names = ", ".join(missing)
+                            raise TypeError(f"{class_name} missing required field(s): {names}")
                         for field_name in field_names:
-                            setattr(self, field_name, values.get(field_name, field_defaults.get(field_name)))
+                            setattr(self, field_name, values[field_name] if field_name in values else field_defaults.get(field_name))
                     def __repr__(self):
                         return class_name + "{ " + ", ".join(f"{f}={getattr(self, f)!r}" for f in field_names) + " }"
                     def __eq__(self, other):
                         return type(other) is type(self) and all(getattr(self, f) == getattr(other, f) for f in field_names)
                     return type(class_name, (), {"__init__": __init__, "__repr__": __repr__, "__str__": __repr__, "__eq__": __eq__, "__slots__": tuple(field_names)})
-                generated = make_struct(type_name, fields, defaults)
+                generated = make_struct(type_name, fields, defaults, required_fields)
                 STRUCTS[type_name] = generated
             else:
                 from collections import namedtuple
                 first_default = next((n for n, f in enumerate(fields) if f in defaults), len(fields))
                 if any(f not in defaults for f in fields[first_default:]):
-                    raise SyntaxError(f"Record `{type_name}` fields with defaults must be trailing fields")
-                generated = namedtuple(type_name, fields, defaults=[defaults[f] for f in fields[first_default:]])
-                generated.__str__ = lambda self, _name=type_name: _name + " -> " + ", ".join(f"{f}: {getattr(self, f)}" for f in self._fields)
+                    raise SyntaxError((f"Record `{type_name}` fields with defaults must be trailing fields" if NO_ANSI else f"Record \033[1m{type_name}\033[22m fields with defaults must be trailing fields"))
+                base_record = namedtuple(type_name + "Base", fields, defaults=[defaults[f] for f in fields[first_default:]])
+                def make_record(record_name, record_base, field_names):
+                    def _record_repr(self):
+                        return record_name + " -> " + ", ".join(f"{field}: {getattr(self, field)}" for field in field_names)
+                    def _binary_method(operation, reverse=False):
+                        def method(self, other):
+                            if type(other) is type(self):
+                                values = [operation(getattr(other, field), getattr(self, field)) if reverse else operation(getattr(self, field), getattr(other, field)) for field in field_names]
+                            elif isinstance(other, (int, float, complex)):
+                                values = [operation(other, getattr(self, field)) if reverse else operation(getattr(self, field), other) for field in field_names]
+                            else:
+                                return NotImplemented
+                            return type(self)(*values)
+                        return method
+                    attrs = {
+                        "__slots__": (), "__module__": __name__, "__str__": _record_repr,
+                        "__repr__": _record_repr,
+                        "__add__": _binary_method(operator.add), "__radd__": _binary_method(operator.add, True),
+                        "__sub__": _binary_method(operator.sub), "__rsub__": _binary_method(operator.sub, True),
+                        "__mul__": _binary_method(operator.mul), "__rmul__": _binary_method(operator.mul, True),
+                        "__truediv__": _binary_method(operator.truediv), "__rtruediv__": _binary_method(operator.truediv, True),
+                        "__floordiv__": _binary_method(operator.floordiv), "__rfloordiv__": _binary_method(operator.floordiv, True),
+                        "__mod__": _binary_method(operator.mod), "__rmod__": _binary_method(operator.mod, True),
+                        "__pow__": _binary_method(operator.pow), "__rpow__": _binary_method(operator.pow, True),
+                        "__neg__": lambda self: type(self)(*(-getattr(self, f) for f in field_names)),
+                        "__pos__": lambda self: type(self)(*(+getattr(self, f) for f in field_names)),
+                        "__abs__": lambda self: type(self)(*(abs(getattr(self, f)) for f in field_names)),
+                    }
+                    return type(record_name, (record_base,), attrs)
+                generated = make_record(type_name, base_record, fields)
                 RECORDS[type_name] = generated
             python_globals[type_name] = generated
             i = end + 1
@@ -3863,7 +4608,7 @@ def process_lines(lines):
                     if nesting == 0: break
                 end += 1
             if end >= len(lines):
-                raise SyntaxError("Missing `endrisk`")
+                raise SyntaxError(("Missing `endrisk`" if NO_ANSI else "Missing \033[1mendrisk\033[22m"))
             sections = {"risk": [], "fix": [], "cleanup": []}
             section = "risk"
             for risk_line in lines[i + 1:end]:
@@ -3928,20 +4673,44 @@ def process_lines(lines):
             continue
 
         # Function definitions use `func NAME ... endfunc`.
-        function_match = re.fullmatch(r"func\s+(" + _DEFINITION_NAME + r"(?:\." + _DEFINITION_NAME + r")?)", stripped, re.IGNORECASE)
+        static_function = False
+        function_source = stripped
+        if re.match(r"^static\s+func\s+", function_source, re.IGNORECASE):
+            static_function = True
+            function_source = re.sub(r"^static\s+func\s+", "func ", function_source, count=1, flags=re.IGNORECASE)
+        elif re.match(r"^func\s+static\s+", function_source, re.IGNORECASE):
+            static_function = True
+            function_source = re.sub(r"^func\s+static\s+", "func ", function_source, count=1, flags=re.IGNORECASE)
+        function_match = re.fullmatch(r"func\s+([A-Za-z_]\w*(?:::[A-Za-z_]\w*)*(?:\.[A-Za-z_]\w*)?)", function_source, re.IGNORECASE)
         if function_match:
             name = function_match.group(1)
+            if _CURRENT_NAMESPACE is not None and "::" not in name and "." not in name:
+                name = _CURRENT_NAMESPACE._chemql_name + "::" + name # type: ignore
             end = i + 1
             while end < len(lines) and lines[end].strip().casefold() != "endfunc":
                 end += 1
             if end >= len(lines):
-                raise SyntaxError(f"Missing `endfunc` for function `{name}`")
-            FUNCTIONS[name] = {"body": [_expand_definitions(source_line) for source_line in lines[i + 1:end]]}
+                raise SyntaxError((f"Missing `endfunc` for function `{name}`" if NO_ANSI else f"Missing `endfunc` for function \033[1m{name}\033[22m"))
+            FUNCTIONS[name] = {"body": [_expand_definitions(source_line) for source_line in lines[i + 1:end]], "static": static_function}
+            if _CURRENT_NAMESPACE is not None and "::" in name and "." not in name:
+                member_name = name.rsplit("::", 1)[-1]
+                def _namespace_function(*args, _function_name=name):
+                    temp_names = []
+                    try:
+                        for arg in args:
+                            temp = "__chemql_ns_arg_" + uuid.uuid4().hex
+                            python_globals[temp] = arg
+                            temp_names.append(temp)
+                        return _call_function(_function_name, temp_names)
+                    finally:
+                        for temp in temp_names:
+                            python_globals.pop(temp, None)
+                _CURRENT_NAMESPACE._set_member(member_name, _namespace_function, _CURRENT_VISIBILITY == "public")
             if "." in name:
                 owner_name, method_name = name.split(".", 1)
                 owner = STRUCTS.get(owner_name)
                 if owner is None:
-                    raise NameError(f"Cannot define method `{name}`: struct `{owner_name}` does not exist")
+                    raise NameError((f"Cannot define method `{name}`: struct `{owner_name}` does not exist" if NO_ANSI else f"Cannot define method `{name}`: struct \033[1m{owner_name}\033[22m does not exist"))
                 def _make_struct_method(function_name):
                     def _method(instance, *args):
                         had_this = "this" in python_globals
@@ -3966,7 +4735,23 @@ def process_lines(lines):
                             else:
                                 python_globals.pop("this", None)
                     return _method
-                setattr(owner, method_name, _make_struct_method(name))
+                method_callable = _make_struct_method(name)
+                if static_function:
+                    def _make_static_method(function_name):
+                        def _static_method(*args):
+                            temporary_names = []
+                            try:
+                                for arg in args:
+                                    temp_name = "__chemql_static_arg_" + uuid.uuid4().hex
+                                    python_globals[temp_name] = arg
+                                    temporary_names.append(temp_name)
+                                return _call_function(function_name, temporary_names)
+                            finally:
+                                for temp_name in temporary_names:
+                                    python_globals.pop(temp_name, None)
+                        return staticmethod(_static_method)
+                    method_callable = _make_static_method(name)
+                setattr(owner, method_name, method_callable)
             i = end + 1
             continue
 
@@ -3978,7 +4763,7 @@ def process_lines(lines):
             while end < len(lines) and lines[end].strip().casefold() != "enddefine":
                 end += 1
             if end >= len(lines):
-                raise SyntaxError(f"Missing `enddefine` for macro `{name}`")
+                raise SyntaxError((f"Missing `enddefine` for macro `{name}`" if NO_ANSI else f"Missing `enddefine` for macro \033[1m{name}\033[22m"))
             MACROS[name] = [_expand_definitions(source_line) for source_line in lines[i + 1:end]]
             i = end + 1
             continue
@@ -4006,7 +4791,7 @@ def process_lines(lines):
                         break
                     close_line += 1
                 if close_line >= len(lines):
-                    raise SyntaxError("Missing closing `///` for multiline comment")
+                    raise SyntaxError(("Missing closing `///` for multiline comment" if NO_ANSI else "Missing closing \033[1m///\033[22m for multiline comment"))
                 suffix = lines[close_line][close_pos + 3:]
                 lines[i] = prefix
                 del lines[i + 1:close_line + 1]
@@ -4030,7 +4815,7 @@ def process_lines(lines):
                 body.append(lines[i])
                 i += 1
             if i >= len(lines):
-                raise SyntaxError("Missing closing `]]]` for Python block")
+                raise SyntaxError(("Missing closing `]]]` for Python block" if NO_ANSI else "Missing closing \033[1m]]]\033[22m for Python block"))
             body = [_expand_definitions(source_line) for source_line in body]
             code = "\n".join(body)
             captured = io.StringIO()
@@ -4059,7 +4844,7 @@ def process_lines(lines):
                 body.append(lines[i])
                 i += 1
             if i >= len(lines):
-                raise SyntaxError("Missing closing ``` for terminal block")
+                raise SyntaxError("Missing closing \033[1m```\033[22m for terminal block")
             body = [_expand_definitions(source_line) for source_line in body]
             command = "\n".join(body)
             result = run_shell_command(command)
@@ -4073,6 +4858,22 @@ def process_lines(lines):
             i += 1
             continue
 
+        top_level_statement = remove_comments(_expand_definitions(raw_line)).strip()
+        # ChemQL package loading is separate from Python imports.
+        load_statement = top_level_statement
+        if load_statement == "load" or load_statement.startswith("load "):
+            try:
+                if _execute_load_statement(load_statement):
+                    _record_execution(load_statement, "", True)
+                    i += 1
+                    continue
+            except Exception as exc:
+                message = f"\033[31mError: {exc}\033[0m"
+                print(strip_ansi(message) if NO_ANSI else message, file=sys.stderr)
+                _record_execution(load_statement, message, False)
+                i += 1
+                continue
+
         # Literal definitions are intentionally expanded inside strings too.
         # Directives themselves were handled above, so updates are not retroactive.
         raw_line = _expand_definitions(raw_line)
@@ -4082,7 +4883,7 @@ def process_lines(lines):
             continue
 
         if line == "[endblock]":
-            raise SyntaxError("Unexpected `[endblock]`")
+            raise SyntaxError(("Unexpected `[endblock]`" if NO_ANSI else "Unexpected \033[1m[endblock]\033[22m"))
 
         # Existing Python control-flow blocks.
         if is_python_block_header(line):
@@ -4096,7 +4897,7 @@ def process_lines(lines):
             elif code.startswith("if "):
                 execute_if_block(line, body)
             else:
-                raise SyntaxError(f"Unsupported block `{code}`")
+                raise SyntaxError((f"Unsupported block `{code}`" if NO_ANSI else f"Unsupported block \033[1m{code}\033[22m"))
             i = end + 1
             continue
 
@@ -4194,7 +4995,7 @@ def parse_temperature_setting(value):
 
     match = re.fullmatch(r"([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*(?:°\s*)?(celsius|fahrenheit|kelvin|degc|degf|degk|c|f|k)", normalized)
     if not match:
-        raise ValueError("Temperature must use C, F, or K, or be `standard` or `room`")
+        raise ValueError(("Temperature must use C, F, or K, or be `standard` or `room`" if NO_ANSI else "Temperature must use C, F, or K, or be \033[1mstandard\033[22m or \033[1mroom\033[22m"))
 
     temperature = float(match.group(1))
     unit = match.group(2)
@@ -4362,7 +5163,7 @@ def react(values):
         molecule = _resolve_reaction_product(product)
         if molecule is None:
             label = product.get("name", product["molecule"])
-            return f"Could not resolve product molecule `{label}` for reaction `{reaction.id}`"
+            return (f"Could not resolve product molecule `{label}` for reaction `{reaction.id}`" if NO_ANSI else f"Could not resolve product molecule \033[1m{label}\033[22m for reaction \033[1m{reaction.id}\033[22m")
         resolved.append((molecule, product["stoichiometric_coefficient"], product.get("phase")))
 
     if len(resolved) == 1:
@@ -4406,7 +5207,9 @@ def execute(arguments, query_text=None, positions=None):
             return format_error(str(exc), query_text)
 
     if arguments[0].lower() in {"help", "?"}:
-        return HELP
+        if len(arguments) == 1:
+            return HELP + "\n\nFor built-in function documentation, try `help{read_csv}` or `help read_csv`."
+        return _help_text(" ".join(arguments[1:]))
 
     if arguments[0].lower() == "sorry":
         return "\033[34mIt's ok, everybody makes mistakes👌\033[0m"
@@ -4465,7 +5268,7 @@ def execute(arguments, query_text=None, positions=None):
                 return "Catalysts cleared"
             return f"Catalysts set to {', '.join(reaction_state['catalysts'])}"
 
-        return f"Unknown reaction setting `{setting}`"
+        return (f"Unknown reaction setting `{setting}`" if NO_ANSI else f"Unknown reaction setting \033[1m{setting}\033[22m")
 
     if arguments[0] == "add" and len(arguments) >= 2 and arguments[1].lower() == "catalyst":
         if len(arguments) < 3:
@@ -4523,7 +5326,7 @@ def execute(arguments, query_text=None, positions=None):
 
             for attribute in return_attributes:
                 if attribute not in moleculeKeys:
-                    return f"There is no key `{attribute}`"
+                    return (f"There is no key `{attribute}`" if NO_ANSI else f"There is no key \033[1m{attribute}\033[22m")
 
             if return_index != 2:
                 return "Usage: findmol <name-or-formula> [return <attribute> ...]"
@@ -4540,7 +5343,7 @@ def execute(arguments, query_text=None, positions=None):
             result = fetch_pubchem_molecule(value)
 
         if result is None:
-            return f"Could not find molecule `{value}`"
+            return (f"Could not find molecule `{value}`" if NO_ANSI else f"Could not find molecule \033[1m{value}\033[22m")
 
         if isinstance(result, str) and "PubChem is currently unavailable" in result:
             return result
@@ -4576,7 +5379,7 @@ def execute(arguments, query_text=None, positions=None):
 
             for attribute in return_attributes:
                 if attribute not in reactionKeys:
-                    return f"There is no key `{attribute}`"
+                    return (f"There is no key `{attribute}`" if NO_ANSI else f"There is no key \033[1m{attribute}\033[22m")
 
             if return_index != 2:
                 return "Usage: findre <name-or-id> [return <attribute> ...]"
@@ -4594,7 +5397,7 @@ def execute(arguments, query_text=None, positions=None):
         if result == [] or result == "No matching item":
             result = find_reaction(value, external=True)
             if result is None:
-                return f"Could not find reaction `{value}` in Reactions.json, Rhea, or Chempirical"
+                return (f"Could not find reaction `{value}` in Reactions.json, Rhea, or Chempirical" if NO_ANSI else f"Could not find reaction \033[1m{value}\033[22m in Reactions.json, Rhea, or Chempirical")
 
         if return_attributes:
             if isinstance(result, list):
@@ -4621,10 +5424,10 @@ def execute(arguments, query_text=None, positions=None):
         source_name = arguments[1]
 
         if source_name not in SOURCES:
-            return f"There is no source `{source_name}`"
+            return (f"There is no source `{source_name}`" if NO_ANSI else f"There is no source \033[1m{source_name}\033[22m")
 
         current_source = source_name
-        return f"Source set to `{source_name}`"
+        return (f"Source set to `{source_name}`" if NO_ANSI else f"Source set to \033[1m{source_name}\033[22m")
 
     if arguments[0] == "list":
         if len(arguments) != 2 or arguments[1] != "all":
@@ -4660,8 +5463,8 @@ def execute(arguments, query_text=None, positions=None):
         if source_name is None:
             return (
                 "No source selected. "
-                "Specify one, e.g. "
-                "`search all elements atomic_mass < 100`"
+                "Specify one, e.g. "+
+                ("`search all elements atomic_mass < 100`" if NO_ANSI else "\033[1msearch all elements atomic_mass < 100\033[22m")
             )
 
         source, keys = SOURCES[source_name]
@@ -4682,7 +5485,7 @@ def execute(arguments, query_text=None, positions=None):
                     absolute_index = return_index + 1 + attribute_index
                     pos, length = error_position(positions, absolute_index) if positions else (None, 1)
                     return format_error(
-                        f"There is no key `{attribute}`",
+                        (f"There is no key `{attribute}`" if NO_ANSI else f"There is no key \033[1m{attribute}\033[22m"),
                         query_text,
                         pos,
                         length
@@ -4718,9 +5521,9 @@ def execute(arguments, query_text=None, positions=None):
 
         if isinstance(results, int):
             if mode != "all":
-                return format_error("`count` cannot be combined with `first` or `last`")
+                return format_error(("`count` cannot be combined with `first` or `last`" if NO_ANSI else "\033[1mcount\033[22m cannot be combined with \033[1mfirst\033[22m or \033[1mlast\033[22m"))
             if return_attributes is not None:
-                return format_error("`return` cannot be used with `count`")
+                return format_error(("`return` cannot be used with `count`" if NO_ANSI else "\033[1mreturn\033[22m cannot be used with \033[1mcount\033[22m"))
             return results
 
         # `return` is a projection. It intentionally happens after
@@ -4758,13 +5561,13 @@ def execute(arguments, query_text=None, positions=None):
     if query_text is not None and positions:
         pos, length = error_position(positions, 0)
         return format_error(
-            f"Unknown command `{arguments[0]}`",
+            (f"Unknown command `{arguments[0]}`" if NO_ANSI else f"Unknown command \033[1m{arguments[0]}\033[22m"),
             query_text,
             pos,
             length
         )
 
-    return format_error(f"Unknown command `{arguments[0]}`")
+    return format_error((f"Unknown command `{arguments[0]}`" if NO_ANSI else f"Unknown command \033[1m{arguments[0]}\033[22m"))
 
 
 HELP = (
@@ -4782,6 +5585,7 @@ HELP = (
     "  \x1b[92mfindre \"Haber process\"       \x1b[0m \x1b[90m│\x1b[0m Find a reaction\n"
     "  \x1b[92mbalance H2 + O2 -> H2O       \x1b[0m \x1b[90m│\x1b[0m Balance a chemical equation\n"
     "  \x1b[92mhelp  or  ?                  \x1b[0m \x1b[90m│\x1b[0m Display this help message\n"
+    "  \x1b[92mhelp{read_csv}               \x1b[0m \x1b[90m│\x1b[0m Show detailed built-in documentation\n"
     "  \x1b[92mversion                      \x1b[0m \x1b[90m│\x1b[0m Display the installed version\n"
     "  \x1b[92mexit                         \x1b[0m \x1b[90m│\x1b[0m Exit the interactive prompt\n"
     "\n"
@@ -4823,8 +5627,8 @@ HELP = (
     "  \x1b[1;96mset pressure 1atm            \x1b[0m \x1b[90m│\x1b[0m Set the reaction pressure\n"
     "  \x1b[1;96mset catalysts iron zinc      \x1b[0m \x1b[90m│\x1b[0m Set available catalysts\n"
     "  \x1b[1;96mset catalysts                \x1b[0m \x1b[90m│\x1b[0m Clear the catalyst list\n"
-    "  \x1b[1;96madd catalyst \"Iron\"        \x1b[0m \x1b[90m│\x1b[0m Add a catalyst\n"
-    "  \x1b[1;96mremove catalyst \"Iron\"     \x1b[0m \x1b[90m│\x1b[0m Remove a catalyst\n"
+    "  \x1b[1;96madd catalyst \"Iron\"          \x1b[0m \x1b[90m│\x1b[0m Add a catalyst\n"
+    "  \x1b[1;96mremove catalyst \"Iron\"       \x1b[0m \x1b[90m│\x1b[0m Remove a catalyst\n"
     "  \x1b[1;96mconditions                   \x1b[0m \x1b[90m│\x1b[0m Display current conditions\n"
     "  \x1b[2mTemperature units: K, C, F. Pressure units include Pa, bar, and atm.\x1b[0m\n"
     "\n"
@@ -4847,7 +5651,7 @@ HELP = (
     "  \x1b[95mdefine double{}              \x1b[0m \x1b[90m│\x1b[0m Start a macro definition\n"
     "  \x1b[95menddefine                    \x1b[0m \x1b[90m│\x1b[0m Finish a macro definition\n"
     "  \x1b[95m@double{5}                   \x1b[0m \x1b[90m│\x1b[0m Expand and execute a macro\n"
-    "  \x1b[95mmacros                        \x1b[0m \x1b[90m│\x1b[0m List defined macros\n"
+    "  \x1b[95mmacros                       \x1b[0m \x1b[90m│\x1b[0m List defined macros\n"
     "  \x1b[2mFunction and macro arguments use positional placeholders: \\1, \\2, and so on.\x1b[0m\n"
     "\n"
     "\x1b[1;93m\x1b[1m◆  CONTROL FLOW\x1b[0m\n"
@@ -4963,7 +5767,8 @@ class ChemqlLexer(Lexer):
         "if", "elif", "else", "for", "while", "break", "continue", "endblock",
         "endfor", "endwhile", "endif", "endrisk", "endstruct", "endrecord",
         "endfunc", "enddefine", "func", "define", "struct", "record", "risk",
-        "fix", "cleanup", "signal", "import", "as", "return",
+        "fix", "cleanup", "signal", "import", "as", "return", "public", "private",
+        "required", "namespace", "endnamespace"
     }
     CONDITIONS = {
         "temperature", "pressure", "catalyst", "catalysts", "standard", "room",
@@ -5310,7 +6115,7 @@ class ChemQLQuery:
         return ChemQLQuery(f"{self.query} intersection {other.query}")
 
     def __str__(self):
-        return f"Query of `{self.query}`"
+        return (f"Query of `{self.query}`" if NO_ANSI else f"Query of \033[1m{self.query}\033[22m")
 
     def __repr__(self):
         return str(self)
@@ -5479,7 +6284,7 @@ def _unclosed_expression_delimiters(lines):
     return expected
 
 
-def main():
+def main(ANSI: bool = True):
     parser = argparse.ArgumentParser(
         description="Chemql query and chemistry language"
     )
@@ -5542,7 +6347,7 @@ def main():
         sys.exit(upgrade_package(version_target, args.force))
 
     global NO_ANSI
-    NO_ANSI = args.no_ansi or bool(args.output)
+    NO_ANSI = not ANSI or args.no_ansi or bool(args.output)
 
     if args.output and args.command is None and args.file is None:
         parser.error("-o/--output requires -c/--command or -f/--file")
@@ -5594,7 +6399,7 @@ def run_interactive():
                 closer = "]]]" if first == "[[[" else "```"
                 return not (len(source_lines) > 1 and last == closer)
 
-            if re.fullmatch(r"func\s+" + _DEFINITION_NAME, first, re.IGNORECASE):
+            if re.fullmatch(r"(?:(?:static\s+func|func\s+static|func)\s+)" + _DEFINITION_NAME, first, re.IGNORECASE):
                 return last.casefold() != "endfunc"
 
             if re.fullmatch(r"define\s+" + _DEFINITION_NAME + r"\s*\{\s*\}", first):
@@ -5609,7 +6414,7 @@ def run_interactive():
             closers = {
                 "endrisk": "risk", "endstruct": "struct", "endrecord": "record",
                 "endfunc": "func", "enddefine": "macro", "endfor": "for",
-                "endwhile": "while", "endif": "if", "[endblock]": "bracket",
+                "endwhile": "while", "endif": "if", "[endblock]": "bracket", "endnamespace": "namespace"
             }
             for source_line in source_lines:
                 stripped = source_line.strip()
@@ -5617,6 +6422,8 @@ def run_interactive():
                 if not stripped or stripped.startswith("//"):
                     continue
 
+                if re.fullmatch(r"namespace\s+[A-Za-z_]\w*", stripped, re.IGNORECASE):
+                    stack.append("namespace")
                 if re.fullmatch(r"struct\s+[A-Za-z_]\w*", stripped, re.IGNORECASE):
                     stack.append("struct")
                 elif re.fullmatch(r"record\s+[A-Za-z_]\w*", stripped, re.IGNORECASE):
@@ -5715,7 +6522,7 @@ def run_interactive():
                 continue
 
             # Collect function and macro declarations as complete REPL units.
-            if lines and re.fullmatch(r"func\s+" + _DEFINITION_NAME, lines[0].strip(), re.IGNORECASE):
+            if lines and re.fullmatch(r"(?:(?:static\s+func|func\s+static|func)\s+)" + _DEFINITION_NAME, lines[0].strip(), re.IGNORECASE):
                 while lines[-1].strip().casefold() != "endfunc":
                     try:
                         lines.append(session.prompt("... "))
@@ -5820,7 +6627,7 @@ def run_interactive():
                         lines = []
                         break
                     except EOFError:
-                        message = "Missing `[endblock]`"
+                        message = ("Missing `[endblock]`" if NO_ANSI else "Missing \033[1m[endblock]\033[22m")
                         print("\n" + (message if NO_ANSI else "\033[31mMissing `\033[1m[endblock]\033[22m`\033[0m"))
                         lines = []
                         break
@@ -5838,9 +6645,12 @@ def run_interactive():
                 process_lines(lines)
                 history.extend(lines)
             except Exception as e:
-                message = f"Error: {e}"
+                if isinstance(e, ChemQLBuiltinError):
+                    message = f"Error: {type(e).__name__}: {e}"
+                else:
+                    message = f"Error: {e}"
                 print(message if NO_ANSI else f"\033[31m{message}\033[0m")
 
 
 if __name__ == "__main__":
-    main()
+    main(True)
