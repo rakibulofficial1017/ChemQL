@@ -1,0 +1,77 @@
+{
+  "syntax": {
+    "comment": {
+      "ansi256": 108,
+      "description": "Line comments"
+    },
+    "string": {
+      "ansi256": 114,
+      "description": "Quoted text and string literals"
+    },
+    "number": {
+      "ansi256": 141,
+      "description": "Numeric values and measurements"
+    },
+    "command": {
+      "ansi256": 81,
+      "description": "ChemQL commands and help markers"
+    },
+    "keyword": {
+      "ansi256": 177,
+      "description": "Control flow and declaration keywords"
+    },
+    "operator": {
+      "ansi256": 215,
+      "description": "Comparison, logic, and query operators"
+    },
+    "source": {
+      "ansi256": 80,
+      "description": "Built-in data sources"
+    },
+    "property": {
+      "ansi256": 153,
+      "description": "Chemistry record property names"
+    },
+    "condition": {
+      "ansi256": 220,
+      "description": "Reaction conditions and units"
+    },
+    "constant": {
+      "ansi256": 203,
+      "description": "Boolean and null constants"
+    },
+    "type": {
+      "ansi256": 222,
+      "description": "Struct, record, enum, and declared type names"
+    },
+    "builtin": {
+      "ansi256": 117,
+      "description": "Python built-in names in embedded expressions"
+    },
+    "formula": {
+      "ansi256": 86,
+      "description": "Chemical formulas"
+    },
+    "delimiter": {
+      "ansi256": 245,
+      "description": "Brackets, separators, and punctuation"
+    }
+  },
+  "ui": {
+    "line_numbers": {
+      "ansi256": 245,
+      "channel": "foreground",
+      "description": "Muted line-number gutter"
+    },
+    "status_background": {
+      "ansi256": 236,
+      "channel": "background",
+      "description": "Editor status-bar background"
+    },
+    "status_foreground": {
+      "ansi256": 252,
+      "channel": "foreground",
+      "description": "Editor status-bar text"
+    }
+  }
+}

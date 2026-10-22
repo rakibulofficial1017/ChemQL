@@ -1,0 +1,602 @@
+{
+  "H-O-single": {
+    "elements": [
+      "H",
+      "O"
+    ],
+    "energy": 463,
+    "unit": "kJ/mol"
+  },
+  "C-C-single": {
+    "elements": [
+      "C",
+      "C"
+    ],
+    "energy": 348,
+    "unit": "kJ/mol"
+  },
+  "C-H-single": {
+    "elements": [
+      "C",
+      "H"
+    ],
+    "energy": 413,
+    "unit": "kJ/mol"
+  },
+  "C-O-single": {
+    "elements": [
+      "C",
+      "O"
+    ],
+    "energy": 358,
+    "unit": "kJ/mol"
+  },
+  "C-N-single": {
+    "elements": [
+      "C",
+      "N"
+    ],
+    "energy": 305,
+    "unit": "kJ/mol"
+  },
+  "C-O-double": {
+    "elements": [
+      "C",
+      "O"
+    ],
+    "energy": 799,
+    "unit": "kJ/mol"
+  },
+  "C-C-double": {
+    "elements": [
+      "C",
+      "C"
+    ],
+    "energy": 614,
+    "unit": "kJ/mol"
+  },
+  "O-O-double": {
+    "elements": [
+      "O",
+      "O"
+    ],
+    "energy": 498,
+    "unit": "kJ/mol"
+  },
+  "C-O-triple": {
+    "elements": [
+      "C",
+      "O"
+    ],
+    "energy": 1072,
+    "unit": "kJ/mol"
+  },
+  "H-H-single": {
+    "elements": [
+      "H",
+      "H"
+    ],
+    "energy": 436,
+    "unit": "kJ/mol"
+  },
+  "N-N-triple": {
+    "elements": [
+      "N",
+      "N"
+    ],
+    "energy": 945,
+    "unit": "kJ/mol"
+  },
+  "O-O-single": {
+    "elements": [
+      "O",
+      "O"
+    ],
+    "energy": 146,
+    "unit": "kJ/mol"
+  },
+  "H-N-single": {
+    "elements": [
+      "H",
+      "N"
+    ],
+    "energy": 391,
+    "unit": "kJ/mol"
+  },
+  "O-S-double": {
+    "elements": [
+      "O",
+      "S"
+    ],
+    "energy": 523,
+    "unit": "kJ/mol"
+  },
+  "N-O-double": {
+    "elements": [
+      "N",
+      "O"
+    ],
+    "energy": 607,
+    "unit": "kJ/mol"
+  },
+  "N-O-single": {
+    "elements": [
+      "N",
+      "O"
+    ],
+    "energy": 201,
+    "unit": "kJ/mol"
+  },
+  "Cl-H-single": {
+    "elements": [
+      "Cl",
+      "H"
+    ],
+    "energy": 431,
+    "unit": "kJ/mol"
+  },
+  "Ca-O-double": {
+    "elements": [
+      "Ca",
+      "O"
+    ],
+    "energy": 400,
+    "unit": "kJ/mol"
+  },
+  "Ca-H-single": {
+    "elements": [
+      "Ca",
+      "H"
+    ],
+    "energy": 180,
+    "unit": "kJ/mol"
+  },
+  "Mg-O-double": {
+    "elements": [
+      "Mg",
+      "O"
+    ],
+    "energy": 370,
+    "unit": "kJ/mol"
+  },
+  "O-S-single": {
+    "elements": [
+      "O",
+      "S"
+    ],
+    "energy": 265,
+    "unit": "kJ/mol"
+  },
+  "H-Na-single": {
+    "elements": [
+      "H",
+      "Na"
+    ],
+    "energy": 140,
+    "unit": "kJ/mol"
+  },
+  "C-C-aromatic": {
+    "elements": [
+      "C",
+      "C"
+    ],
+    "energy": 518,
+    "unit": "kJ/mol"
+  },
+  "O-P-double": {
+    "elements": [
+      "O",
+      "P"
+    ],
+    "energy": 590,
+    "unit": "kJ/mol"
+  },
+  "O-P-single": {
+    "elements": [
+      "O",
+      "P"
+    ],
+    "energy": 340,
+    "unit": "kJ/mol"
+  },
+  "Cl-Cl-single": {
+    "elements": [
+      "Cl",
+      "Cl"
+    ],
+    "energy": 243,
+    "unit": "kJ/mol"
+  },
+  "Br-Br-single": {
+    "elements": [
+      "Br",
+      "Br"
+    ],
+    "energy": 193,
+    "unit": "kJ/mol"
+  },
+  "I-I-single": {
+    "elements": [
+      "I",
+      "I"
+    ],
+    "energy": 151,
+    "unit": "kJ/mol"
+  },
+  "C-Cl-single": {
+    "elements": [
+      "C",
+      "Cl"
+    ],
+    "energy": 328,
+    "unit": "kJ/mol"
+  },
+  "C-O-aromatic": {
+    "elements": [
+      "C",
+      "O"
+    ],
+    "energy": 456,
+    "unit": "kJ/mol"
+  },
+  "C-N-aromatic": {
+    "elements": [
+      "C",
+      "N"
+    ],
+    "energy": 418,
+    "unit": "kJ/mol"
+  },
+  "F-H-single": {
+    "elements": [
+      "F",
+      "H"
+    ],
+    "energy": 565,
+    "unit": "kJ/mol"
+  },
+  "H-S-single": {
+    "elements": [
+      "H",
+      "S"
+    ],
+    "energy": 347,
+    "unit": "kJ/mol"
+  },
+  "H-P-single": {
+    "elements": [
+      "H",
+      "P"
+    ],
+    "energy": 320,
+    "unit": "kJ/mol"
+  },
+  "Br-C-single": {
+    "elements": [
+      "Br",
+      "C"
+    ],
+    "energy": 276,
+    "unit": "kJ/mol"
+  },
+  "C-C-triple": {
+    "elements": [
+      "C",
+      "C"
+    ],
+    "energy": 839,
+    "unit": "kJ/mol"
+  },
+  "C-N-triple": {
+    "elements": [
+      "C",
+      "N"
+    ],
+    "energy": 890,
+    "unit": "kJ/mol"
+  },
+  "O-Pb-double": {
+    "elements": [
+      "O",
+      "Pb"
+    ],
+    "energy": 300,
+    "unit": "kJ/mol"
+  },
+  "Hg-O-double": {
+    "elements": [
+      "Hg",
+      "O"
+    ],
+    "energy": 250,
+    "unit": "kJ/mol"
+  },
+  "Al-Cl-single": {
+    "elements": [
+      "Al",
+      "Cl"
+    ],
+    "energy": 330,
+    "unit": "kJ/mol"
+  },
+  "Mn-O-double": {
+    "elements": [
+      "Mn",
+      "O"
+    ],
+    "energy": 250,
+    "unit": "kJ/mol"
+  },
+  "Cu-O-double": {
+    "elements": [
+      "Cu",
+      "O"
+    ],
+    "energy": 400,
+    "unit": "kJ/mol"
+  },
+  "O-Si-double": {
+    "elements": [
+      "O",
+      "Si"
+    ],
+    "energy": 640,
+    "unit": "kJ/mol"
+  },
+  "O-Ti-double": {
+    "elements": [
+      "O",
+      "Ti"
+    ],
+    "energy": 600,
+    "unit": "kJ/mol"
+  },
+  "O-Zn-double": {
+    "elements": [
+      "O",
+      "Zn"
+    ],
+    "energy": 150,
+    "unit": "kJ/mol"
+  },
+  "F-S-single": {
+    "elements": [
+      "F",
+      "S"
+    ],
+    "energy": 300,
+    "unit": "kJ/mol"
+  },
+  "N-N-single": {
+    "elements": [
+      "N",
+      "N"
+    ],
+    "energy": 163,
+    "unit": "kJ/mol"
+  },
+  "C-S-double": {
+    "elements": [
+      "C",
+      "S"
+    ],
+    "energy": 573,
+    "unit": "kJ/mol"
+  },
+  "B-O-single": {
+    "elements": [
+      "B",
+      "O"
+    ],
+    "energy": 450,
+    "unit": "kJ/mol"
+  },
+  "B-F-single": {
+    "elements": [
+      "B",
+      "F"
+    ],
+    "energy": 550,
+    "unit": "kJ/mol"
+  },
+  "Cl-P-single": {
+    "elements": [
+      "Cl",
+      "P"
+    ],
+    "energy": 330,
+    "unit": "kJ/mol"
+  },
+  "P-P-single": {
+    "elements": [
+      "P",
+      "P"
+    ],
+    "energy": 200,
+    "unit": "kJ/mol"
+  },
+  "Cl-Si-single": {
+    "elements": [
+      "Cl",
+      "Si"
+    ],
+    "energy": 360,
+    "unit": "kJ/mol"
+  },
+  "F-N-single": {
+    "elements": [
+      "F",
+      "N"
+    ],
+    "energy": 270,
+    "unit": "kJ/mol"
+  },
+  "Cl-O-double": {
+    "elements": [
+      "Cl",
+      "O"
+    ],
+    "energy": 340,
+    "unit": "kJ/mol"
+  },
+  "Br-Cl-single": {
+    "elements": [
+      "Br",
+      "Cl"
+    ],
+    "energy": 218,
+    "unit": "kJ/mol"
+  },
+  "Cl-O-single": {
+    "elements": [
+      "Cl",
+      "O"
+    ],
+    "energy": 200,
+    "unit": "kJ/mol"
+  },
+  "Cl-S-single": {
+    "elements": [
+      "Cl",
+      "S"
+    ],
+    "energy": 250,
+    "unit": "kJ/mol"
+  },
+  "S-S-single": {
+    "elements": [
+      "S",
+      "S"
+    ],
+    "energy": 266,
+    "unit": "kJ/mol"
+  },
+  "Ba-H-single": {
+    "elements": [
+      "Ba",
+      "H"
+    ],
+    "energy": 170,
+    "unit": "kJ/mol"
+  },
+  "Mn-O-single": {
+    "elements": [
+      "Mn",
+      "O"
+    ],
+    "energy": 180,
+    "unit": "kJ/mol"
+  },
+  "Cr-O-double": {
+    "elements": [
+      "Cr",
+      "O"
+    ],
+    "energy": 500,
+    "unit": "kJ/mol"
+  },
+  "Cr-O-single": {
+    "elements": [
+      "Cr",
+      "O"
+    ],
+    "energy": 380,
+    "unit": "kJ/mol"
+  },
+  "Ag-O-single": {
+    "elements": [
+      "Ag",
+      "O"
+    ],
+    "energy": 200,
+    "unit": "kJ/mol"
+  },
+  "Cd-S-double": {
+    "elements": [
+      "Cd",
+      "S"
+    ],
+    "energy": 440,
+    "unit": "kJ/mol"
+  },
+  "Cu-O-single": {
+    "elements": [
+      "Cu",
+      "O"
+    ],
+    "energy": 200,
+    "unit": "kJ/mol"
+  },
+  "Cl-Cu-single": {
+    "elements": [
+      "Cl",
+      "Cu"
+    ],
+    "energy": 210,
+    "unit": "kJ/mol"
+  },
+  "Cl-Sn-single": {
+    "elements": [
+      "Cl",
+      "Sn"
+    ],
+    "energy": 300,
+    "unit": "kJ/mol"
+  },
+  "Cl-Cr-single": {
+    "elements": [
+      "Cl",
+      "Cr"
+    ],
+    "energy": 330,
+    "unit": "kJ/mol"
+  },
+  "H-K-single": {
+    "elements": [
+      "H",
+      "K"
+    ],
+    "energy": 120,
+    "unit": "kJ/mol"
+  },
+  "C-n-single": {
+    "elements": [
+      "C",
+      "n"
+    ],
+    "energy": 305,
+    "unit": "kJ/mol"
+  },
+  "H-n-single": {
+    "elements": [
+      "H",
+      "n"
+    ],
+    "energy": 391,
+    "unit": "kJ/mol"
+  },
+  "C-S-aromatic": {
+    "elements": [
+      "C",
+      "S"
+    ],
+    "energy": 405,
+    "unit": "kJ/mol"
+  },
+  "C-S-single": {
+    "elements": [
+      "C",
+      "S"
+    ],
+    "energy": 259,
+    "unit": "kJ/mol"
+  },
+  "C-N-double": {
+    "elements": [
+      "C",
+      "N"
+    ],
+    "energy": 615,
+    "unit": "kJ/mol"
+  }
+}

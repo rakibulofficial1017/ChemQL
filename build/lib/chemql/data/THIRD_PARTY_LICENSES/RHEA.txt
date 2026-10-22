@@ -1,0 +1,14 @@
+Rhea Database License
+
+The copyrightable parts of the Rhea database are licensed under the Creative
+Commons Attribution 4.0 International License:
+https://creativecommons.org/licenses/by/4.0/
+
+All files in the Rhea FTP directory may be copied and redistributed freely,
+without advance permission, provided that this copyright statement is
+reproduced with each copy.
+
+Rhea provides no warranties regarding data correctness and disclaims liability
+for damages resulting from its use. The data is provided for research,
+educational, and informational purposes, not for medical purposes such as
+diagnosis, treatment, or care.

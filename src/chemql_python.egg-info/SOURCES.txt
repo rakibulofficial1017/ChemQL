@@ -3,6 +3,8 @@ README.md
 pyproject.toml
 src/chemql/__init__.py
 src/chemql/__main__.py
+src/chemql/codecql.py
+src/chemql/colors.json
 src/chemql/data/BondEnergies.json
 src/chemql/data/MoleculeBonds.json
 src/chemql/data/Molecules.json
@@ -14,8 +16,12 @@ src/chemql/html/periodic_table.html
 src/chemql/stdlib/README.md
 src/chemql/stdlib/collections.cql
 src/chemql/stdlib/datetime.cql
+src/chemql/stdlib/decimal.cql
+src/chemql/stdlib/fractions.cql
 src/chemql/stdlib/json.cql
 src/chemql/stdlib/math.cql
+src/chemql/stdlib/pathlib.cql
+src/chemql/stdlib/random.cql
 src/chemql/stdlib/text.cql
 src/chemql/stdlib/math/statistics.cql
 src/chemql_python.egg-info/PKG-INFO
@@ -24,6 +30,9 @@ src/chemql_python.egg-info/dependency_links.txt
 src/chemql_python.egg-info/entry_points.txt
 src/chemql_python.egg-info/requires.txt
 src/chemql_python.egg-info/top_level.txt
+tests/test_codecql.py
 tests/test_external_molecule_lookup.py
 tests/test_public_api.py
 tests/test_reactions.py
+tests/test_stdlib.py
+tests/test_structured_types.py

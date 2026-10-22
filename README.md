@@ -6,7 +6,7 @@ SQL-inspired syntax, inspect elements and molecules, look up reactions,
 balance equations, and combine chemistry queries with Python and shell
 commands.
 
--   **Version:** `1.4.0`
+-   **Version:** `1.5.1`
 -   **PyPI distribution:** `chemql-python`
 -   **Python import / CLI name:** `chemql`
 -   **Author:** Mohammad Rakibul Islam
@@ -54,6 +54,9 @@ commands.
     matching.
 -   Use Python statements, expressions, variables, control flow,
     functions, macros, and structured values.
+-   Define enums with automatic or explicit values, and inherit structs
+      from structs, records, or Python classes; records can inherit from
+      other records.
 -   Execute shell commands and multiline shell blocks from the REPL.
 -   Export recorded commands and results.
 -   Use the command-line interface or import ChemQL from Python.
@@ -126,6 +129,18 @@ exit
 -   `version` prints the running version.
 -   `list all` shows available sources and fields.
 -   `exit` leaves the prompt.
+
+### Terminal editor
+
+Install the package, then open a ChemQL file with the `codecql` command:
+
+``` bash
+codecql script.cql
+```
+
+The editor supports syntax highlighting, direct text editing, undo (`Ctrl+Z`),
+redo (`Ctrl+Y`), save (`Ctrl+S`), and quit (`Ctrl+Q`). Its syntax and UI
+colors are configurable in the packaged `chemql/colors.json` file.
 
 ## Query language
 
@@ -509,49 +524,55 @@ ChemQL provides `risk`, `fix`, `cleanup`, and `signal` for handling errors, resp
 
 ### `risk`
 
-Use `risk` to mark a block of code that may encounter an error and needs special handling.
+`risk` executes its body. If a command raises an exception, ChemQL stores
+the error type name in the Python variable `error` and runs the optional
+`fix` body. A returned string that happens to contain error-looking text
+does not trigger `fix`.
 
 ```text
 risk
-    [result = 10 / 0]
+    [result = 10 / 2]
+    print(result)
+fix
+    print(error)
+cleanup
+    print("Always runs")
 endrisk
 ```
-
-This illustrates the idea of protecting potentially failing code. The exact behaviour depends on ChemQL's implementation of `risk`.
 
 ### `fix`
 
-Use `fix` to define how ChemQL should respond when an error occurs in a corresponding `risk` block.
+The `fix` section runs only when the `risk` section raises an exception.
+The `error` variable contains the exception type name, such as
+`ChemQLError`, `ValueError`, or the error name carried by `signal`.
 
 ```text
 risk
     [result = 10 / 0]
 fix
-    [print("An error occurred")]
+    print("Handled:", error)
 endrisk
 ```
-
-This example illustrates the intended relationship between `risk` and `fix`. Check the implementation for the precise syntax and whether execution continues after an error.
 
 ### `cleanup`
 
-Use `cleanup` to organize code that should run as part of a cleanup phase associated with a protected operation.
+The optional `cleanup` section runs whether the `risk` section succeeds
+or fails, after the risk body and any fix body.
 
 ```text
 risk
-    [print("Performing operation")]
+    print("Performing operation")
 fix
-    [print("Handling an error")]
+    print("Handling an error")
 cleanup
-    [print("Cleaning up")]
+    print("Cleaning up")
 endrisk
 ```
 
-Cleanup logic is useful for keeping resource-management steps separate from the main operation and its error-handling logic.
-
 ### `signal`
 
-Use `signal` to explicitly raise or report an error when a condition cannot be handled normally.
+Use `signal` to raise a named ChemQL error that can be handled by
+`fix`.
 
 ```text
 if temperature < 0
@@ -559,19 +580,18 @@ if temperature < 0
 endif
 ```
 
-A signal can make an invalid state or failed operation explicit instead of allowing execution to proceed silently.
-
 ### Summary
 
 | Keyword | Purpose |
 |---|---|
-| `risk` | Marks potentially failing code for special handling |
-| `fix` | Specifies error-handling behaviour |
-| `cleanup` | Organizes cleanup logic |
-| `signal` | Raises or reports an error |
+| `risk` | Executes the protected body |
+| `fix` | Runs when the risk body raises an exception |
+| `cleanup` | Runs after the risk and fix bodies |
+| `signal` | Raises a named error |
 | `endrisk` | Ends the risk handler |
 
-These features help make ChemQL scripts easier to maintain by separating normal execution, error handling, and cleanup responsibilities.
+Without a `fix` section, an ordinary exception propagates. `cleanup`
+still runs during exception propagation.
 
 ## Functions, definitions, and macros
 
@@ -634,7 +654,9 @@ command lists definitions in the current session.
 
 ## Structs and records
 
-ChemQL v1.4.0 allows required fields defined by a trailing exclamation mark `!` or the `required` keyword
+ChemQL 1.5.0 supports enums and inheritance in addition to required fields,
+marked with a trailing `!` or the
+`required` keyword:
 
 ```text
 struct Fruit
@@ -648,8 +670,8 @@ apple.name
 apple.price
 let orange = Fruit{"Orange", 20} // you can use position rather than just keyword arguments
 let banana = Fruit{"Banana", price = 10} // or you can even mix
-
 ```
+
 ```text
 struct Vegetable
     name!
@@ -665,26 +687,107 @@ Special methods such as `__add__` are intended for custom behaviour, but
 do not assume every Python data-model feature or operator dispatch path
 is fully implemented.
 
+### Enums
+
+An enum member without an explicit value receives an automatically generated
+integer value. Automatic values continue from the preceding numeric value:
+
+```text
+enum Levels
+    LOW = 50
+    MEDIUM
+    HIGH
+endenum
+
+let selected = Levels.MEDIUM
+[selected.value] // 51
+```
+
+### Inheritance
+
+Structs can inherit fields and behavior from another struct, a record, or a
+Python class available in ChemQL's Python globals. Records can inherit only
+from other records:
+
+```text
+struct Animal
+    name!
+endstruct
+
+struct Dog from Animal
+    color!
+    isSmall = False
+endstruct
+
+let pet = Dog{"Rex", "brown"}
+pet.name
+pet.color
+
+record Identity
+    id
+endrecord
+
+record Product from Identity
+    name
+endrecord
+
+let item = Product{7, "Copper"}
+item.id
+item.name
+```
+
+Structs may also extend a Python class defined or imported into the active
+Python namespace. Built-in classes such as `int` can be named directly; a
+bracketed Python expression such as `[int]` is also accepted. Initializer
+parameters from ordinary Python classes become inherited constructor fields,
+and the Python initializer is called when the ChemQL struct is constructed.
+Native value types such as `int` keep their native constructor and value
+behavior:
+
+```text
+[[[
+class PythonAnimal:
+    def __init__(self, name):
+        self.name = name
+]]]
+
+struct Pet from PythonAnimal
+    species = "unknown"
+endstruct
+
+let pet = Pet{"Milo", "cat"}
+pet.name
+pet.species
+```
+
+```text
+struct Integer from int
+endstruct
+
+let answer = Integer{42}
+[answer + 1] // 43
+```
+
 ## Namespaces
 
-Namespaces store functions, structs, records, variables, etc.
+Namespaces group functions, structs, records, and variables. Members are
+private by default; use `public` to expose a member through the namespace:
 
-To declare functions accessible in the global scope you must use the `public` keyword, everything is private by default, you may still add the `private` keyword for fun
-Example
-```text
-namespace math
-    public let PI = 3.14159265358979
-    public let E = 2.718281828459045
-    public 
+```chemql
+namespace geometry
+    public let PI = 3.141592653589793
+    public func circle_area
+        return [PI * \1 * \1]
+    endfunc
+endnamespace
 
-
+geometry::circle_area{2}
 ```
 
 ## Standard library
 
-ChemQL loads reusable `.cql` packages with `load`. The loader searches the current
-directory and then the interpreter's adjacent `stdlib/` directory. Preserve the
-folder structure when extracting `chemql_stdlib.zip`.
+ChemQL loads reusable `.cql` packages with `load`. The loader searches the
+current directory first and then ChemQL's bundled `stdlib/` directory.
 
 | Package | Purpose |
 | --- | --- |
@@ -694,6 +797,10 @@ folder structure when extracting `chemql_stdlib.zip`.
 | `collections` | `unique`, `flatten`, `zip`, `pairwise`, frequency counts, product |
 | `datetime` | Current date/time, ISO dates, timestamps, weekday and date arithmetic |
 | `json` | JSON serialization, pretty serialization, parsing and type inspection |
+| `random` | Pseudo-random numbers and sequence sampling |
+| `decimal` | Base-10 decimal arithmetic and quantization |
+| `fractions` | Exact rational numbers and fraction arithmetic |
+| `pathlib` | Path inspection and UTF-8 text file operations |
 
 ```chemql
 load math
@@ -718,9 +825,30 @@ datetime::date_add_days{"2026-10-20", 7}
 
 load json
 json::loads{"{\"formula\": \"H2O\"}"}
+
+load random
+random::seed{42}
+random::randint{1, 6}
+
+load decimal
+decimal::add{"0.1", "0.2"}
+decimal::quantize{"3.14159", "0.01"}
+
+load fractions
+fractions::create{1, 3}
+fractions::add{"1/3", "1/6"}
+
+load pathlib
+pathlib::name{"data/results.csv"}
+pathlib::join{"data", "results.csv"}
 ```
 
 These packages use Python's standard library only; they add no third-party dependencies.
+Use `help{stdlib}` for the package index, `help{math}` for a module
+overview, and `help{math::sqrt}` for function help. These help pages are
+available before loading the package. `pathlib::read_text` and
+`pathlib::write_text` access files with the permissions of the ChemQL
+process.
 
 ## Built-in help
 
@@ -734,10 +862,14 @@ help{syntax}
 help{errors}
 help{files}
 help{chemistry}
+help{stdlib}
+help{math}
+help{math::sqrt}
 ```
 
-Use `help{function_name}` for built-in documentation. The ANSI-colored help screen
-also includes a quick reference to the standard-library packages.
+Use `help{function_name}` for built-in documentation and
+`help{module::function}` for standard-library function documentation. The
+help index also lists the available standard-library packages.
 
 ## Shell integration and scripting
 
@@ -817,6 +949,10 @@ dump bad executions failures.txt
 Supported forms include `dump all|good|bad FILE`,
 `dump all|good|bad queries FILE`, and `dump all|good|bad results FILE`.
 `good` and `bad` select successful and failed executions respectively.
+
+## CLI code editor
+
+You can edit code in the terminal using `codecql script.cql` if your script is named `script.cql`
 
 ## Python API
 

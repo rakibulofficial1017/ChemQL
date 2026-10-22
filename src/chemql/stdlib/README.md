@@ -11,6 +11,10 @@ directory next to the interpreter module and preserve the folder layout.
 | `collections` | Uniqueness, flattening, pairing, frequency counts, product |
 | `datetime` | Dates, timestamps, local/UTC time and date arithmetic |
 | `json` | JSON encode/decode helpers |
+| `random` | Pseudo-random numbers and sequence sampling |
+| `decimal` | Base-10 decimal arithmetic and quantization |
+| `fractions` | Exact rational numbers and fraction arithmetic |
+| `pathlib` | Path inspection and UTF-8 text file operations |
 
 Examples:
 
@@ -37,4 +41,28 @@ datetime::date_add_days{"2026-10-20", 7}
 
 load json
 json::loads{"{\"formula\": \"H2O\"}"}
+
+load random
+random::seed{42}
+random::randint{1, 6}
+
+load decimal
+decimal::add{"0.1", "0.2"}
+decimal::quantize{"3.14159", "0.01"}
+
+load fractions
+fractions::create{1, 3}
+fractions::add{"1/3", "1/6"}
+
+load pathlib
+pathlib::name{"data/results.csv"}
+pathlib::join{"data", "results.csv"}
 ```
+
+Use `help{stdlib}` for the package index, `help{math}` for a module
+overview, and `help{math::sqrt}` for function help. The help pages are
+available whether or not a package has been loaded.
+
+`pathlib::read_text` and `pathlib::write_text` access files using the
+current process permissions. `random` uses Python's pseudo-random
+generator; call `random::seed{value}` when repeatable results are needed.

@@ -1,0 +1,9270 @@
+[
+  {
+    "name": "Water",
+    "formula": "H2O",
+    "elements": [
+      "H",
+      "O"
+    ],
+    "molecular_weight": 18.015,
+    "iupac_name": "oxidane",
+    "smiles": "O",
+    "cid": 962,
+    "melting_point": 0,
+    "boiling_point": 100,
+    "density": 0.99704702,
+    "state": "liquid"
+  },
+  {
+    "name": "Glucose",
+    "formula": "C6H12O6",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 180.156,
+    "iupac_name": "D-glucose",
+    "smiles": "C(C1C(C(C(C(O1)O)O)O)O)O",
+    "cid": 5793,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Fructose",
+    "formula": "C6H12O6",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 180.156,
+    "iupac_name": "D-fructose",
+    "smiles": "C(C1C(C(C(O1)O)O)O)O",
+    "cid": 5984,
+    "melting_point": 103,
+    "boiling_point": null,
+    "density": null,
+    "state": "solid"
+  },
+  {
+    "name": "Sucrose",
+    "formula": "C12H22O11",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 342.297,
+    "iupac_name": "sucrose",
+    "smiles": "C(C1C(C(C(C(O1)OC2C(C(C(C(O2)CO)O)O)O)O)O)O)O",
+    "cid": 5988,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Urea",
+    "formula": "CH4N2O",
+    "elements": [
+      "C",
+      "H",
+      "N",
+      "O"
+    ],
+    "molecular_weight": 60.056,
+    "iupac_name": "urea",
+    "smiles": "C(=O)(N)N",
+    "cid": 1176,
+    "melting_point": null,
+    "boiling_point": 174,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Citric acid",
+    "formula": "C6H8O7",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 192.124,
+    "iupac_name": "2-hydroxypropane-1,2,3-tricarboxylic acid",
+    "smiles": "C(C(=O)O)(C(CC(=O)O)O)C(=O)O",
+    "cid": 311,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Cholesterol",
+    "formula": "C27H46O",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 386.654,
+    "iupac_name": "cholest-5-en-3beta-ol",
+    "smiles": "CC(C)CCCC(C)C1CCC2C3CC=C4C(C)(C)CCCC4(C)C3CC=C12O",
+    "cid": 5997,
+    "melting_point": null,
+    "boiling_point": 200,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Glycine",
+    "formula": "C2H5NO2",
+    "elements": [
+      "C",
+      "H",
+      "N",
+      "O"
+    ],
+    "molecular_weight": 75.067,
+    "iupac_name": "2-aminoacetic acid",
+    "smiles": "C(C(=O)O)N",
+    "cid": 750,
+    "melting_point": 233,
+    "boiling_point": null,
+    "density": null,
+    "state": "solid"
+  },
+  {
+    "name": "Alanine",
+    "formula": "C3H7NO2",
+    "elements": [
+      "C",
+      "H",
+      "N",
+      "O"
+    ],
+    "molecular_weight": 89.094,
+    "iupac_name": "2-aminopropanoic acid",
+    "smiles": "CC(C(=O)O)N",
+    "cid": 5950,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Vitamin C",
+    "formula": "C6H8O6",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 176.124,
+    "iupac_name": "(5R)-[(1S)-1,2-dihydroxyethyl]-3,4-dihydroxyfuran-2(5H)-one",
+    "smiles": "C(C(C1C(=C(C(=O)O1)O)O)O)O",
+    "cid": 54676228,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Caproic acid",
+    "formula": "C6H12O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 116.16,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Caprylic acid",
+    "formula": "C8H16O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 144.214,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Capric acid",
+    "formula": "C10H20O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 172.268,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Behenic acid",
+    "formula": "C22H44O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 340.592,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Lignoceric acid",
+    "formula": "C24H48O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 368.646,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Cerotic acid",
+    "formula": "C26H52O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 396.7,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Montanic acid",
+    "formula": "C28H56O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 424.754,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Elaidic acid",
+    "formula": "C18H34O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 282.468,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Vaccenic acid",
+    "formula": "C18H34O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 282.468,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Ricinoleic acid",
+    "formula": "C18H34O3",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 298.467,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Alpha-linolenic acid",
+    "formula": "C18H30O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 278.436,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Gamma-linolenic acid",
+    "formula": "C18H30O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 278.436,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Eicosatrienoic acid",
+    "formula": "C20H34O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 306.49,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Docosapentaenoic acid",
+    "formula": "C22H34O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 330.512,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Stearidonic acid",
+    "formula": "C18H28O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 276.42,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Clupanodonic acid",
+    "formula": "C22H34O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 330.512,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Nervonic acid",
+    "formula": "C24H46O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 366.63,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Erucic acid",
+    "formula": "C22H42O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 338.576,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Gondoic acid",
+    "formula": "C20H40O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 312.538,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Heneicosanoic acid",
+    "formula": "C21H42O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 326.565,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Tricosanoic acid",
+    "formula": "C23H46O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 354.619,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Pentacosanoic acid",
+    "formula": "C25H50O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 382.673,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Heptacosanoic acid",
+    "formula": "C27H54O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 410.727,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Nonacosanoic acid",
+    "formula": "C29H58O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 438.781,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Hentriacontanoic acid",
+    "formula": "C31H62O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 466.835,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Tritriacontanoic acid",
+    "formula": "C33H66O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 494.889,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Pentatriacontanoic acid",
+    "formula": "C35H70O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 522.943,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Heptatriacontanoic acid",
+    "formula": "C37H74O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 550.997,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Nonatriacontanoic acid",
+    "formula": "C39H78O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 579.051,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Methyl oleate",
+    "formula": "C19H36O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 296.495,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Ethyl oleate",
+    "formula": "C20H38O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 310.522,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Methyl linoleate",
+    "formula": "C19H34O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 294.479,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Ethyl linoleate",
+    "formula": "C20H36O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 308.506,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Methyl palmitate",
+    "formula": "C17H34O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 270.457,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Ethyl palmitate",
+    "formula": "C18H36O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 284.484,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Methyl stearate",
+    "formula": "C19H38O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 298.511,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Ethyl stearate",
+    "formula": "C20H40O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 312.538,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Methyl laurate",
+    "formula": "C13H26O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 214.349,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Ethyl laurate",
+    "formula": "C14H28O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 228.376,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Methyl myristate",
+    "formula": "C15H30O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 242.403,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Ethyl myristate",
+    "formula": "C16H32O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 256.43,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Methyl caprylate",
+    "formula": "C9H18O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 158.241,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Ethyl caprylate",
+    "formula": "C10H20O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 172.268,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Methyl caprate",
+    "formula": "C11H22O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 186.295,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Ethyl caprate",
+    "formula": "C12H24O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 200.322,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Methyl citrate",
+    "formula": "C7H10O7",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 206.15,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Dimethyl citrate",
+    "formula": "C8H12O7",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 220.177,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Triethyl citrate",
+    "formula": "C12H20O7",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 276.285,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Methyl lactate",
+    "formula": "C4H8O3",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 104.105,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Ethyl lactate",
+    "formula": "C5H10O3",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 118.132,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Propyl lactate",
+    "formula": "C6H12O3",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 132.159,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Butyl lactate",
+    "formula": "C7H14O3",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 146.186,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Methyl malate",
+    "formula": "C5H8O5",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 148.114,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Diethyl malate",
+    "formula": "C8H14O5",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 190.195,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Methyl tartrate",
+    "formula": "C5H8O6",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 164.113,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Diethyl tartrate",
+    "formula": "C8H14O6",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 206.194,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Methyl gallate",
+    "formula": "C8H8O5",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 184.147,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Ethyl gallate",
+    "formula": "C9H10O5",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 198.174,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Propyl gallate",
+    "formula": "C10H12O5",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 212.201,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Butyl gallate",
+    "formula": "C11H14O5",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 226.228,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Methyl vanillate",
+    "formula": "C9H10O4",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 182.175,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Ethyl vanillate",
+    "formula": "C10H12O4",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 196.202,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Methyl caffeate",
+    "formula": "C10H10O4",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 194.186,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Ethyl caffeate",
+    "formula": "C11H12O4",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 208.213,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Methyl ferulate",
+    "formula": "C11H12O4",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 208.213,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Ethyl ferulate",
+    "formula": "C12H14O4",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 222.24,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Methyl salicylate",
+    "formula": "C8H8O3",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 152.149,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Ethyl salicylate",
+    "formula": "C9H10O3",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 166.176,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Methyl benzoate",
+    "formula": "C8H8O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 136.15,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Ethyl benzoate",
+    "formula": "C9H10O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 150.177,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Benzyl acetate",
+    "formula": "C9H10O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 150.177,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Ethyl cinnamate",
+    "formula": "C11H12O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 176.215,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Methyl cinnamate",
+    "formula": "C10H10O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 162.188,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Isoamyl acetate",
+    "formula": "C7H14O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 130.187,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Ethyl butyrate",
+    "formula": "C6H12O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 116.16,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Methyl butyrate",
+    "formula": "C5H10O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 102.133,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Ethyl hexanoate",
+    "formula": "C8H16O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 144.214,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Ethyl octanoate",
+    "formula": "C10H20O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 172.268,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Sodium citrate",
+    "formula": "Na3C6H5O7",
+    "elements": [
+      "Na",
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 258.068,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Potassium citrate",
+    "formula": "K3C6H5O7",
+    "elements": [
+      "K",
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 306.394,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Calcium citrate",
+    "formula": "Ca3(C6H5O7)2",
+    "elements": [
+      "Ca",
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 498.432,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Sodium malate",
+    "formula": "Na2C4H4O5",
+    "elements": [
+      "Na",
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 178.051,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Potassium malate",
+    "formula": "K2C4H4O5",
+    "elements": [
+      "K",
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 210.268,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Calcium malate",
+    "formula": "CaC4H4O5",
+    "elements": [
+      "Ca",
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 172.149,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Sodium tartrate",
+    "formula": "Na2C4H4O6",
+    "elements": [
+      "Na",
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 194.05,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Potassium tartrate",
+    "formula": "K2C4H4O6",
+    "elements": [
+      "K",
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 226.267,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Calcium tartrate",
+    "formula": "CaC4H4O6",
+    "elements": [
+      "Ca",
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 188.148,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Sodium lactobionate",
+    "formula": "C12H21NaO12",
+    "elements": [
+      "C",
+      "H",
+      "Na",
+      "O"
+    ],
+    "molecular_weight": 380.278,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Calcium lactobionate",
+    "formula": "C24H42CaO24",
+    "elements": [
+      "C",
+      "H",
+      "Ca",
+      "O"
+    ],
+    "molecular_weight": 754.654,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Sodium ascorbate",
+    "formula": "C6H7NaO6",
+    "elements": [
+      "C",
+      "H",
+      "Na",
+      "O"
+    ],
+    "molecular_weight": 198.106,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Calcium ascorbate",
+    "formula": "C12H14CaO12",
+    "elements": [
+      "C",
+      "H",
+      "Ca",
+      "O"
+    ],
+    "molecular_weight": 390.31,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Potassium ascorbate",
+    "formula": "C6H7KO6",
+    "elements": [
+      "C",
+      "H",
+      "K",
+      "O"
+    ],
+    "molecular_weight": 214.214,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Magnesium ascorbate",
+    "formula": "C12H14MgO12",
+    "elements": [
+      "C",
+      "H",
+      "Mg",
+      "O"
+    ],
+    "molecular_weight": 374.537,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Myo-inositol",
+    "formula": "C6H12O6",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 180.156,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Scyllo-inositol",
+    "formula": "C6H12O6",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 180.156,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Chiro-inositol",
+    "formula": "C6H12O6",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 180.156,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Pinitol",
+    "formula": "C7H14O6",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 194.183,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Quercetin-3-glucoside",
+    "formula": "C21H20O12",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 464.379,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Kaempferol-3-glucoside",
+    "formula": "C21H20O11",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 448.38,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Apigenin",
+    "formula": "C15H10O5",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 270.24,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Luteolin",
+    "formula": "C15H10O6",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 286.239,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Chrysin",
+    "formula": "C15H10O4",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 254.241,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Genistein",
+    "formula": "C15H10O5",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 270.24,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Daidzein",
+    "formula": "C15H10O4",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 254.241,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Formononetin",
+    "formula": "C16H12O4",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 268.268,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Naringin",
+    "formula": "C27H32O14",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 580.539,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Hesperidin",
+    "formula": "C28H34O15",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 610.565,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Eriocitrin",
+    "formula": "C27H32O15",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 596.538,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Cyanidin",
+    "formula": "C15H11O6",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 287.247,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Delphinidin",
+    "formula": "C15H11O7",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 303.246,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Malvidin",
+    "formula": "C17H15O7",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 331.3,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Pelargonidin",
+    "formula": "C15H11O5",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 271.248,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Peonidin",
+    "formula": "C16H13O6",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 301.274,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Petunidin",
+    "formula": "C16H13O7",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 317.273,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Ellagic acid",
+    "formula": "C14H6O8",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 302.194,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Tannic acid",
+    "formula": "C76H52O46",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 1701.206,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Theaflavin",
+    "formula": "C29H24O12",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 564.499,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Thearubigin basic unit",
+    "formula": "C30H24O12",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 576.51,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Chlorogenic acid",
+    "formula": "C16H18O9",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 354.311,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Rosmarinic acid",
+    "formula": "C18H16O8",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 360.318,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Caffeoylquinic acid",
+    "formula": "C16H18O9",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 354.311,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Salicin",
+    "formula": "C13H18O7",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 286.28,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Arbutin",
+    "formula": "C12H16O7",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 272.253,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Methyl arbutin",
+    "formula": "C13H18O7",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 286.28,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Aesculin",
+    "formula": "C15H16O9",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 340.284,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Amygdalin",
+    "formula": "C20H27NO11",
+    "elements": [
+      "C",
+      "H",
+      "N",
+      "O"
+    ],
+    "molecular_weight": 457.432,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Vanillyl alcohol",
+    "formula": "C8H10O3",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 154.165,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Vanillic acid",
+    "formula": "C8H8O4",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 168.148,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Syringic acid",
+    "formula": "C9H10O5",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 198.174,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Syringaldehyde",
+    "formula": "C9H10O4",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 182.175,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Gentisic acid",
+    "formula": "C7H6O4",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 154.121,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Homogentisic acid",
+    "formula": "C8H8O4",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 168.148,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Dihydrocaffeic acid",
+    "formula": "C9H10O4",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 182.175,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Dihydroferulic acid",
+    "formula": "C10H12O4",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 196.202,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Dihydrocoumaric acid",
+    "formula": "C9H10O3",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 166.176,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Mandelic acid",
+    "formula": "C8H8O3",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 152.149,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Phenylacetic acid",
+    "formula": "C8H8O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 136.15,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Phenylpropionic acid",
+    "formula": "C9H10O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 150.177,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Phenylpyruvic acid",
+    "formula": "C9H8O3",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 164.16,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Indole-3-acetic acid",
+    "formula": "C10H9NO2",
+    "elements": [
+      "C",
+      "H",
+      "N",
+      "O"
+    ],
+    "molecular_weight": 175.187,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Indole-3-butyric acid",
+    "formula": "C12H13NO2",
+    "elements": [
+      "C",
+      "H",
+      "N",
+      "O"
+    ],
+    "molecular_weight": 203.241,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Kojic acid",
+    "formula": "C6H6O4",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 142.11,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Mucic acid",
+    "formula": "C6H10O8",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 210.138,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Saccharic acid",
+    "formula": "C6H10O8",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 210.138,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Mannitol hexanitrate",
+    "formula": "C6H8N6O18",
+    "elements": [
+      "C",
+      "H",
+      "N",
+      "O"
+    ],
+    "molecular_weight": 452.154,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Sodium alginate repeat unit",
+    "formula": "C6H7NaO6",
+    "elements": [
+      "C",
+      "H",
+      "Na",
+      "O"
+    ],
+    "molecular_weight": 198.106,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Agarose repeat unit",
+    "formula": "C12H18O9",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 306.267,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Dextran repeat unit",
+    "formula": "C6H10O5",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 162.141,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Pectin repeat unit",
+    "formula": "C6H8O6",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 176.124,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Inulin repeat unit",
+    "formula": "C6H10O5",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 162.141,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Raffinose",
+    "formula": "C18H32O16",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 504.438,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Stachyose",
+    "formula": "C24H42O21",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 666.579,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Melibiose",
+    "formula": "C12H22O11",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 342.297,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Isomaltose",
+    "formula": "C12H22O11",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 342.297,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Palatinose",
+    "formula": "C12H22O11",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 342.297,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Gentiobiose",
+    "formula": "C12H22O11",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 342.297,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Lactulose",
+    "formula": "C12H22O11",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 342.297,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Tagatose",
+    "formula": "C6H12O6",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 180.156,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Allulose",
+    "formula": "C6H12O6",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 180.156,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Sorbose",
+    "formula": "C6H12O6",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 180.156,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Glucuronic acid",
+    "formula": "C6H10O7",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 194.139,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Galacturonic acid",
+    "formula": "C6H10O7",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 194.139,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Mannuronic acid",
+    "formula": "C6H10O7",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 194.139,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Iduronic acid",
+    "formula": "C6H10O7",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 194.139,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Ribonic acid",
+    "formula": "C5H10O6",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 166.129,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Arabinonic acid",
+    "formula": "C5H10O6",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 166.129,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Xylonic acid",
+    "formula": "C5H10O6",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 166.129,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Lyxonic acid",
+    "formula": "C5H10O6",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 166.129,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Glyceric acid",
+    "formula": "C3H6O4",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 106.077,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Tartronic acid",
+    "formula": "C3H4O5",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 120.06,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Dihydroxyacetone",
+    "formula": "C3H6O3",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 90.078,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Glyceraldehyde",
+    "formula": "C3H6O3",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 90.078,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Erythrose",
+    "formula": "C4H8O4",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 120.104,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Threose",
+    "formula": "C4H8O4",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 120.104,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Ribulose",
+    "formula": "C5H10O5",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 150.13,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Xylulose",
+    "formula": "C5H10O5",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 150.13,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Sedopentulose",
+    "formula": "C5H10O5",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 150.13,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Sedoheptulose",
+    "formula": "C7H14O7",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 210.182,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Fructose-6-phosphate",
+    "formula": "C6H13O9P",
+    "elements": [
+      "C",
+      "H",
+      "O",
+      "P"
+    ],
+    "molecular_weight": 260.135,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Glucose-6-phosphate",
+    "formula": "C6H13O9P",
+    "elements": [
+      "C",
+      "H",
+      "O",
+      "P"
+    ],
+    "molecular_weight": 260.135,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Glucose-1-phosphate",
+    "formula": "C6H13O9P",
+    "elements": [
+      "C",
+      "H",
+      "O",
+      "P"
+    ],
+    "molecular_weight": 260.135,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Fructose-1,6-bisphosphate",
+    "formula": "C6H14O12P2",
+    "elements": [
+      "C",
+      "H",
+      "O",
+      "P"
+    ],
+    "molecular_weight": 340.114,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Ribose-5-phosphate",
+    "formula": "C5H11O8P",
+    "elements": [
+      "C",
+      "H",
+      "O",
+      "P"
+    ],
+    "molecular_weight": 230.109,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Phosphoenolpyruvate",
+    "formula": "C3H5O6P",
+    "elements": [
+      "C",
+      "H",
+      "O",
+      "P"
+    ],
+    "molecular_weight": 168.041,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Oxaloacetate",
+    "formula": "C4H4O5",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 132.071,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Citrate",
+    "formula": "C6H8O7",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 192.123,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Isocitrate",
+    "formula": "C6H8O7",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 192.123,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Succinate",
+    "formula": "C4H6O4",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 118.088,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Fumarate",
+    "formula": "C4H4O4",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 116.072,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Malate",
+    "formula": "C4H6O5",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 134.087,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Alpha-ketoglutarate",
+    "formula": "C5H6O5",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 146.098,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Acetyl phosphate",
+    "formula": "C2H5O5P",
+    "elements": [
+      "C",
+      "H",
+      "O",
+      "P"
+    ],
+    "molecular_weight": 140.031,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Glycerol phosphate",
+    "formula": "C3H9O6P",
+    "elements": [
+      "C",
+      "H",
+      "O",
+      "P"
+    ],
+    "molecular_weight": 172.073,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Phosphatidylglycerol",
+    "formula": "C40H79O10P",
+    "elements": [
+      "C",
+      "H",
+      "O",
+      "P"
+    ],
+    "molecular_weight": 751.036,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Phosphatidylethanolamine",
+    "formula": "C37H74NO8P",
+    "elements": [
+      "C",
+      "H",
+      "N",
+      "O",
+      "P"
+    ],
+    "molecular_weight": 691.972,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Phosphatidylserine",
+    "formula": "C42H80NO10P",
+    "elements": [
+      "C",
+      "H",
+      "N",
+      "O",
+      "P"
+    ],
+    "molecular_weight": 790.073,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Sphingomyelin basic unit",
+    "formula": "C34H69NO8P",
+    "elements": [
+      "C",
+      "H",
+      "N",
+      "O",
+      "P"
+    ],
+    "molecular_weight": 650.899,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Ceramide basic unit",
+    "formula": "C34H67NO3",
+    "elements": [
+      "C",
+      "H",
+      "N",
+      "O"
+    ],
+    "molecular_weight": 537.914,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Sphingosine",
+    "formula": "C18H37NO2",
+    "elements": [
+      "C",
+      "H",
+      "N",
+      "O"
+    ],
+    "molecular_weight": 299.499,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Phytosphingosine",
+    "formula": "C18H39NO3",
+    "elements": [
+      "C",
+      "H",
+      "N",
+      "O"
+    ],
+    "molecular_weight": 317.514,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Dihydrosphingosine",
+    "formula": "C18H39NO2",
+    "elements": [
+      "C",
+      "H",
+      "N",
+      "O"
+    ],
+    "molecular_weight": 301.515,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Ergosterol",
+    "formula": "C28H44O",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 396.659,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Campesterol",
+    "formula": "C28H48O",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 400.691,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Stigmasterol",
+    "formula": "C29H48O",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 412.702,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Beta-sitosterol",
+    "formula": "C29H50O",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 414.718,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Lanosterol",
+    "formula": "C30H50O",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 426.729,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Brassicasterol",
+    "formula": "C28H46O",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 398.675,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Cholestanol",
+    "formula": "C27H48O",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 388.68,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Cholestenone",
+    "formula": "C27H44O",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 384.648,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Bile acid basic unit",
+    "formula": "C24H40O5",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 408.579,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Chenodeoxycholic acid",
+    "formula": "C24H40O4",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 392.58,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Deoxycholic acid",
+    "formula": "C24H40O4",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 392.58,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Ursodeoxycholic acid",
+    "formula": "C24H40O4",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 392.58,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Lithocholic acid",
+    "formula": "C24H40O3",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 376.581,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Glycocholic acid",
+    "formula": "C26H43NO6",
+    "elements": [
+      "C",
+      "H",
+      "N",
+      "O"
+    ],
+    "molecular_weight": 465.631,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Taurocholic acid",
+    "formula": "C26H45NO7S",
+    "elements": [
+      "C",
+      "H",
+      "N",
+      "O",
+      "S"
+    ],
+    "molecular_weight": 515.706,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Melatonin",
+    "formula": "C13H16N2O2",
+    "elements": [
+      "C",
+      "H",
+      "N",
+      "O"
+    ],
+    "molecular_weight": 232.283,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Ubiquinone-10",
+    "formula": "C59H90O4",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 863.365,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Plastoquinone",
+    "formula": "C53H80O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 749.221,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Phylloquinone",
+    "formula": "C31H46O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 450.707,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Menadione",
+    "formula": "C11H8O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 172.183,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Menaquinone-4",
+    "formula": "C31H40O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 444.659,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "All-trans-retinal",
+    "formula": "C20H28O",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 284.443,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "9-cis-retinal",
+    "formula": "C20H28O",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 284.443,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Retinyl palmitate",
+    "formula": "C36H60O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 524.874,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Retinyl acetate",
+    "formula": "C22H32O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 328.496,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Tocopheryl acetate",
+    "formula": "C31H52O3",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 472.754,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Tocotrienol",
+    "formula": "C29H44O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 424.669,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Calcitriol",
+    "formula": "C27H44O3",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 416.646,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Cholecalciferol metabolite",
+    "formula": "C27H44O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 400.647,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Thiamine monophosphate",
+    "formula": "C12H18N4O4PS",
+    "elements": [
+      "C",
+      "H",
+      "N",
+      "O",
+      "P",
+      "S"
+    ],
+    "molecular_weight": 345.334,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Riboflavin monophosphate",
+    "formula": "C17H21N4O9P",
+    "elements": [
+      "C",
+      "H",
+      "N",
+      "O",
+      "P"
+    ],
+    "molecular_weight": 456.348,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Nicotinamide riboside",
+    "formula": "C11H15N2O5",
+    "elements": [
+      "C",
+      "H",
+      "N",
+      "O"
+    ],
+    "molecular_weight": 255.25,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Nicotinic acid riboside",
+    "formula": "C11H14NO6",
+    "elements": [
+      "C",
+      "H",
+      "N",
+      "O"
+    ],
+    "molecular_weight": 256.234,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Pantetheine",
+    "formula": "C11H24N2O4S",
+    "elements": [
+      "C",
+      "H",
+      "N",
+      "O",
+      "S"
+    ],
+    "molecular_weight": 280.383,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Pantothenate",
+    "formula": "C9H17NO5",
+    "elements": [
+      "C",
+      "H",
+      "N",
+      "O"
+    ],
+    "molecular_weight": 219.237,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Biocytin",
+    "formula": "C16H28N4O4S",
+    "elements": [
+      "C",
+      "H",
+      "N",
+      "O",
+      "S"
+    ],
+    "molecular_weight": 372.484,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Lipoic acid",
+    "formula": "C8H14O2S2",
+    "elements": [
+      "C",
+      "H",
+      "O",
+      "S"
+    ],
+    "molecular_weight": 206.318,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Coenzyme M",
+    "formula": "C2H5O3S2",
+    "elements": [
+      "C",
+      "H",
+      "O",
+      "S"
+    ],
+    "molecular_weight": 141.179,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Coenzyme Q0",
+    "formula": "C9H10O4",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 182.175,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Coenzyme Q10 basic unit",
+    "formula": "C59H90O4",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 863.365,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Glutathione disulfide",
+    "formula": "C20H32N6O12S2",
+    "elements": [
+      "C",
+      "H",
+      "N",
+      "O",
+      "S"
+    ],
+    "molecular_weight": 612.626,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Cystine",
+    "formula": "C6H12N2O4S2",
+    "elements": [
+      "C",
+      "H",
+      "N",
+      "O",
+      "S"
+    ],
+    "molecular_weight": 240.292,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Cystine dioxide",
+    "formula": "C6H12N2O6S2",
+    "elements": [
+      "C",
+      "H",
+      "N",
+      "O",
+      "S"
+    ],
+    "molecular_weight": 272.29,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Homocysteine",
+    "formula": "C4H9NO2S",
+    "elements": [
+      "C",
+      "H",
+      "N",
+      "O",
+      "S"
+    ],
+    "molecular_weight": 135.181,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Homocystine",
+    "formula": "C8H18N2O4S2",
+    "elements": [
+      "C",
+      "H",
+      "N",
+      "O",
+      "S"
+    ],
+    "molecular_weight": 270.362,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Cysteinylglycine",
+    "formula": "C5H10N2O3S",
+    "elements": [
+      "C",
+      "H",
+      "N",
+      "O",
+      "S"
+    ],
+    "molecular_weight": 178.206,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Gamma-glutamylcysteine",
+    "formula": "C8H14N2O5S",
+    "elements": [
+      "C",
+      "H",
+      "N",
+      "O",
+      "S"
+    ],
+    "molecular_weight": 250.269,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Carbamoyl phosphate",
+    "formula": "CH2NO5P",
+    "elements": [
+      "C",
+      "H",
+      "N",
+      "O",
+      "P"
+    ],
+    "molecular_weight": 139.003,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Argininosuccinic acid",
+    "formula": "C10H18N4O6",
+    "elements": [
+      "C",
+      "H",
+      "N",
+      "O"
+    ],
+    "molecular_weight": 290.276,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Ornithine phosphate",
+    "formula": "C5H13N2O5P",
+    "elements": [
+      "C",
+      "H",
+      "N",
+      "O",
+      "P"
+    ],
+    "molecular_weight": 212.142,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Phosphocreatine",
+    "formula": "C4H10N3O5P",
+    "elements": [
+      "C",
+      "H",
+      "N",
+      "O",
+      "P"
+    ],
+    "molecular_weight": 211.114,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Creatine phosphate",
+    "formula": "C4H10N3O5P",
+    "elements": [
+      "C",
+      "H",
+      "N",
+      "O",
+      "P"
+    ],
+    "molecular_weight": 211.114,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Inositol trisphosphate",
+    "formula": "C6H15O15P3",
+    "elements": [
+      "C",
+      "H",
+      "O",
+      "P"
+    ],
+    "molecular_weight": 420.092,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Phosphatidic acid basic unit",
+    "formula": "C21H41O8P",
+    "elements": [
+      "C",
+      "H",
+      "O",
+      "P"
+    ],
+    "molecular_weight": 452.525,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Glycerol monooleate",
+    "formula": "C21H40O4",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 356.547,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Glycerol monostearate",
+    "formula": "C21H42O4",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 358.563,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Glycerol monopalmitate",
+    "formula": "C19H38O4",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 330.509,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Glycerol dilaurate",
+    "formula": "C27H52O5",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 456.708,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Glycerol trioctanoate",
+    "formula": "C27H50O6",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 470.691,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Triacetin",
+    "formula": "C9H14O6",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 218.205,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Tributyrin",
+    "formula": "C15H26O6",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 302.367,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Tricaproin",
+    "formula": "C21H38O6",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 386.529,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Tricaprylin",
+    "formula": "C27H50O6",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 470.691,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Tricaprin",
+    "formula": "C33H62O6",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 554.853,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Trilaurin",
+    "formula": "C39H74O6",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 639.015,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Trimyristin",
+    "formula": "C45H86O6",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 723.177,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Trilinolenin",
+    "formula": "C57H92O6",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 873.357,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "D-glucose",
+    "formula": "C6H12O6",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 180.156,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "L-glucose",
+    "formula": "C6H12O6",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 180.156,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "D-fructose",
+    "formula": "C6H12O6",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 180.156,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "L-fructose",
+    "formula": "C6H12O6",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 180.156,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "D-galactose",
+    "formula": "C6H12O6",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 180.156,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "L-galactose",
+    "formula": "C6H12O6",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 180.156,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "D-ribose",
+    "formula": "C5H10O5",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 150.13,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "L-ribose",
+    "formula": "C5H10O5",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 150.13,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "D-xylose",
+    "formula": "C5H10O5",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 150.13,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "L-xylose",
+    "formula": "C5H10O5",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 150.13,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "D-arabinose",
+    "formula": "C5H10O5",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 150.13,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "L-arabinose",
+    "formula": "C5H10O5",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 150.13,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "D-mannose",
+    "formula": "C6H12O6",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 180.156,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "L-mannose",
+    "formula": "C6H12O6",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 180.156,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "D-sorbitol",
+    "formula": "C6H14O6",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 182.172,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "L-sorbitol",
+    "formula": "C6H14O6",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 182.172,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "D-mannitol",
+    "formula": "C6H14O6",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 182.172,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "L-mannitol",
+    "formula": "C6H14O6",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 182.172,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "D-xylitol",
+    "formula": "C5H12O5",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 152.146,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "L-xylitol",
+    "formula": "C5H12O5",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 152.146,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "D-galactonic acid",
+    "formula": "C6H12O7",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 196.155,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "L-galactonic acid",
+    "formula": "C6H12O7",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 196.155,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "D-gluconic acid",
+    "formula": "C6H12O7",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 196.155,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "L-gluconic acid",
+    "formula": "C6H12O7",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 196.155,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "D-malic acid",
+    "formula": "C4H6O5",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 134.087,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "L-malic acid",
+    "formula": "C4H6O5",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 134.087,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "D-tartaric acid",
+    "formula": "C4H6O6",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 150.086,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "L-tartaric acid",
+    "formula": "C4H6O6",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 150.086,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "D-lactic acid",
+    "formula": "C3H6O3",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 90.078,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "L-lactic acid",
+    "formula": "C3H6O3",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 90.078,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "D-glyceraldehyde",
+    "formula": "C3H6O3",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 90.078,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "L-glyceraldehyde",
+    "formula": "C3H6O3",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 90.078,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "D-erythrose",
+    "formula": "C4H8O4",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 120.104,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "L-erythrose",
+    "formula": "C4H8O4",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 120.104,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "D-threose",
+    "formula": "C4H8O4",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 120.104,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "L-threose",
+    "formula": "C4H8O4",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 120.104,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "D-ribulose",
+    "formula": "C5H10O5",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 150.13,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "L-ribulose",
+    "formula": "C5H10O5",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 150.13,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "D-xylulose",
+    "formula": "C5H10O5",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 150.13,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "L-xylulose",
+    "formula": "C5H10O5",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 150.13,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "D-glucuronic acid",
+    "formula": "C6H10O7",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 194.139,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "D-galacturonic acid",
+    "formula": "C6H10O7",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 194.139,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "D-mannuronic acid",
+    "formula": "C6H10O7",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 194.139,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "D-iduronic acid",
+    "formula": "C6H10O7",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 194.139,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Maltotriose",
+    "formula": "C18H32O16",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 504.438,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Maltotetraose",
+    "formula": "C24H42O21",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 666.579,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Maltopentaose",
+    "formula": "C30H52O26",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 828.72,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Maltohexaose",
+    "formula": "C36H62O31",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 990.861,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Maltoheptaose",
+    "formula": "C42H72O36",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 1153.002,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Cellotriose",
+    "formula": "C18H32O16",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 504.438,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Cellotetraose",
+    "formula": "C24H42O21",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 666.579,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Cellopentaose",
+    "formula": "C30H52O26",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 828.72,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Cellohexaose",
+    "formula": "C36H62O31",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 990.861,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Laminaribiose",
+    "formula": "C12H22O11",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 342.297,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Laminaritriose",
+    "formula": "C18H32O16",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 504.438,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Nigerose",
+    "formula": "C12H22O11",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 342.297,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Kojibiose",
+    "formula": "C12H22O11",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 342.297,
+    "iupac_name": "",
+    "smiles": "",
+    "cid": 0,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Oxygen",
+    "formula": "O2",
+    "elements": [
+      "O"
+    ],
+    "molecular_weight": 31.998,
+    "iupac_name": "dioxygen",
+    "smiles": "O=O",
+    "cid": 977,
+    "melting_point": -218.79,
+    "boiling_point": -182.962,
+    "density": null,
+    "state": "gas"
+  },
+  {
+    "name": "Carbon dioxide",
+    "formula": "CO2",
+    "elements": [
+      "C",
+      "O"
+    ],
+    "molecular_weight": 44.009,
+    "iupac_name": "carbon dioxide",
+    "smiles": "O=C=O",
+    "cid": 280,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Carbon monoxide",
+    "formula": "CO",
+    "elements": [
+      "C",
+      "O"
+    ],
+    "molecular_weight": 28.01,
+    "iupac_name": "carbon monoxide",
+    "smiles": "[C-]#[O+]",
+    "cid": 281,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Hydrogen",
+    "formula": "H2",
+    "elements": [
+      "H"
+    ],
+    "molecular_weight": 2.016,
+    "iupac_name": "dihydrogen",
+    "smiles": "[H][H]",
+    "cid": 783,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Nitrogen",
+    "formula": "N2",
+    "elements": [
+      "N"
+    ],
+    "molecular_weight": 28.014,
+    "iupac_name": "dinitrogen",
+    "smiles": "N#N",
+    "cid": 947,
+    "melting_point": -210,
+    "boiling_point": -195.79,
+    "density": null,
+    "state": "gas"
+  },
+  {
+    "name": "Ozone",
+    "formula": "O3",
+    "elements": [
+      "O"
+    ],
+    "molecular_weight": 47.997,
+    "iupac_name": "trioxidane",
+    "smiles": "[O-][O+]=O",
+    "cid": 24823,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Methane",
+    "formula": "CH4",
+    "elements": [
+      "C",
+      "H"
+    ],
+    "molecular_weight": 16.043,
+    "iupac_name": "methane",
+    "smiles": "C",
+    "cid": 297,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Ammonia",
+    "formula": "NH3",
+    "elements": [
+      "N",
+      "H"
+    ],
+    "molecular_weight": 17.031,
+    "iupac_name": "azane",
+    "smiles": "N",
+    "cid": 222,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Sulfur dioxide",
+    "formula": "SO2",
+    "elements": [
+      "S",
+      "O"
+    ],
+    "molecular_weight": 64.066,
+    "iupac_name": "sulfur dioxide",
+    "smiles": "O=S=O",
+    "cid": 1119,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Sulfur trioxide",
+    "formula": "SO3",
+    "elements": [
+      "S",
+      "O"
+    ],
+    "molecular_weight": 80.063,
+    "iupac_name": "sulfur trioxide",
+    "smiles": "O=S(=O)=O",
+    "cid": 24682,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Nitric oxide",
+    "formula": "NO",
+    "elements": [
+      "N",
+      "O"
+    ],
+    "molecular_weight": 30.006,
+    "iupac_name": "nitric oxide",
+    "smiles": "N=O",
+    "cid": 145068,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Nitrogen dioxide",
+    "formula": "NO2",
+    "elements": [
+      "N",
+      "O"
+    ],
+    "molecular_weight": 46.005,
+    "iupac_name": "nitrogen dioxide",
+    "smiles": "O=[N]=O",
+    "cid": 3032552,
+    "melting_point": 15,
+    "boiling_point": 70,
+    "density": null,
+    "state": "liquid"
+  },
+  {
+    "name": "Nitrous oxide",
+    "formula": "N2O",
+    "elements": [
+      "N",
+      "O"
+    ],
+    "molecular_weight": 44.013,
+    "iupac_name": "dinitrogen monoxide",
+    "smiles": "N#[N+][O-]",
+    "cid": 948,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Hydrogen peroxide",
+    "formula": "H2O2",
+    "elements": [
+      "H",
+      "O"
+    ],
+    "molecular_weight": 34.014,
+    "iupac_name": "dioxidane",
+    "smiles": "OO",
+    "cid": 784,
+    "melting_point": null,
+    "boiling_point": 150.2,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Hydrochloric acid",
+    "formula": "HCl",
+    "elements": [
+      "H",
+      "Cl"
+    ],
+    "molecular_weight": 36.461,
+    "iupac_name": "hydrogen chloride",
+    "smiles": "Cl",
+    "cid": 313,
+    "melting_point": -174,
+    "boiling_point": -121,
+    "density": null,
+    "state": "gas"
+  },
+  {
+    "name": "Sodium chloride",
+    "formula": "NaCl",
+    "elements": [
+      "Na",
+      "Cl"
+    ],
+    "molecular_weight": 58.443,
+    "iupac_name": "sodium chloride",
+    "smiles": "[Na+].[Cl-]",
+    "cid": 5234,
+    "melting_point": 800.7,
+    "boiling_point": null,
+    "density": 2.17,
+    "state": "solid"
+  },
+  {
+    "name": "Sodium hydroxide",
+    "formula": "NaOH",
+    "elements": [
+      "Na",
+      "O",
+      "H"
+    ],
+    "molecular_weight": 39.997,
+    "iupac_name": "sodium hydroxide",
+    "smiles": "[OH-].[Na+]",
+    "cid": 14798,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Potassium hydroxide",
+    "formula": "KOH",
+    "elements": [
+      "K",
+      "O",
+      "H"
+    ],
+    "molecular_weight": 56.105,
+    "iupac_name": "potassium hydroxide",
+    "smiles": "[OH-].[K+]",
+    "cid": 14797,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Calcium carbonate",
+    "formula": "CaCO3",
+    "elements": [
+      "Ca",
+      "C",
+      "O"
+    ],
+    "molecular_weight": 100.086,
+    "iupac_name": "calcium carbonate",
+    "smiles": "[Ca+2].[O-]C(=O)[O-]",
+    "cid": 10112,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Calcium oxide",
+    "formula": "CaO",
+    "elements": [
+      "Ca",
+      "O"
+    ],
+    "molecular_weight": 56.077,
+    "iupac_name": "calcium oxide",
+    "smiles": "[Ca]=O",
+    "cid": 14778,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Calcium hydroxide",
+    "formula": "Ca(OH)2",
+    "elements": [
+      "Ca",
+      "O",
+      "H"
+    ],
+    "molecular_weight": 74.092,
+    "iupac_name": "calcium hydroxide",
+    "smiles": "[Ca+2].[OH-].[OH-]",
+    "cid": 6093208,
+    "melting_point": 44,
+    "boiling_point": null,
+    "density": null,
+    "state": "solid"
+  },
+  {
+    "name": "Magnesium oxide",
+    "formula": "MgO",
+    "elements": [
+      "Mg",
+      "O"
+    ],
+    "molecular_weight": 40.304,
+    "iupac_name": "magnesium oxide",
+    "smiles": "[Mg]=O",
+    "cid": 14792,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Magnesium sulfate",
+    "formula": "MgSO4",
+    "elements": [
+      "Mg",
+      "S",
+      "O"
+    ],
+    "molecular_weight": 120.366,
+    "iupac_name": "magnesium sulfate",
+    "smiles": "[Mg+2].[O-]S(=O)(=O)[O-]",
+    "cid": 24083,
+    "melting_point": 1137,
+    "boiling_point": null,
+    "density": null,
+    "state": "solid"
+  },
+  {
+    "name": "Sodium bicarbonate",
+    "formula": "NaHCO3",
+    "elements": [
+      "Na",
+      "H",
+      "C",
+      "O"
+    ],
+    "molecular_weight": 84.006,
+    "iupac_name": "sodium hydrogencarbonate",
+    "smiles": "[Na+].OC(=O)[O-]",
+    "cid": 516892,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Sodium carbonate",
+    "formula": "Na2CO3",
+    "elements": [
+      "Na",
+      "C",
+      "O"
+    ],
+    "molecular_weight": 105.988,
+    "iupac_name": "disodium carbonate",
+    "smiles": "[Na+].[Na+].[O-]C(=O)[O-]",
+    "cid": 10340,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Acetic acid",
+    "formula": "C2H4O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 60.052,
+    "iupac_name": "ethanoic acid",
+    "smiles": "CC(=O)O",
+    "cid": 176,
+    "melting_point": 16.6,
+    "boiling_point": 118.1,
+    "density": 1.049,
+    "state": "liquid"
+  },
+  {
+    "name": "Ethanol",
+    "formula": "C2H6O",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 46.069,
+    "iupac_name": "ethanol",
+    "smiles": "CCO",
+    "cid": 702,
+    "melting_point": -114.14,
+    "boiling_point": 78.23,
+    "density": null,
+    "state": "liquid"
+  },
+  {
+    "name": "Ethane",
+    "formula": "C2H6",
+    "elements": [
+      "C",
+      "H"
+    ],
+    "molecular_weight": 30.07,
+    "iupac_name": "ethane",
+    "smiles": "CC",
+    "cid": 6324,
+    "melting_point": -182.8,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Ethene",
+    "formula": "C2H4",
+    "elements": [
+      "C",
+      "H"
+    ],
+    "molecular_weight": 28.054,
+    "iupac_name": "ethene",
+    "smiles": "C=C",
+    "cid": 6325,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Propane",
+    "formula": "C3H8",
+    "elements": [
+      "C",
+      "H"
+    ],
+    "molecular_weight": 44.097,
+    "iupac_name": "propane",
+    "smiles": "CCC",
+    "cid": 6334,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Butane",
+    "formula": "C4H10",
+    "elements": [
+      "C",
+      "H"
+    ],
+    "molecular_weight": 58.124,
+    "iupac_name": "butane",
+    "smiles": "CCCC",
+    "cid": 7843,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Benzene",
+    "formula": "C6H6",
+    "elements": [
+      "C",
+      "H"
+    ],
+    "molecular_weight": 78.114,
+    "iupac_name": "benzene",
+    "smiles": "c1ccccc1",
+    "cid": 241,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Acetone",
+    "formula": "C3H6O",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 58.08,
+    "iupac_name": "propan-2-one",
+    "smiles": "CC(=O)C",
+    "cid": 180,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Formaldehyde",
+    "formula": "CH2O",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 30.026,
+    "iupac_name": "methanal",
+    "smiles": "C=O",
+    "cid": 712,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Phosphoric acid",
+    "formula": "H3PO4",
+    "elements": [
+      "H",
+      "P",
+      "O"
+    ],
+    "molecular_weight": 97.994,
+    "iupac_name": "phosphoric acid",
+    "smiles": "O=P(O)(O)O",
+    "cid": 1004,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Nitric acid",
+    "formula": "HNO3",
+    "elements": [
+      "H",
+      "N",
+      "O"
+    ],
+    "molecular_weight": 63.012,
+    "iupac_name": "nitric acid",
+    "smiles": "O=[N](=O)O",
+    "cid": 944,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Sulfuric acid",
+    "formula": "H2SO4",
+    "elements": [
+      "H",
+      "S",
+      "O"
+    ],
+    "molecular_weight": 98.079,
+    "iupac_name": "sulfuric acid",
+    "smiles": "OS(=O)(=O)O",
+    "cid": 1118,
+    "melting_point": 10.31,
+    "boiling_point": 337,
+    "density": null,
+    "state": "liquid"
+  },
+  {
+    "name": "Chlorine",
+    "formula": "Cl2",
+    "elements": [
+      "Cl"
+    ],
+    "molecular_weight": 70.906,
+    "iupac_name": "dichlorine",
+    "smiles": "ClCl",
+    "cid": 24526,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Bromine",
+    "formula": "Br2",
+    "elements": [
+      "Br"
+    ],
+    "molecular_weight": 159.808,
+    "iupac_name": "dibromine",
+    "smiles": "BrBr",
+    "cid": 24408,
+    "melting_point": -7.2,
+    "boiling_point": 58.8,
+    "density": null,
+    "state": "liquid"
+  },
+  {
+    "name": "Iodine",
+    "formula": "I2",
+    "elements": [
+      "I"
+    ],
+    "molecular_weight": 253.808,
+    "iupac_name": "diiodine",
+    "smiles": "II",
+    "cid": 807,
+    "melting_point": 114,
+    "boiling_point": 184,
+    "density": null,
+    "state": "solid"
+  },
+  {
+    "name": "Carbon tetrachloride",
+    "formula": "CCl4",
+    "elements": [
+      "C",
+      "Cl"
+    ],
+    "molecular_weight": 153.822,
+    "iupac_name": "tetrachloromethane",
+    "smiles": "ClC(Cl)(Cl)Cl",
+    "cid": 5943,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Methanol",
+    "formula": "CH3OH",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 32.042,
+    "iupac_name": "methanol",
+    "smiles": "CO",
+    "cid": 887,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Isopropanol",
+    "formula": "C3H8O",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 60.096,
+    "iupac_name": "propan-2-ol",
+    "smiles": "CC(C)O",
+    "cid": 3776,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Aspirin",
+    "formula": "C9H8O4",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 180.159,
+    "iupac_name": "2-acetoxybenzoic acid",
+    "smiles": "CC(=O)Oc1ccccc1C(=O)O",
+    "cid": 2244,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Caffeine",
+    "formula": "C8H10N4O2",
+    "elements": [
+      "C",
+      "H",
+      "N",
+      "O"
+    ],
+    "molecular_weight": 194.191,
+    "iupac_name": "1,3,7-trimethylpurine-2,6-dione",
+    "smiles": "Cn1c(=O)n(C)c2ncn(C)c2c1=O",
+    "cid": 2519,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Sodium nitrate",
+    "formula": "NaNO3",
+    "elements": [
+      "Na",
+      "N",
+      "O"
+    ],
+    "molecular_weight": 84.994,
+    "iupac_name": "sodium nitrate",
+    "smiles": "[Na+].[O-][N](=O)=O",
+    "cid": 24203,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Potassium nitrate",
+    "formula": "KNO3",
+    "elements": [
+      "K",
+      "N",
+      "O"
+    ],
+    "molecular_weight": 101.103,
+    "iupac_name": "potassium nitrate",
+    "smiles": "[K+].[O-][N](=O)=O",
+    "cid": 413,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Iron(III) oxide",
+    "formula": "Fe2O3",
+    "elements": [
+      "Fe",
+      "O"
+    ],
+    "molecular_weight": 159.687,
+    "iupac_name": "iron(III) oxide",
+    "smiles": "[Fe+3].[Fe+3].[O-2].[O-2].[O-2]",
+    "cid": 518696,
+    "melting_point": null,
+    "boiling_point": 1987,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Copper sulfate",
+    "formula": "CuSO4",
+    "elements": [
+      "Cu",
+      "S",
+      "O"
+    ],
+    "molecular_weight": 159.609,
+    "iupac_name": "copper(II) sulfate",
+    "smiles": "[Cu+2].[O-]S(=O)(=O)[O-]",
+    "cid": 24462,
+    "melting_point": 200,
+    "boiling_point": null,
+    "density": null,
+    "state": "solid"
+  },
+  {
+    "name": "Ferrous sulfate",
+    "formula": "FeSO4",
+    "elements": [
+      "Fe",
+      "S",
+      "O"
+    ],
+    "molecular_weight": 151.908,
+    "iupac_name": "iron(II) sulfate",
+    "smiles": "[Fe+2].[O-]S(=O)(=O)[O-]",
+    "cid": 24594,
+    "melting_point": 8.77,
+    "boiling_point": 125.8,
+    "density": null,
+    "state": "liquid"
+  },
+  {
+    "name": "Hydrofluoric acid",
+    "formula": "HF",
+    "elements": [
+      "H",
+      "F"
+    ],
+    "molecular_weight": 20.006,
+    "iupac_name": "hydrogen fluoride",
+    "smiles": "F",
+    "cid": 14917,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Ethanoic acid",
+    "formula": "C2H4O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 60.052,
+    "iupac_name": "ethanoic acid",
+    "smiles": "CC(=O)O",
+    "cid": 176,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Hydrogen sulfide",
+    "formula": "H2S",
+    "elements": [
+      "H",
+      "S"
+    ],
+    "molecular_weight": 34.081,
+    "iupac_name": "sulfane",
+    "smiles": "S",
+    "cid": 402,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Phosphine",
+    "formula": "PH3",
+    "elements": [
+      "P",
+      "H"
+    ],
+    "molecular_weight": 33.998,
+    "iupac_name": "phosphine",
+    "smiles": "P",
+    "cid": 24404,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Chloromethane",
+    "formula": "CH3Cl",
+    "elements": [
+      "C",
+      "H",
+      "Cl"
+    ],
+    "molecular_weight": 50.487,
+    "iupac_name": "chloromethane",
+    "smiles": "CCl",
+    "cid": 6327,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Bromoethane",
+    "formula": "C2H5Br",
+    "elements": [
+      "C",
+      "H",
+      "Br"
+    ],
+    "molecular_weight": 108.966,
+    "iupac_name": "bromoethane",
+    "smiles": "CCBr",
+    "cid": 6332,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Chloroethane",
+    "formula": "C2H5Cl",
+    "elements": [
+      "C",
+      "H",
+      "Cl"
+    ],
+    "molecular_weight": 64.514,
+    "iupac_name": "chloroethane",
+    "smiles": "CCCl",
+    "cid": 6337,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Ethanal",
+    "formula": "C2H4O",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 44.053,
+    "iupac_name": "ethanal",
+    "smiles": "CC=O",
+    "cid": 177,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Butanal",
+    "formula": "C4H8O",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 72.107,
+    "iupac_name": "butanal",
+    "smiles": "CCCC=O",
+    "cid": 261,
+    "melting_point": -99,
+    "boiling_point": 74.8,
+    "density": null,
+    "state": "liquid"
+  },
+  {
+    "name": "Pentanal",
+    "formula": "C5H10O",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 86.134,
+    "iupac_name": "pentanal",
+    "smiles": "CCCCC=O",
+    "cid": 8063,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Hexanal",
+    "formula": "C6H12O",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 100.161,
+    "iupac_name": "hexanal",
+    "smiles": "CCCCCC=O",
+    "cid": 6184,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Heptanal",
+    "formula": "C7H14O",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 114.188,
+    "iupac_name": "heptanal",
+    "smiles": "CCCCCCC=O",
+    "cid": 8130,
+    "melting_point": null,
+    "boiling_point": 152.8,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Octanal",
+    "formula": "C8H16O",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 128.214,
+    "iupac_name": "octanal",
+    "smiles": "CCCCCCCC=O",
+    "cid": 454,
+    "melting_point": -23,
+    "boiling_point": 171,
+    "density": null,
+    "state": "liquid"
+  },
+  {
+    "name": "Nonanal",
+    "formula": "C9H18O",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 142.241,
+    "iupac_name": "nonanal",
+    "smiles": "CCCCCCCCCC=O",
+    "cid": 31291,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Decanal",
+    "formula": "C10H20O",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 156.268,
+    "iupac_name": "decanal",
+    "smiles": "CCCCCCCCCC=O",
+    "cid": 8174,
+    "melting_point": null,
+    "boiling_point": 231.1,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Cellulose",
+    "formula": "(C6H10O5)n",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 162.14,
+    "iupac_name": "cellulose",
+    "smiles": "[C@H]1([C@@H]([C@H](CO1)O)O)O",
+    "cid": 140556,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Acetylene",
+    "formula": "C2H2",
+    "elements": [
+      "C",
+      "H"
+    ],
+    "molecular_weight": 26.038,
+    "iupac_name": "ethyne",
+    "smiles": "C#C",
+    "cid": 6326,
+    "melting_point": -80.75,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Propyne",
+    "formula": "C3H4",
+    "elements": [
+      "C",
+      "H"
+    ],
+    "molecular_weight": 40.065,
+    "iupac_name": "propyne",
+    "smiles": "CC#C",
+    "cid": 6335,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Butyne",
+    "formula": "C4H6",
+    "elements": [
+      "C",
+      "H"
+    ],
+    "molecular_weight": 54.092,
+    "iupac_name": "but-1-yne",
+    "smiles": "CCC#C",
+    "cid": 7846,
+    "melting_point": -125.72,
+    "boiling_point": 8.08,
+    "density": null,
+    "state": "gas"
+  },
+  {
+    "name": "Cyclohexane",
+    "formula": "C6H12",
+    "elements": [
+      "C",
+      "H"
+    ],
+    "molecular_weight": 84.16,
+    "iupac_name": "cyclohexane",
+    "smiles": "C1CCCCC1",
+    "cid": 8078,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Toluene",
+    "formula": "C7H8",
+    "elements": [
+      "C",
+      "H"
+    ],
+    "molecular_weight": 92.141,
+    "iupac_name": "methylbenzene",
+    "smiles": "Cc1ccccc1",
+    "cid": 1140,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Xylene",
+    "formula": "C8H10",
+    "elements": [
+      "C",
+      "H"
+    ],
+    "molecular_weight": 106.167,
+    "iupac_name": "dimethylbenzene",
+    "smiles": "Cc1ccccc1C",
+    "cid": 7929,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Phenol",
+    "formula": "C6H6O",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 94.113,
+    "iupac_name": "phenol",
+    "smiles": "Oc1ccccc1",
+    "cid": 996,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Aniline",
+    "formula": "C6H7N",
+    "elements": [
+      "C",
+      "H",
+      "N"
+    ],
+    "molecular_weight": 93.127,
+    "iupac_name": "aniline",
+    "smiles": "Nc1ccccc1",
+    "cid": 6115,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Pyridine",
+    "formula": "C5H5N",
+    "elements": [
+      "C",
+      "H",
+      "N"
+    ],
+    "molecular_weight": 79.101,
+    "iupac_name": "pyridine",
+    "smiles": "c1ccncc1",
+    "cid": 1049,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Acetonitrile",
+    "formula": "C2H3N",
+    "elements": [
+      "C",
+      "H",
+      "N"
+    ],
+    "molecular_weight": 41.053,
+    "iupac_name": "acetonitrile",
+    "smiles": "CC#N",
+    "cid": 6342,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Formic acid",
+    "formula": "CH2O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 46.025,
+    "iupac_name": "methanoic acid",
+    "smiles": "OC=O",
+    "cid": 284,
+    "melting_point": null,
+    "boiling_point": 101,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Propionic acid",
+    "formula": "C3H6O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 74.079,
+    "iupac_name": "propanoic acid",
+    "smiles": "CCC(=O)O",
+    "cid": 1032,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Butyric acid",
+    "formula": "C4H8O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 88.106,
+    "iupac_name": "butanoic acid",
+    "smiles": "CCCC(=O)O",
+    "cid": 264,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Linoleic acid",
+    "formula": "C18H32O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 280.452,
+    "iupac_name": "(9Z,12Z)-octadeca-9,12-dienoic acid",
+    "smiles": "CCCC/C=C\\C/C=C\\CCCCCCCC(=O)O",
+    "cid": 5280450,
+    "melting_point": -5,
+    "boiling_point": 365.2,
+    "density": null,
+    "state": "liquid"
+  },
+  {
+    "name": "Sodium sulfate",
+    "formula": "Na2SO4",
+    "elements": [
+      "Na",
+      "S",
+      "O"
+    ],
+    "molecular_weight": 142.042,
+    "iupac_name": "disodium sulfate",
+    "smiles": "[Na+].[Na+].[O-]S(=O)(=O)[O-]",
+    "cid": 24436,
+    "melting_point": 884,
+    "boiling_point": null,
+    "density": null,
+    "state": "solid"
+  },
+  {
+    "name": "Potassium chloride",
+    "formula": "KCl",
+    "elements": [
+      "K",
+      "Cl"
+    ],
+    "molecular_weight": 74.551,
+    "iupac_name": "potassium chloride",
+    "smiles": "[K+].[Cl-]",
+    "cid": 4873,
+    "melting_point": null,
+    "boiling_point": 1407,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Magnesium chloride",
+    "formula": "MgCl2",
+    "elements": [
+      "Mg",
+      "Cl"
+    ],
+    "molecular_weight": 95.211,
+    "iupac_name": "magnesium chloride",
+    "smiles": "[Mg+2].[Cl-].[Cl-]",
+    "cid": 5360315,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Calcium chloride",
+    "formula": "CaCl2",
+    "elements": [
+      "Ca",
+      "Cl"
+    ],
+    "molecular_weight": 110.984,
+    "iupac_name": "calcium chloride",
+    "smiles": "[Ca+2].[Cl-].[Cl-]",
+    "cid": 24854,
+    "melting_point": null,
+    "boiling_point": 1935.5,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Barium sulfate",
+    "formula": "BaSO4",
+    "elements": [
+      "Ba",
+      "S",
+      "O"
+    ],
+    "molecular_weight": 233.391,
+    "iupac_name": "barium sulfate",
+    "smiles": "[Ba+2].[O-]S(=O)(=O)[O-]",
+    "cid": 24414,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Silver nitrate",
+    "formula": "AgNO3",
+    "elements": [
+      "Ag",
+      "N",
+      "O"
+    ],
+    "molecular_weight": 169.873,
+    "iupac_name": "silver nitrate",
+    "smiles": "[Ag+].[O-][N](=O)=O",
+    "cid": 24470,
+    "melting_point": 212,
+    "boiling_point": null,
+    "density": null,
+    "state": "solid"
+  },
+  {
+    "name": "Ammonium chloride",
+    "formula": "NH4Cl",
+    "elements": [
+      "N",
+      "H",
+      "Cl"
+    ],
+    "molecular_weight": 53.491,
+    "iupac_name": "ammonium chloride",
+    "smiles": "[NH4+].[Cl-]",
+    "cid": 25517,
+    "melting_point": 337.6,
+    "boiling_point": 520,
+    "density": null,
+    "state": "solid"
+  },
+  {
+    "name": "Ammonium nitrate",
+    "formula": "NH4NO3",
+    "elements": [
+      "N",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 80.043,
+    "iupac_name": "ammonium nitrate",
+    "smiles": "[NH4+].[O-][N](=O)=O",
+    "cid": 22985,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Lead(II) oxide",
+    "formula": "PbO",
+    "elements": [
+      "Pb",
+      "O"
+    ],
+    "molecular_weight": 223.199,
+    "iupac_name": "lead(II) oxide",
+    "smiles": "[Pb]=O",
+    "cid": 14775,
+    "melting_point": 2507,
+    "boiling_point": 4173.15,
+    "density": null,
+    "state": "solid"
+  },
+  {
+    "name": "Mercury(II) oxide",
+    "formula": "HgO",
+    "elements": [
+      "Hg",
+      "O"
+    ],
+    "molecular_weight": 216.589,
+    "iupac_name": "mercury(II) oxide",
+    "smiles": "[Hg]=O",
+    "cid": 14807,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Cobalt(II) chloride",
+    "formula": "CoCl2",
+    "elements": [
+      "Co",
+      "Cl"
+    ],
+    "molecular_weight": 129.839,
+    "iupac_name": "cobalt(II) chloride",
+    "smiles": "[Co+2].[Cl-].[Cl-]",
+    "cid": 24288,
+    "melting_point": 735,
+    "boiling_point": 1049,
+    "density": null,
+    "state": "solid"
+  },
+  {
+    "name": "Aluminum oxide",
+    "formula": "Al2O3",
+    "elements": [
+      "Al",
+      "O"
+    ],
+    "molecular_weight": 101.961,
+    "iupac_name": "aluminium oxide",
+    "smiles": "[Al+3].[Al+3].[O-2].[O-2].[O-2]",
+    "cid": 9989226,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Aluminum chloride",
+    "formula": "AlCl3",
+    "elements": [
+      "Al",
+      "Cl"
+    ],
+    "molecular_weight": 133.34,
+    "iupac_name": "aluminium chloride",
+    "smiles": "[Al](Cl)(Cl)Cl",
+    "cid": 24012,
+    "melting_point": 190,
+    "boiling_point": null,
+    "density": null,
+    "state": "solid"
+  },
+  {
+    "name": "Iron(II) chloride",
+    "formula": "FeCl2",
+    "elements": [
+      "Fe",
+      "Cl"
+    ],
+    "molecular_weight": 126.751,
+    "iupac_name": "iron(II) chloride",
+    "smiles": "[Fe+2].[Cl-].[Cl-]",
+    "cid": 24458,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Iron(III) chloride",
+    "formula": "FeCl3",
+    "elements": [
+      "Fe",
+      "Cl"
+    ],
+    "molecular_weight": 162.204,
+    "iupac_name": "iron(III) chloride",
+    "smiles": "[Fe+3].[Cl-].[Cl-].[Cl-]",
+    "cid": 24380,
+    "melting_point": 306,
+    "boiling_point": 315,
+    "density": null,
+    "state": "solid"
+  },
+  {
+    "name": "Manganese dioxide",
+    "formula": "MnO2",
+    "elements": [
+      "Mn",
+      "O"
+    ],
+    "molecular_weight": 86.936,
+    "iupac_name": "manganese dioxide",
+    "smiles": "[Mn](=O)=O",
+    "cid": 14801,
+    "melting_point": 808.15,
+    "boiling_point": null,
+    "density": null,
+    "state": "solid"
+  },
+  {
+    "name": "Copper(II) oxide",
+    "formula": "CuO",
+    "elements": [
+      "Cu",
+      "O"
+    ],
+    "molecular_weight": 79.545,
+    "iupac_name": "copper(II) oxide",
+    "smiles": "[Cu]=O",
+    "cid": 14829,
+    "melting_point": 1446,
+    "boiling_point": 2000,
+    "density": null,
+    "state": "solid"
+  },
+  {
+    "name": "Copper(II) chloride",
+    "formula": "CuCl2",
+    "elements": [
+      "Cu",
+      "Cl"
+    ],
+    "molecular_weight": 134.452,
+    "iupac_name": "copper(II) chloride",
+    "smiles": "[Cu+2].[Cl-].[Cl-]",
+    "cid": 24014,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Magnesium carbonate",
+    "formula": "MgCO3",
+    "elements": [
+      "Mg",
+      "C",
+      "O"
+    ],
+    "molecular_weight": 84.313,
+    "iupac_name": "magnesium carbonate",
+    "smiles": "[Mg+2].[O-]C(=O)[O-]",
+    "cid": 10532,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Sodium acetate",
+    "formula": "C2H3NaO2",
+    "elements": [
+      "C",
+      "H",
+      "Na",
+      "O"
+    ],
+    "molecular_weight": 82.034,
+    "iupac_name": "sodium acetate",
+    "smiles": "CC(=O)[O-].[Na+]",
+    "cid": 517045,
+    "melting_point": 328,
+    "boiling_point": null,
+    "density": null,
+    "state": "solid"
+  },
+  {
+    "name": "Potassium acetate",
+    "formula": "C2H3KO2",
+    "elements": [
+      "C",
+      "H",
+      "K",
+      "O"
+    ],
+    "molecular_weight": 98.142,
+    "iupac_name": "potassium acetate",
+    "smiles": "CC(=O)[O-].[K+]",
+    "cid": 517044,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Calcium phosphate",
+    "formula": "Ca3(PO4)2",
+    "elements": [
+      "Ca",
+      "P",
+      "O"
+    ],
+    "molecular_weight": 310.176,
+    "iupac_name": "tricalcium diphosphate",
+    "smiles": "[Ca+2].[Ca+2].[Ca+2].[O-]P(=O)([O-])[O-].[O-]P(=O)([O-])[O-]",
+    "cid": 24456,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Sodium phosphate",
+    "formula": "Na3PO4",
+    "elements": [
+      "Na",
+      "P",
+      "O"
+    ],
+    "molecular_weight": 163.94,
+    "iupac_name": "trisodium phosphate",
+    "smiles": "[Na+].[Na+].[Na+].[O-]P(=O)([O-])[O-]",
+    "cid": 24243,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Calcium nitrate",
+    "formula": "Ca(NO3)2",
+    "elements": [
+      "Ca",
+      "N",
+      "O"
+    ],
+    "molecular_weight": 164.088,
+    "iupac_name": "calcium nitrate",
+    "smiles": "[Ca+2].[O-][N](=O)=O.[O-][N](=O)=O",
+    "cid": 24563,
+    "melting_point": 558,
+    "boiling_point": 1506,
+    "density": null,
+    "state": "solid"
+  },
+  {
+    "name": "Potassium sulfate",
+    "formula": "K2SO4",
+    "elements": [
+      "K",
+      "S",
+      "O"
+    ],
+    "molecular_weight": 174.259,
+    "iupac_name": "potassium sulfate",
+    "smiles": "[K+].[K+].[O-]S(=O)(=O)[O-]",
+    "cid": 24507,
+    "melting_point": 1069,
+    "boiling_point": 1689,
+    "density": null,
+    "state": "solid"
+  },
+  {
+    "name": "Sodium bromide",
+    "formula": "NaBr",
+    "elements": [
+      "Na",
+      "Br"
+    ],
+    "molecular_weight": 102.894,
+    "iupac_name": "sodium bromide",
+    "smiles": "[Na+].[Br-]",
+    "cid": 253881,
+    "melting_point": 747,
+    "boiling_point": null,
+    "density": null,
+    "state": "solid"
+  },
+  {
+    "name": "Potassium bromide",
+    "formula": "KBr",
+    "elements": [
+      "K",
+      "Br"
+    ],
+    "molecular_weight": 119.002,
+    "iupac_name": "potassium bromide",
+    "smiles": "[K+].[Br-]",
+    "cid": 253877,
+    "melting_point": null,
+    "boiling_point": 1435,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Sodium iodide",
+    "formula": "NaI",
+    "elements": [
+      "Na",
+      "I"
+    ],
+    "molecular_weight": 149.894,
+    "iupac_name": "sodium iodide",
+    "smiles": "[Na+].[I-]",
+    "cid": 5238,
+    "melting_point": 660,
+    "boiling_point": 1304,
+    "density": null,
+    "state": "solid"
+  },
+  {
+    "name": "Potassium iodide",
+    "formula": "KI",
+    "elements": [
+      "K",
+      "I"
+    ],
+    "molecular_weight": 166.002,
+    "iupac_name": "potassium iodide",
+    "smiles": "[K+].[I-]",
+    "cid": 4875,
+    "melting_point": 681,
+    "boiling_point": 1323,
+    "density": null,
+    "state": "solid"
+  },
+  {
+    "name": "Silicon dioxide",
+    "formula": "SiO2",
+    "elements": [
+      "Si",
+      "O"
+    ],
+    "molecular_weight": 60.084,
+    "iupac_name": "silicon dioxide",
+    "smiles": "O=[Si]=O",
+    "cid": 24261,
+    "melting_point": 3110,
+    "boiling_point": 4046,
+    "density": null,
+    "state": "solid"
+  },
+  {
+    "name": "Titanium dioxide",
+    "formula": "TiO2",
+    "elements": [
+      "Ti",
+      "O"
+    ],
+    "molecular_weight": 79.866,
+    "iupac_name": "titanium dioxide",
+    "smiles": "O=[Ti]=O",
+    "cid": 26042,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Zinc oxide",
+    "formula": "ZnO",
+    "elements": [
+      "Zn",
+      "O"
+    ],
+    "molecular_weight": 81.379,
+    "iupac_name": "zinc oxide",
+    "smiles": "[Zn]=O",
+    "cid": 14806,
+    "melting_point": 3587,
+    "boiling_point": null,
+    "density": null,
+    "state": "solid"
+  },
+  {
+    "name": "Barium chloride",
+    "formula": "BaCl2",
+    "elements": [
+      "Ba",
+      "Cl"
+    ],
+    "molecular_weight": 208.233,
+    "iupac_name": "barium chloride",
+    "smiles": "[Ba+2].[Cl-].[Cl-]",
+    "cid": 25204,
+    "melting_point": null,
+    "boiling_point": 2840,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Strontium chloride",
+    "formula": "SrCl2",
+    "elements": [
+      "Sr",
+      "Cl"
+    ],
+    "molecular_weight": 157.526,
+    "iupac_name": "strontium chloride",
+    "smiles": "[Sr+2].[Cl-].[Cl-]",
+    "cid": 5360316,
+    "melting_point": 742,
+    "boiling_point": null,
+    "density": null,
+    "state": "solid"
+  },
+  {
+    "name": "Sulfur hexafluoride",
+    "formula": "SF6",
+    "elements": [
+      "S",
+      "F"
+    ],
+    "molecular_weight": 146.055,
+    "iupac_name": "sulfur hexafluoride",
+    "smiles": "FS(F)(F)(F)(F)F",
+    "cid": 24555,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Dinitrogen tetroxide",
+    "formula": "N2O4",
+    "elements": [
+      "N",
+      "O"
+    ],
+    "molecular_weight": 92.011,
+    "iupac_name": "dinitrogen tetroxide",
+    "smiles": "N(=O)(=O)N",
+    "cid": 25352,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Hydrogen cyanide",
+    "formula": "HCN",
+    "elements": [
+      "H",
+      "C",
+      "N"
+    ],
+    "molecular_weight": 27.026,
+    "iupac_name": "hydrogen cyanide",
+    "smiles": "C#N",
+    "cid": 768,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Carbon disulfide",
+    "formula": "CS2",
+    "elements": [
+      "C",
+      "S"
+    ],
+    "molecular_weight": 76.14,
+    "iupac_name": "carbon disulfide",
+    "smiles": "C(=S)=S",
+    "cid": 6348,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Boric acid",
+    "formula": "H3BO3",
+    "elements": [
+      "H",
+      "B",
+      "O"
+    ],
+    "molecular_weight": 61.833,
+    "iupac_name": "boric acid",
+    "smiles": "OB(O)O",
+    "cid": 7628,
+    "melting_point": 170.9,
+    "boiling_point": null,
+    "density": null,
+    "state": "solid"
+  },
+  {
+    "name": "Boron trifluoride",
+    "formula": "BF3",
+    "elements": [
+      "B",
+      "F"
+    ],
+    "molecular_weight": 67.806,
+    "iupac_name": "boron trifluoride",
+    "smiles": "FB(F)F",
+    "cid": 6356,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Phosphorus trichloride",
+    "formula": "PCl3",
+    "elements": [
+      "P",
+      "Cl"
+    ],
+    "molecular_weight": 137.332,
+    "iupac_name": "phosphorus trichloride",
+    "smiles": "ClP(Cl)Cl",
+    "cid": 24387,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Phosphorus pentachloride",
+    "formula": "PCl5",
+    "elements": [
+      "P",
+      "Cl"
+    ],
+    "molecular_weight": 208.239,
+    "iupac_name": "phosphorus pentachloride",
+    "smiles": "ClP(Cl)(Cl)(Cl)Cl",
+    "cid": 24819,
+    "melting_point": 160,
+    "boiling_point": null,
+    "density": null,
+    "state": "solid"
+  },
+  {
+    "name": "Phosphorus pentoxide",
+    "formula": "P2O5",
+    "elements": [
+      "P",
+      "O"
+    ],
+    "molecular_weight": 141.944,
+    "iupac_name": "diphosphorus pentoxide",
+    "smiles": "O=P(=O)(O)P(=O)(=O)O",
+    "cid": 14810,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Silicon tetrachloride",
+    "formula": "SiCl4",
+    "elements": [
+      "Si",
+      "Cl"
+    ],
+    "molecular_weight": 169.898,
+    "iupac_name": "silicon tetrachloride",
+    "smiles": "Cl[Si](Cl)(Cl)Cl",
+    "cid": 24816,
+    "melting_point": -68.85,
+    "boiling_point": 57.65,
+    "density": null,
+    "state": "liquid"
+  },
+  {
+    "name": "Nitrogen trifluoride",
+    "formula": "NF3",
+    "elements": [
+      "N",
+      "F"
+    ],
+    "molecular_weight": 71.001,
+    "iupac_name": "nitrogen trifluoride",
+    "smiles": "FN(F)F",
+    "cid": 24524,
+    "melting_point": -219.66,
+    "boiling_point": -118.12,
+    "density": null,
+    "state": "gas"
+  },
+  {
+    "name": "Chlorine dioxide",
+    "formula": "ClO2",
+    "elements": [
+      "Cl",
+      "O"
+    ],
+    "molecular_weight": 67.452,
+    "iupac_name": "chlorine dioxide",
+    "smiles": "O=Cl=O",
+    "cid": 24870,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Bromine monochloride",
+    "formula": "BrCl",
+    "elements": [
+      "Br",
+      "Cl"
+    ],
+    "molecular_weight": 115.357,
+    "iupac_name": "bromine monochloride",
+    "smiles": "BrCl",
+    "cid": 24605,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Dichlorine monoxide",
+    "formula": "Cl2O",
+    "elements": [
+      "Cl",
+      "O"
+    ],
+    "molecular_weight": 86.905,
+    "iupac_name": "dichlorine monoxide",
+    "smiles": "ClOCl",
+    "cid": 24641,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Sulfuryl chloride",
+    "formula": "SO2Cl2",
+    "elements": [
+      "S",
+      "O",
+      "Cl"
+    ],
+    "molecular_weight": 134.965,
+    "iupac_name": "sulfuryl chloride",
+    "smiles": "O=S(=O)(Cl)Cl",
+    "cid": 24647,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Sulfur monochloride",
+    "formula": "S2Cl2",
+    "elements": [
+      "S",
+      "Cl"
+    ],
+    "molecular_weight": 135.036,
+    "iupac_name": "disulfur dichloride",
+    "smiles": "ClSSCl",
+    "cid": 24807,
+    "melting_point": -107,
+    "boiling_point": 280,
+    "density": null,
+    "state": "liquid"
+  },
+  {
+    "name": "Carbonyl sulfide",
+    "formula": "COS",
+    "elements": [
+      "C",
+      "O",
+      "S"
+    ],
+    "molecular_weight": 60.076,
+    "iupac_name": "carbonyl sulfide",
+    "smiles": "O=C=S",
+    "cid": 10039,
+    "melting_point": -138.8,
+    "boiling_point": -50,
+    "density": null,
+    "state": "gas"
+  },
+  {
+    "name": "Thionyl chloride",
+    "formula": "SOCl2",
+    "elements": [
+      "S",
+      "O",
+      "Cl"
+    ],
+    "molecular_weight": 118.97,
+    "iupac_name": "thionyl chloride",
+    "smiles": "O=S(Cl)Cl",
+    "cid": 24386,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Sodium hypochlorite",
+    "formula": "NaClO",
+    "elements": [
+      "Na",
+      "Cl",
+      "O"
+    ],
+    "molecular_weight": 74.442,
+    "iupac_name": "sodium hypochlorite",
+    "smiles": "[Na+].[O-]Cl",
+    "cid": 23665795,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Calcium hypochlorite",
+    "formula": "Ca(ClO)2",
+    "elements": [
+      "Ca",
+      "Cl",
+      "O"
+    ],
+    "molecular_weight": 142.983,
+    "iupac_name": "calcium hypochlorite",
+    "smiles": "[Ca+2].[O-]Cl.[O-]Cl",
+    "cid": 24541,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Sodium chlorate",
+    "formula": "NaClO3",
+    "elements": [
+      "Na",
+      "Cl",
+      "O"
+    ],
+    "molecular_weight": 106.441,
+    "iupac_name": "sodium chlorate",
+    "smiles": "[Na+].[O-]Cl(=O)=O",
+    "cid": 516902,
+    "melting_point": 248,
+    "boiling_point": null,
+    "density": null,
+    "state": "solid"
+  },
+  {
+    "name": "Potassium chlorate",
+    "formula": "KClO3",
+    "elements": [
+      "K",
+      "Cl",
+      "O"
+    ],
+    "molecular_weight": 122.548,
+    "iupac_name": "potassium chlorate",
+    "smiles": "[K+].[O-]Cl(=O)=O",
+    "cid": 24459,
+    "melting_point": 501,
+    "boiling_point": 951,
+    "density": null,
+    "state": "solid"
+  },
+  {
+    "name": "Potassium perchlorate",
+    "formula": "KClO4",
+    "elements": [
+      "K",
+      "Cl",
+      "O"
+    ],
+    "molecular_weight": 138.548,
+    "iupac_name": "potassium perchlorate",
+    "smiles": "[K+].[O-]Cl(=O)(=O)=O",
+    "cid": 516893,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Ammonium sulfate",
+    "formula": "(NH4)2SO4",
+    "elements": [
+      "N",
+      "H",
+      "S",
+      "O"
+    ],
+    "molecular_weight": 132.14,
+    "iupac_name": "diammonium sulfate",
+    "smiles": "[NH4+].[NH4+].[O-]S(=O)(=O)[O-]",
+    "cid": 6097028,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Ammonium phosphate",
+    "formula": "(NH4)3PO4",
+    "elements": [
+      "N",
+      "H",
+      "P",
+      "O"
+    ],
+    "molecular_weight": 149.086,
+    "iupac_name": "triammonium phosphate",
+    "smiles": "[NH4+].[NH4+].[NH4+].[O-]P(=O)([O-])[O-]",
+    "cid": 24519,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Barium hydroxide",
+    "formula": "Ba(OH)2",
+    "elements": [
+      "Ba",
+      "O",
+      "H"
+    ],
+    "molecular_weight": 171.341,
+    "iupac_name": "barium hydroxide",
+    "smiles": "[Ba+2].[OH-].[OH-]",
+    "cid": 6093284,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Potassium permanganate",
+    "formula": "KMnO4",
+    "elements": [
+      "K",
+      "Mn",
+      "O"
+    ],
+    "molecular_weight": 158.034,
+    "iupac_name": "potassium permanganate",
+    "smiles": "[K+].[O-][Mn](=O)(=O)=O",
+    "cid": 516875,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Potassium dichromate",
+    "formula": "K2Cr2O7",
+    "elements": [
+      "K",
+      "Cr",
+      "O"
+    ],
+    "molecular_weight": 294.185,
+    "iupac_name": "potassium dichromate",
+    "smiles": "[K+].[K+].[O-][Cr](=O)([O-])O[Cr](=O)([O-])[O-]",
+    "cid": 24502,
+    "melting_point": 398,
+    "boiling_point": 500,
+    "density": null,
+    "state": "solid"
+  },
+  {
+    "name": "Silver sulfate",
+    "formula": "Ag2SO4",
+    "elements": [
+      "Ag",
+      "S",
+      "O"
+    ],
+    "molecular_weight": 311.799,
+    "iupac_name": "silver sulfate",
+    "smiles": "[Ag+].[Ag+].[O-]S(=O)(=O)[O-]",
+    "cid": 159865,
+    "melting_point": 660,
+    "boiling_point": null,
+    "density": null,
+    "state": "solid"
+  },
+  {
+    "name": "Silver oxide",
+    "formula": "Ag2O",
+    "elements": [
+      "Ag",
+      "O"
+    ],
+    "molecular_weight": 231.735,
+    "iupac_name": "silver oxide",
+    "smiles": "[Ag]O[Ag]",
+    "cid": 4814,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Zinc nitrate",
+    "formula": "Zn(NO3)2",
+    "elements": [
+      "Zn",
+      "N",
+      "O"
+    ],
+    "molecular_weight": 189.389,
+    "iupac_name": "zinc nitrate",
+    "smiles": "[Zn+2].[O-][N](=O)=O.[O-][N](=O)=O",
+    "cid": 24530,
+    "melting_point": -80,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Cadmium sulfide",
+    "formula": "CdS",
+    "elements": [
+      "Cd",
+      "S"
+    ],
+    "molecular_weight": 144.476,
+    "iupac_name": "cadmium sulfide",
+    "smiles": "[Cd]=S",
+    "cid": 14783,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Lead(II) nitrate",
+    "formula": "Pb(NO3)2",
+    "elements": [
+      "Pb",
+      "N",
+      "O"
+    ],
+    "molecular_weight": 331.209,
+    "iupac_name": "lead(II) nitrate",
+    "smiles": "[Pb+2].[O-][N](=O)=O.[O-][N](=O)=O",
+    "cid": 166,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Lead(II) chloride",
+    "formula": "PbCl2",
+    "elements": [
+      "Pb",
+      "Cl"
+    ],
+    "molecular_weight": 278.106,
+    "iupac_name": "lead(II) chloride",
+    "smiles": "[Pb+2].[Cl-].[Cl-]",
+    "cid": 166409,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Iron(III) nitrate",
+    "formula": "Fe(NO3)3",
+    "elements": [
+      "Fe",
+      "N",
+      "O"
+    ],
+    "molecular_weight": 241.861,
+    "iupac_name": "iron(III) nitrate",
+    "smiles": "[Fe+3].[O-][N](=O)=O.[O-][N](=O)=O.[O-][N](=O)=O",
+    "cid": 24863,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Cobalt(II) nitrate",
+    "formula": "Co(NO3)2",
+    "elements": [
+      "Co",
+      "N",
+      "O"
+    ],
+    "molecular_weight": 182.943,
+    "iupac_name": "cobalt(II) nitrate",
+    "smiles": "[Co+2].[O-][N](=O)=O.[O-][N](=O)=O",
+    "cid": 25007,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Nickel(II) chloride",
+    "formula": "NiCl2",
+    "elements": [
+      "Ni",
+      "Cl"
+    ],
+    "molecular_weight": 129.599,
+    "iupac_name": "nickel(II) chloride",
+    "smiles": "[Ni+2].[Cl-].[Cl-]",
+    "cid": 24385,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Nickel(II) nitrate",
+    "formula": "Ni(NO3)2",
+    "elements": [
+      "Ni",
+      "N",
+      "O"
+    ],
+    "molecular_weight": 182.704,
+    "iupac_name": "nickel(II) nitrate",
+    "smiles": "[Ni+2].[O-][N](=O)=O.[O-][N](=O)=O",
+    "cid": 24583,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Copper(I) oxide",
+    "formula": "Cu2O",
+    "elements": [
+      "Cu",
+      "O"
+    ],
+    "molecular_weight": 143.091,
+    "iupac_name": "copper(I) oxide",
+    "smiles": "[Cu]O[Cu]",
+    "cid": 14830,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Copper(I) chloride",
+    "formula": "CuCl",
+    "elements": [
+      "Cu",
+      "Cl"
+    ],
+    "molecular_weight": 98.999,
+    "iupac_name": "copper(I) chloride",
+    "smiles": "[Cu]Cl",
+    "cid": 6274,
+    "melting_point": 287,
+    "boiling_point": null,
+    "density": null,
+    "state": "solid"
+  },
+  {
+    "name": "Tin(II) chloride",
+    "formula": "SnCl2",
+    "elements": [
+      "Sn",
+      "Cl"
+    ],
+    "molecular_weight": 189.598,
+    "iupac_name": "tin(II) chloride",
+    "smiles": "[Sn+2].[Cl-].[Cl-]",
+    "cid": 24479,
+    "melting_point": 247,
+    "boiling_point": 623,
+    "density": null,
+    "state": "solid"
+  },
+  {
+    "name": "Tin(IV) chloride",
+    "formula": "SnCl4",
+    "elements": [
+      "Sn",
+      "Cl"
+    ],
+    "molecular_weight": 260.522,
+    "iupac_name": "tin(IV) chloride",
+    "smiles": "Cl[Sn](Cl)(Cl)Cl",
+    "cid": 24287,
+    "melting_point": -33,
+    "boiling_point": 114.15,
+    "density": null,
+    "state": "liquid"
+  },
+  {
+    "name": "Aluminum nitrate",
+    "formula": "Al(NO3)3",
+    "elements": [
+      "Al",
+      "N",
+      "O"
+    ],
+    "molecular_weight": 212.996,
+    "iupac_name": "aluminium nitrate",
+    "smiles": "[Al+3].[O-][N](=O)=O.[O-][N](=O)=O.[O-][N](=O)=O",
+    "cid": 24845,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Chromium(III) oxide",
+    "formula": "Cr2O3",
+    "elements": [
+      "Cr",
+      "O"
+    ],
+    "molecular_weight": 151.99,
+    "iupac_name": "chromium(III) oxide",
+    "smiles": "[Cr+3].[Cr+3].[O-2].[O-2].[O-2]",
+    "cid": 14915,
+    "melting_point": 470.15,
+    "boiling_point": 523.15,
+    "density": null,
+    "state": "solid"
+  },
+  {
+    "name": "Chromium(III) chloride",
+    "formula": "CrCl3",
+    "elements": [
+      "Cr",
+      "Cl"
+    ],
+    "molecular_weight": 158.355,
+    "iupac_name": "chromium(III) chloride",
+    "smiles": "[Cr](Cl)(Cl)Cl",
+    "cid": 24816,
+    "melting_point": -68.85,
+    "boiling_point": 57.65,
+    "density": null,
+    "state": "liquid"
+  },
+  {
+    "name": "Magnesium nitrate",
+    "formula": "Mg(NO3)2",
+    "elements": [
+      "Mg",
+      "N",
+      "O"
+    ],
+    "molecular_weight": 148.313,
+    "iupac_name": "magnesium nitrate",
+    "smiles": "[Mg+2].[O-][N](=O)=O.[O-][N](=O)=O",
+    "cid": 24834,
+    "melting_point": 14,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Sodium nitrite",
+    "formula": "NaNO2",
+    "elements": [
+      "Na",
+      "N",
+      "O"
+    ],
+    "molecular_weight": 68.995,
+    "iupac_name": "sodium nitrite",
+    "smiles": "[Na+].[O-][N]=O",
+    "cid": 23668193,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Potassium nitrite",
+    "formula": "KNO2",
+    "elements": [
+      "K",
+      "N",
+      "O"
+    ],
+    "molecular_weight": 85.103,
+    "iupac_name": "potassium nitrite",
+    "smiles": "[K+].[O-][N]=O",
+    "cid": 516889,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Calcium bromide",
+    "formula": "CaBr2",
+    "elements": [
+      "Ca",
+      "Br"
+    ],
+    "molecular_weight": 199.886,
+    "iupac_name": "calcium bromide",
+    "smiles": "[Ca+2].[Br-].[Br-]",
+    "cid": 24617,
+    "melting_point": 1418,
+    "boiling_point": null,
+    "density": null,
+    "state": "solid"
+  },
+  {
+    "name": "Strontium nitrate",
+    "formula": "Sr(NO3)2",
+    "elements": [
+      "Sr",
+      "N",
+      "O"
+    ],
+    "molecular_weight": 211.63,
+    "iupac_name": "strontium nitrate",
+    "smiles": "[Sr+2].[O-][N](=O)=O.[O-][N](=O)=O",
+    "cid": 24028,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Lithium nitrate",
+    "formula": "LiNO3",
+    "elements": [
+      "Li",
+      "N",
+      "O"
+    ],
+    "molecular_weight": 68.945,
+    "iupac_name": "lithium nitrate",
+    "smiles": "[Li+].[O-][N](=O)=O",
+    "cid": 23668194,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Sodium sulfite",
+    "formula": "Na2SO3",
+    "elements": [
+      "Na",
+      "S",
+      "O"
+    ],
+    "molecular_weight": 126.042,
+    "iupac_name": "sodium sulfite",
+    "smiles": "[Na+].[Na+].[O-]S(=O)[O-]",
+    "cid": 24437,
+    "melting_point": 500,
+    "boiling_point": null,
+    "density": null,
+    "state": "solid"
+  },
+  {
+    "name": "Potassium sulfite",
+    "formula": "K2SO3",
+    "elements": [
+      "K",
+      "S",
+      "O"
+    ],
+    "molecular_weight": 158.258,
+    "iupac_name": "potassium sulfite",
+    "smiles": "[K+].[K+].[O-]S(=O)[O-]",
+    "cid": 516902,
+    "melting_point": 248,
+    "boiling_point": null,
+    "density": null,
+    "state": "solid"
+  },
+  {
+    "name": "Sodium thiosulfate",
+    "formula": "Na2S2O3",
+    "elements": [
+      "Na",
+      "S",
+      "O"
+    ],
+    "molecular_weight": 158.108,
+    "iupac_name": "sodium thiosulfate",
+    "smiles": "[Na+].[Na+].[O-]S(=O)(=O)S",
+    "cid": 24477,
+    "melting_point": 48.5,
+    "boiling_point": null,
+    "density": null,
+    "state": "solid"
+  },
+  {
+    "name": "Sodium bisulfite",
+    "formula": "NaHSO3",
+    "elements": [
+      "Na",
+      "H",
+      "S",
+      "O"
+    ],
+    "molecular_weight": 104.061,
+    "iupac_name": "sodium bisulfite",
+    "smiles": "[Na+].[OH-]S(=O)=O",
+    "cid": 23665718,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Sodium bisulfate",
+    "formula": "NaHSO4",
+    "elements": [
+      "Na",
+      "H",
+      "S",
+      "O"
+    ],
+    "molecular_weight": 120.06,
+    "iupac_name": "sodium bisulfate",
+    "smiles": "[Na+].[O-]S(=O)(=O)O",
+    "cid": 516919,
+    "melting_point": 186,
+    "boiling_point": null,
+    "density": null,
+    "state": "solid"
+  },
+  {
+    "name": "Potassium bisulfate",
+    "formula": "KHSO4",
+    "elements": [
+      "K",
+      "H",
+      "S",
+      "O"
+    ],
+    "molecular_weight": 136.168,
+    "iupac_name": "potassium bisulfate",
+    "smiles": "[K+].[O-]S(=O)(=O)O",
+    "cid": 516876,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Magnesium phosphate",
+    "formula": "Mg3(PO4)2",
+    "elements": [
+      "Mg",
+      "P",
+      "O"
+    ],
+    "molecular_weight": 262.857,
+    "iupac_name": "magnesium phosphate",
+    "smiles": "[Mg+2].[Mg+2].[Mg+2].[O-]P(=O)([O-])[O-].[O-]P(=O)([O-])[O-]",
+    "cid": 24456,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Barium nitrate",
+    "formula": "Ba(NO3)2",
+    "elements": [
+      "Ba",
+      "N",
+      "O"
+    ],
+    "molecular_weight": 261.337,
+    "iupac_name": "barium nitrate",
+    "smiles": "[Ba+2].[O-][N](=O)=O.[O-][N](=O)=O",
+    "cid": 24798,
+    "melting_point": 1094,
+    "boiling_point": null,
+    "density": null,
+    "state": "solid"
+  },
+  {
+    "name": "Sodium cyanide",
+    "formula": "NaCN",
+    "elements": [
+      "Na",
+      "C",
+      "N"
+    ],
+    "molecular_weight": 49.007,
+    "iupac_name": "sodium cyanide",
+    "smiles": "[Na+].[C-]#N",
+    "cid": 938,
+    "melting_point": 238,
+    "boiling_point": null,
+    "density": null,
+    "state": "solid"
+  },
+  {
+    "name": "Potassium cyanide",
+    "formula": "KCN",
+    "elements": [
+      "K",
+      "C",
+      "N"
+    ],
+    "molecular_weight": 65.116,
+    "iupac_name": "potassium cyanide",
+    "smiles": "[K+].[C-]#N",
+    "cid": 516881,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Acetyl chloride",
+    "formula": "C2H3ClO",
+    "elements": [
+      "C",
+      "H",
+      "Cl",
+      "O"
+    ],
+    "molecular_weight": 62.498,
+    "iupac_name": "ethanoyl chloride",
+    "smiles": "CC(=O)Cl",
+    "cid": 6401,
+    "melting_point": null,
+    "boiling_point": 177,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Benzaldehyde",
+    "formula": "C7H6O",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 106.124,
+    "iupac_name": "benzaldehyde",
+    "smiles": "O=CC1=CC=CC=C1",
+    "cid": 240,
+    "melting_point": -26,
+    "boiling_point": 179.05,
+    "density": null,
+    "state": "liquid"
+  },
+  {
+    "name": "Benzoic acid",
+    "formula": "C7H6O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 122.123,
+    "iupac_name": "benzoic acid",
+    "smiles": "OC(=O)c1ccccc1",
+    "cid": 243,
+    "melting_point": null,
+    "boiling_point": 250.2,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Salicylic acid",
+    "formula": "C7H6O3",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 138.122,
+    "iupac_name": "2-hydroxybenzoic acid",
+    "smiles": "OC(=O)c1ccccc1O",
+    "cid": 338,
+    "melting_point": null,
+    "boiling_point": 211,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Anisole",
+    "formula": "C7H8O",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 108.14,
+    "iupac_name": "methoxybenzene",
+    "smiles": "COc1ccccc1",
+    "cid": 7519,
+    "melting_point": null,
+    "boiling_point": 153.6,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Naphthalene",
+    "formula": "C10H8",
+    "elements": [
+      "C",
+      "H"
+    ],
+    "molecular_weight": 128.17,
+    "iupac_name": "naphthalene",
+    "smiles": "c1cccc2ccccc12",
+    "cid": 931,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Anthracene",
+    "formula": "C14H10",
+    "elements": [
+      "C",
+      "H"
+    ],
+    "molecular_weight": 178.234,
+    "iupac_name": "anthracene",
+    "smiles": "c1ccc2cc3ccccc3cc2c1",
+    "cid": 8418,
+    "melting_point": null,
+    "boiling_point": 339.95,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Pyrene",
+    "formula": "C16H10",
+    "elements": [
+      "C",
+      "H"
+    ],
+    "molecular_weight": 202.254,
+    "iupac_name": "pyrene",
+    "smiles": "c1ccc2ccc3cccc4ccc1c2c34",
+    "cid": 31423,
+    "melting_point": null,
+    "boiling_point": 404,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Pyrrole",
+    "formula": "C4H5N",
+    "elements": [
+      "C",
+      "H",
+      "N"
+    ],
+    "molecular_weight": 67.09,
+    "iupac_name": "pyrrole",
+    "smiles": "[nH]1cccc1",
+    "cid": 7977,
+    "melting_point": -46,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Furan",
+    "formula": "C4H4O",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 68.074,
+    "iupac_name": "furan",
+    "smiles": "o1cccc1",
+    "cid": 8029,
+    "melting_point": null,
+    "boiling_point": 31.5,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Thiophene",
+    "formula": "C4H4S",
+    "elements": [
+      "C",
+      "H",
+      "S"
+    ],
+    "molecular_weight": 84.14,
+    "iupac_name": "thiophene",
+    "smiles": "s1cccc1",
+    "cid": 8030,
+    "melting_point": null,
+    "boiling_point": 84,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Styrene",
+    "formula": "C8H8",
+    "elements": [
+      "C",
+      "H"
+    ],
+    "molecular_weight": 104.151,
+    "iupac_name": "ethenylbenzene",
+    "smiles": "C=CC1=CC=CC=C1",
+    "cid": 7501,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Cyclopentane",
+    "formula": "C5H10",
+    "elements": [
+      "C",
+      "H"
+    ],
+    "molecular_weight": 70.134,
+    "iupac_name": "cyclopentane",
+    "smiles": "C1CCCC1",
+    "cid": 9253,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Cyclopentene",
+    "formula": "C5H8",
+    "elements": [
+      "C",
+      "H"
+    ],
+    "molecular_weight": 68.118,
+    "iupac_name": "cyclopentene",
+    "smiles": "C1=CCCC1",
+    "cid": 6558,
+    "melting_point": null,
+    "boiling_point": 67.75,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Methylcyclohexane",
+    "formula": "C7H14",
+    "elements": [
+      "C",
+      "H"
+    ],
+    "molecular_weight": 98.188,
+    "iupac_name": "methylcyclohexane",
+    "smiles": "CC1CCCCC1",
+    "cid": 7962,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Hexane",
+    "formula": "C6H14",
+    "elements": [
+      "C",
+      "H"
+    ],
+    "molecular_weight": 86.178,
+    "iupac_name": "hexane",
+    "smiles": "CCCCCC",
+    "cid": 8058,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Heptane",
+    "formula": "C7H16",
+    "elements": [
+      "C",
+      "H"
+    ],
+    "molecular_weight": 100.205,
+    "iupac_name": "heptane",
+    "smiles": "CCCCCCC",
+    "cid": 890,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Octane",
+    "formula": "C8H18",
+    "elements": [
+      "C",
+      "H"
+    ],
+    "molecular_weight": 114.232,
+    "iupac_name": "octane",
+    "smiles": "CCCCCCCC",
+    "cid": 356,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Nonane",
+    "formula": "C9H20",
+    "elements": [
+      "C",
+      "H"
+    ],
+    "molecular_weight": 128.259,
+    "iupac_name": "nonane",
+    "smiles": "CCCCCCCCC",
+    "cid": 8141,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Decane",
+    "formula": "C10H22",
+    "elements": [
+      "C",
+      "H"
+    ],
+    "molecular_weight": 142.286,
+    "iupac_name": "decane",
+    "smiles": "CCCCCCCCCC",
+    "cid": 15600,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Dibenzothiophene",
+    "formula": "C12H8S",
+    "elements": [
+      "C",
+      "H",
+      "S"
+    ],
+    "molecular_weight": 184.256,
+    "iupac_name": "dibenzothiophene",
+    "smiles": "c1ccc2sc3ccccc3c2c1",
+    "cid": 3020,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Acetylacetone",
+    "formula": "C5H8O2",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 100.117,
+    "iupac_name": "pentane-2,4-dione",
+    "smiles": "CC(=O)CC(=O)C",
+    "cid": 31261,
+    "melting_point": -23,
+    "boiling_point": 138,
+    "density": null,
+    "state": "liquid"
+  },
+  {
+    "name": "Isobutyl alcohol",
+    "formula": "C4H10O",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 74.123,
+    "iupac_name": "2-methylpropan-1-ol",
+    "smiles": "CC(C)CO",
+    "cid": 6560,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Pentanol",
+    "formula": "C5H12O",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 88.15,
+    "iupac_name": "pentan-1-ol",
+    "smiles": "CCCCCO",
+    "cid": 6276,
+    "melting_point": null,
+    "boiling_point": 137.98,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Hexanol",
+    "formula": "C6H14O",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 102.177,
+    "iupac_name": "hexan-1-ol",
+    "smiles": "CCCCCCO",
+    "cid": 8103,
+    "melting_point": null,
+    "boiling_point": 157.6,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Cyclohexanone",
+    "formula": "C6H10O",
+    "elements": [
+      "C",
+      "H",
+      "O"
+    ],
+    "molecular_weight": 98.145,
+    "iupac_name": "cyclohexanone",
+    "smiles": "O=C1CCCCC1",
+    "cid": 7967,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Adenine",
+    "formula": "C5H5N5",
+    "elements": [
+      "C",
+      "H",
+      "N"
+    ],
+    "molecular_weight": 135.127,
+    "iupac_name": "9H-purin-6-amine",
+    "smiles": "Nc1ncnc2[nH]cnc12",
+    "cid": 190,
+    "melting_point": 360,
+    "boiling_point": null,
+    "density": null,
+    "state": "solid"
+  },
+  {
+    "name": "Guanine",
+    "formula": "C5H5N5O",
+    "elements": [
+      "C",
+      "H",
+      "N",
+      "O"
+    ],
+    "molecular_weight": 151.126,
+    "iupac_name": "2-amino-1,7-dihydro-6H-purin-6-one",
+    "smiles": "Nc1nc2[nH]cnc2c(=O)[nH]1",
+    "cid": 764,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Cytosine",
+    "formula": "C4H5N3O",
+    "elements": [
+      "C",
+      "H",
+      "N",
+      "O"
+    ],
+    "molecular_weight": 111.102,
+    "iupac_name": "4-aminopyrimidin-2-one",
+    "smiles": "NC1=NC=NC(=O)N1",
+    "cid": 597,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Thymine",
+    "formula": "C5H6N2O2",
+    "elements": [
+      "C",
+      "H",
+      "N",
+      "O"
+    ],
+    "molecular_weight": 126.115,
+    "iupac_name": "5-methyl-1H-pyrimidine-2,4-dione",
+    "smiles": "Cc1cnc(=O)[nH]c1=O",
+    "cid": 1135,
+    "melting_point": 317,
+    "boiling_point": null,
+    "density": null,
+    "state": "solid"
+  },
+  {
+    "name": "Uracil",
+    "formula": "C4H4N2O2",
+    "elements": [
+      "C",
+      "H",
+      "N",
+      "O"
+    ],
+    "molecular_weight": 112.086,
+    "iupac_name": "pyrimidine-2,4(1H,3H)-dione",
+    "smiles": "O=c1[nH]cc(=O)[nH]1",
+    "cid": 1174,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "Adenosine",
+    "formula": "C10H13N5O4",
+    "elements": [
+      "C",
+      "H",
+      "N",
+      "O"
+    ],
+    "molecular_weight": 267.241,
+    "iupac_name": "adenosine",
+    "smiles": "Nc1ncnc2ncn([C@@H]3O[C@H](CO)[C@@H](O)[C@H]3O)c12",
+    "cid": 60961,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "ATP",
+    "formula": "C10H16N5O13P3",
+    "elements": [
+      "C",
+      "H",
+      "N",
+      "O",
+      "P"
+    ],
+    "molecular_weight": 507.181,
+    "iupac_name": "adenosine triphosphate",
+    "smiles": "Nc1ncnc2ncn([C@@H]3O[C@H](COP(=O)(O)OP(=O)(O)OP(=O)(O)O)[C@@H](O)[C@H]3O)c12",
+    "cid": 5957,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "ADP",
+    "formula": "C10H15N5O10P2",
+    "elements": [
+      "C",
+      "H",
+      "N",
+      "O",
+      "P"
+    ],
+    "molecular_weight": 427.201,
+    "iupac_name": "adenosine diphosphate",
+    "smiles": "Nc1ncnc2ncn([C@@H]3O[C@H](COP(=O)(O)OP(=O)(O)O)[C@@H](O)[C@H]3O)c12",
+    "cid": 6022,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  },
+  {
+    "name": "AMP",
+    "formula": "C10H14N5O7P",
+    "elements": [
+      "C",
+      "H",
+      "N",
+      "O",
+      "P"
+    ],
+    "molecular_weight": 347.221,
+    "iupac_name": "adenosine monophosphate",
+    "smiles": "Nc1ncnc2ncn([C@@H]3O[C@H](COP(=O)(O)O)[C@@H](O)[C@H]3O)c12",
+    "cid": 6083,
+    "melting_point": null,
+    "boiling_point": null,
+    "density": null,
+    "state": null
+  }
+]

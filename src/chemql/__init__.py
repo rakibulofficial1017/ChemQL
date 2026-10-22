@@ -1,9 +1,12 @@
 import argparse
 import ast
 import atexit
+import builtins
 import contextlib
+from enum import Enum, auto
 from fractions import Fraction
 from functools import reduce
+import inspect
 import io
 import importlib
 import json
@@ -61,7 +64,7 @@ __all__ = [
     "__version__"
 ]
 
-__version__ = "1.4.1"
+__version__ = "1.5.1"
 
 # Persistent preprocessor/function state for the current ChemQL session.
 DEFINITIONS = {}
@@ -401,10 +404,108 @@ _BUILTIN_HELP = {
 }
 
 _HELP_TOPICS = {
-    "syntax": ("ChemQL Syntax", ["Function calls use braces: `name{arg1, arg2}`.", "Quote text containing spaces: `upper{\"hello world\"}`.", "Separate arguments with commas, not spaces.", "Python statements/expressions can be embedded in `[ ... ]`.", "Multiline Python uses `[[[ ... ]]]`; embedded queries use `{{ ... }}`."]),
+    "syntax": ("ChemQL Syntax", ["Function calls use braces: `name{arg1, arg2}`.", "Quote text containing spaces: `upper{\"hello world\"}`.", "Separate arguments with commas, not spaces.", "Python statements/expressions can be embedded in `[ ... ]`.", "Multiline Python uses `[[[ ... ]]]`; embedded queries use `{{ ... }}`.", "Enums use `enum Name`, member declarations, and `endenum`; omitted values are generated automatically.", "Structs and records may use `from Base`; structs inherit from structs, records, or Python classes, while records inherit only from records."]),
     "errors": ("ChemQL Error Signals", ["SyntaxError — the input could not be parsed as valid syntax.", "TooFewArguments — a function received fewer arguments than required.", "TooManyArguments — a function received more arguments than allowed.", "InvalidArgumentType — an argument has an unsupported type.", "InvalidArgumentValue — an argument's value is invalid.", "FileReadError — reading a file failed.", "FileWriteError — writing a file failed.", "NameError — a name or function is unknown.", "PermissionError — a private namespace function was called externally."]),
     "files": ("File Functions", ["read_text{path, encoding?}", "read_lines{path, encoding?}", "read_csv{path, delimiter?, encoding?, header?}", "read_json{path, encoding?}", "write_text{path, content, encoding?}", "write_csv{path, rows, delimiter?, encoding?}", "write_json{path, value, encoding?, indent?}", "file_exists{path}", "list_files{directory?, pattern?}"]),
     "chemistry": ("Chemistry Functions", ["molar_mass{formula}", "count_atoms{formula, element_symbol}", "empirical_formula{formula}", "element{symbol, field?}"]),
+}
+
+_STDLIB_HELP = {
+    "math": (
+        "Mathematical constants and numeric functions.",
+        [
+            "PI, E, TAU — Common mathematical constants.",
+            "sqrt{number}, cbrt{number}, abs{number}, floor{number}, ceil{number}, factorial{integer}",
+            "gcd{integer, ...}, lcm{integer, ...}, hypot{number, ...}, pow{x, y}",
+            "sin{radians}, cos{radians}, tan{radians}, asin{x}, acos{x}, atan{x}, atan2{y, x}",
+            "log{x}, log10{x}, log2{x}, exp{x}, degrees{radians}, radians{degrees}",
+            "isfinite{x}, isinf{x}, isnan{x}, isclose{x, y}",
+            "Example: math::sqrt{81}  # 9.0",
+        ],
+    ),
+    "math::statistics": (
+        "Descriptive statistics for numeric data.",
+        [
+            "mean{values...}, median{values...}, median_low{values...}, median_high{values...}",
+            "mode{values...}, multimode{values...}, quantiles{values...}",
+            "variance{values...}, stdev{values...}, pvariance{values...}, pstdev{values...}",
+            "harmonic_mean{values...}, geometric_mean{values...}",
+            "Example: math::statistics::mean{2, 4, 6}  # 4",
+        ],
+    ),
+    "text": (
+        "String transformations, searching, splitting, and regular expressions.",
+        [
+            "upper{text}, lower{text}, title{text}, capitalize{text}, casefold{text}",
+            "strip{text, chars?}, lstrip{text}, rstrip{text}, reverse{text}",
+            "startswith{text, prefix}, endswith{text, suffix}, replace{text, old, new}",
+            "split{text, separator?}, join{separator, values...}, count{text, substring}, find{text, substring}",
+            "isalpha{text}, isdigit{text}, isalnum{text}, isspace{text}",
+            "regex_search{pattern, text}, regex_findall{pattern, text}, regex_replace{pattern, replacement, text}",
+            'Example: text::upper{"hello"}  # HELLO',
+        ],
+    ),
+    "collections": (
+        "Collection helpers for sequences and iterables.",
+        [
+            "unique{values...}, flatten{groups...}, zip{values...}, pairwise{values...}",
+            "frequencies{values...}, group_count{values...}, product{numbers...}",
+            "sorted{values...}, reversed{values...}",
+            'Example: collections::frequencies{"red", "blue", "red"}',
+        ],
+    ),
+    "datetime": (
+        "Date and time values, ISO parsing, timestamps, and date arithmetic.",
+        [
+            "today{}, now{}, utcnow{}",
+            "date{year, month, day}, time{hour, minute?, second?, microsecond?}",
+            "timestamp{iso_datetime}, from_timestamp{seconds}, weekday{iso_date}",
+            "date_add_days{iso_date, days}, date_difference_days{date1, date2}",
+            'Example: datetime::date_add_days{"2026-10-20", 7}',
+        ],
+    ),
+    "json": (
+        "JSON serialization, parsing, and decoded value type inspection.",
+        [
+            "dumps{value}, dumps_pretty{value}, loads{json_text}, json_type{json_text}",
+            'Example: json::loads{"{\\"formula\\": \\"H2O\\"}"}',
+        ],
+    ),
+    "random": (
+        "Pseudo-random values and sequence sampling using Python's random module.",
+        [
+            "seed{value}, random{}, randint{minimum, maximum}, randrange{stop} or randrange{start, stop, step}",
+            "choice{values}, sample{values, count}, shuffle{values}, uniform{minimum, maximum}",
+            "Use seed{value} when repeatable pseudo-random output is required.",
+            "Example: random::randint{1, 6}",
+        ],
+    ),
+    "decimal": (
+        "Base-10 decimal arithmetic, useful when decimal rounding matters.",
+        [
+            "create{value}, add{x, y}, subtract{x, y}, multiply{x, y}, divide{x, y}",
+            "quantize{value, quantum}, to_string{value}",
+            'Pass decimal values as strings for exact input, e.g. decimal::add{"0.1", "0.2"}.',
+        ],
+    ),
+    "fractions": (
+        "Rational arithmetic using reduced fractions.",
+        [
+            "create{value} or create{numerator, denominator}",
+            "add{x, y}, subtract{x, y}, multiply{x, y}, divide{x, y}",
+            "numerator{value}, denominator{value}, to_float{value}",
+            "Example: fractions::create{1, 3}",
+        ],
+    ),
+    "pathlib": (
+        "Path inspection and UTF-8 text file operations using pathlib.",
+        [
+            "name{path}, stem{path}, suffix{path}, parent{path}, join{path, part...}",
+            "exists{path}, is_file{path}, is_dir{path}",
+            "read_text{path, encoding?}, write_text{path, content, encoding?}",
+            "File reads and writes operate with the current process permissions.",
+        ],
+    ),
 }
 
 
@@ -415,16 +516,34 @@ def _help_text(topic=None):
         for name in names:
             category = _BUILTIN_HELP[name][0]
             categories.setdefault(category, []).append(name)
-        lines = [f"ChemQL {__version__} help", "", "Usage: help{topic} or help topic", "Use help{function_name} for details, or help{syntax}, help{errors}, help{files}, help{chemistry}.", ""]
+        lines = [f"ChemQL {__version__} help", "", "Usage: help{topic} or help topic", "Use help{function_name} for details, or help{syntax}, help{errors}, help{files}, help{chemistry}, help{stdlib}.", ""]
         for category, items in categories.items():
             lines.append(f"{category}: " + ", ".join(items))
         lines += ["", "User-defined functions:"]
         lines += [f"  {name}{{...}}" for name in sorted(FUNCTIONS)] or ["  (none defined in this session)"]
         lines += ["", "Packages: load package_name; then use package_name::function{...}."]
+        lines += ["Standard library: " + ", ".join(_STDLIB_HELP)]
         return "\n".join(lines)
 
     key = str(topic).strip().strip("`\"'")
-    key = key.replace("::", "::")
+    if key == "stdlib":
+        return "\n".join([
+            "ChemQL Standard Library",
+            "Load a package with `load package_name`, then call `package_name::function{...}`.",
+            "Get module details with `help{module}` and function details with `help{module::function}`.",
+            "",
+            *[f"{name} — {details[0]}" for name, details in _STDLIB_HELP.items()],
+        ])
+    resolved_key = _resolve_package_qualified_name(key)
+    if resolved_key in _STDLIB_HELP:
+        description, entries = _STDLIB_HELP[resolved_key]
+        return "\n".join([
+            f"{resolved_key} — Standard library",
+            description,
+            f"Load with: load {resolved_key}",
+            "Functions and constants:",
+            *[f"  {entry}" for entry in entries],
+        ])
     if key in _BUILTIN_HELP:
         category, signature, description, examples = _BUILTIN_HELP[key]
         return "\n".join([f"{key} — {category}", f"Signature: {signature}", description, "", "Examples:", *[f"  {line}" for line in examples]])
@@ -434,12 +553,16 @@ def _help_text(topic=None):
     if key in FUNCTIONS:
         return f"User-defined ChemQL function: {key}{{...}}\nDefined in the current session. Use `view`/`dump` where appropriate to inspect program state."
     if "::" in key:
-        resolved = _resolve_package_qualified_name(key)
-        if resolved in FUNCTIONS:
-            return f"ChemQL package function: {key}{{...}}\nCanonical name: {resolved}"
-        package = key.rsplit("::", 1)[0]
+        package, _, member = resolved_key.rpartition("::")
+        if package in _STDLIB_HELP:
+            _, entries = _STDLIB_HELP[package]
+            match = next((entry for entry in entries if entry.split("{", 1)[0].endswith(member)), None)
+            if match:
+                return f"{package}::{member} — Standard library\n{match}"
+        if resolved_key in FUNCTIONS:
+            return f"ChemQL package function: {key}{{...}}\nCanonical name: {resolved_key}"
         return f"Package/member help is not registered for `{key}`.\nTry `load {package}` and inspect the package namespace, or use `help{{{package}}}` if documented."
-    return f"No help available for `{key}`. Try `help` to list built-ins, or `help{{syntax}}`, `help{{errors}}`, `help{{files}}`, and `help{{chemistry}}`."
+    return f"No help available for `{key}`. Try `help` to list built-ins, `help{{stdlib}}` for standard-library packages, or `help{{syntax}}`, `help{{errors}}`, `help{{files}}`, and `help{{chemistry}}`."
 
 
 def _call_builtin(name, arguments):
@@ -587,7 +710,13 @@ def _call_function(name, arguments):
                         return result
                     python_globals["error"] = None
                 except Exception as exc:
-                    python_globals["error"] = exc.error_type if isinstance(exc, ChemQLSignal) else type(exc).__name__
+                    python_globals["error"] = (
+                        exc.error_type
+                        if isinstance(exc, ChemQLSignal)
+                        else "ChemQLError"
+                        if isinstance(exc, ChemQLError)
+                        else type(exc).__name__
+                    )
                     if sections["fix"]:
                         result = execute_function_lines(sections["fix"])
                         if result is not _NO_RETURN:
@@ -822,6 +951,9 @@ def _expand_function_calls(text):
                 continue
             if ch in ("'", '"'):
                 quote = ch; i += 1; continue
+            if i and re.match(r"[A-Za-z0-9_.:]", text[i - 1]):
+                i += 1
+                continue
             match = re.match(r"([A-Za-z_][A-Za-z0-9_]*(?:::[A-Za-z_][A-Za-z0-9_]*)*(?:\.[A-Za-z_][A-Za-z0-9_]*)?)\{", text[i:])
             if match:
                 name = match.group(1)
@@ -835,9 +967,18 @@ def _expand_function_calls(text):
                     value = _call_function(resolved_name, args)
                 elif "::" not in resolved_name and resolved_name in BUILTIN_FUNCTIONS:
                     value = _call_builtin(resolved_name, args)
+                elif (
+                    "::" not in resolved_name
+                    and isinstance(python_globals.get(resolved_name), type)
+                ):
+                    replacement = (
+                        f"{resolved_name}({text[opening + 1:end]})"
+                    )
+                    text = text[:i] + replacement + text[end + 1:]
+                    changed = True
+                    break
                 else:
-                    i += 1
-                    continue
+                    raise ChemQLError(f"Unknown function `{name}`")
                 replacement = repr(value) if isinstance(value, str) else ("None" if value is None else str(value))
                 text = text[:i] + replacement + text[end + 1:]
                 changed = True
@@ -1391,10 +1532,17 @@ class ChemQLError(Exception):
         self.length = length
 
 
+class _ChemQLUnknownCommand(ChemQLError):
+    pass
+
+
 _CHEMQL_RISK_DEPTH = 0
 
 
 def format_error(message, text=None, position=None, length=1):
+    if _CHEMQL_RISK_DEPTH:
+        raise ChemQLError(message, position, length)
+
     output = ""
     if (text is not None) and (position is not None) and (not NO_ANSI):
         output += f"\033[1;31m{' ' * (position+4)}{'^' * max(1, length)}\n\033[0m"
@@ -3297,6 +3445,7 @@ reaction_state = {
 python_globals = {"__builtins__": __builtins__, "math": math, "error": None}
 STRUCTS = {}
 RECORDS = {}
+ENUMS = {}
 
 class ChemQLSignal(Exception):
     """A user-raised, recoverable ChemQL error."""
@@ -4084,14 +4233,20 @@ def process_inline(text):
         return evaluate_python(stripped)
 
     # A standalone user-defined function call returns its value directly.
-    function_call = re.fullmatch(r"([A-Za-z_][A-Za-z0-9_]*(?:::[A-Za-z_][A-Za-z0-9_]*)*)\s*\{(.*)\}", stripped, re.DOTALL)
+    function_call = re.match(
+        r"([A-Za-z_][A-Za-z0-9_]*(?:::[A-Za-z_][A-Za-z0-9_]*)*)\s*\{",
+        stripped,
+    )
     if function_call:
-        function_name = _resolve_package_qualified_name(function_call.group(1))
-        arguments = _split_function_arguments(function_call.group(2))
-        if function_name in FUNCTIONS:
-            return _call_function(function_name, arguments)
-        if "::" not in function_name and function_name in BUILTIN_FUNCTIONS:
-            return _call_builtin(function_name, arguments)
+        opening = function_call.end() - 1
+        closing = find_matching(stripped, opening, "{", "}")
+        if not stripped[closing + 1:].strip():
+            function_name = _resolve_package_qualified_name(function_call.group(1))
+            arguments = _split_function_arguments(stripped[opening + 1:closing])
+            if function_name in FUNCTIONS:
+                return _call_function(function_name, arguments)
+            if "::" not in function_name and function_name in BUILTIN_FUNCTIONS:
+                return _call_builtin(function_name, arguments)
 
     # [ ... ] is Python.
     if stripped.startswith("["):
@@ -4134,11 +4289,33 @@ def process_inline(text):
             except (SyntaxError, NameError):
                 pass
 
+    # Function calls can compose into ordinary Python expressions, e.g.
+    # `int{1} + int{1}`. Expand them before deciding whether this is a query;
+    # otherwise the query parser sees the resulting `1 + 1` as a command.
+    if re.search(
+        r"(?<![A-Za-z0-9_.:])[A-Za-z_][A-Za-z0-9_]*(?:::[A-Za-z_][A-Za-z0-9_]*)*(?:\.[A-Za-z_][A-Za-z0-9_]*)?\s*\{",
+        stripped,
+    ):
+        expanded = _expand_function_calls(stripped)
+        try:
+            ast.parse(expanded, mode="eval")
+        except SyntaxError:
+            stripped = expanded
+        else:
+            return evaluate_python(expanded)
+
     # Try ChemQL first. If the parser specifically reports an unknown command,
     # treat the input as a possible Python expression. Only Python SyntaxError
     # or NameError falls back to the original ChemQL error; other Python errors
     # (e.g. TypeError) are meaningful and should remain visible.
-    result = execute_query_text(stripped)
+    try:
+        result = execute_query_text(stripped)
+    except _ChemQLUnknownCommand as error:
+        try:
+            return evaluate_python(stripped)
+        except (SyntaxError, NameError):
+            raise error
+
     plain_result = strip_ansi(result) if isinstance(result, str) else ""
     # The query engine formats unknown-command failures as text (including a
     # caret line), so detect the diagnostic independently of any leading ANSI
@@ -4476,9 +4653,9 @@ def process_lines(lines):
                         block_end += 1
                     if block_end >= len(lines):
                         raise SyntaxError("Missing `endnamespace` after visibility declaration")
-                elif re.match(r"^(struct|record)\s+[A-Za-z_]\w*\s*$", declaration, re.IGNORECASE):
-                    kind = re.match(r"^(struct|record)", declaration, re.IGNORECASE).group(1).casefold() # type:ignore
-                    terminator = "endstruct" if kind == "struct" else "endrecord"
+                elif re.match(r"^(struct|record|enum)\s+[A-Za-z_]\w*(?:\s+from\s+(?:\[[^\]]+\]|[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*))?\s*$", declaration, re.IGNORECASE):
+                    kind = re.match(r"^(struct|record|enum)", declaration, re.IGNORECASE).group(1).casefold() # type:ignore
+                    terminator = {"struct": "endstruct", "record": "endrecord", "enum": "endenum"}[kind]
                     block_end = i + 1
                     while block_end < len(lines) and lines[block_end].strip().casefold() != terminator:
                         block_end += 1
@@ -4490,25 +4667,115 @@ def process_lines(lines):
             i = block_end + 1
             continue
 
-        type_match = re.fullmatch(r"(struct|record)\s+([A-Za-z_]\w*)", stripped, re.IGNORECASE)
+        enum_match = re.fullmatch(r"enum\s+([A-Za-z_]\w*)", stripped, re.IGNORECASE)
+        if enum_match:
+            type_name = enum_match.group(1)
+            end = i + 1
+            while end < len(lines) and lines[end].strip().casefold() != "endenum":
+                end += 1
+            if end >= len(lines):
+                raise SyntaxError(f"Missing `endenum` for enum `{type_name}`")
+            members = []
+            member_names = set()
+            for member_line in lines[i + 1:end]:
+                member_line = remove_comments(member_line).strip()
+                if not member_line:
+                    continue
+                member_match = re.fullmatch(r"([A-Za-z_]\w*)(?:\s*=\s*(.+))?", member_line)
+                if not member_match:
+                    raise SyntaxError(f"Invalid enum member declaration: {member_line}")
+                member_name, value_expression = member_match.groups()
+                if member_name in member_names:
+                    raise SyntaxError(f"Duplicate enum member `{member_name}` in {type_name}")
+                member_names.add(member_name)
+                value = auto() if value_expression is None else evaluate_python(_expand_definitions(value_expression))
+                members.append((member_name, value))
+            if not members:
+                raise SyntaxError(f"Enum `{type_name}` must declare members")
+            generated = Enum(type_name, members, module=__name__)
+            ENUMS[type_name] = generated
+            python_globals[type_name] = generated
+            i = end + 1
+            continue
+
+        type_match = re.fullmatch(
+            r"(struct|record)\s+([A-Za-z_]\w*)(?:\s+from\s+(\[[^\]]+\]|[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*))?",
+            stripped,
+            re.IGNORECASE,
+        )
         if type_match:
-            kind, type_name = type_match.group(1).casefold(), type_match.group(2)
+            kind, type_name, base_name = type_match.group(1).casefold(), type_match.group(2), type_match.group(3)
             terminator = "endstruct" if kind == "struct" else "endrecord"
             end = i + 1
             while end < len(lines) and lines[end].strip().casefold() != terminator:
                 end += 1
             if end >= len(lines):
                 raise SyntaxError((f"Missing `{terminator}` for {kind} `{type_name}`" if NO_ANSI else f"Missing \033[1m{terminator}\033[22m for {kind} \033[1m{type_name}\033[22m"))
-            fields, defaults, required_fields, optional_fields = [], {}, [], []
+            parent = None
+            base_fields, base_required, defaults = [], [], {}
+            base_init_parameters = []
+            tuple_fields = ()
+            if base_name:
+                base_reference = base_name.strip()
+                if base_reference.startswith("[") and base_reference.endswith("]"):
+                    parent = evaluate_python(base_reference[1:-1].strip())
+                elif "." in base_reference:
+                    parent = evaluate_python(base_reference)
+                if kind == "record":
+                    if parent not in RECORDS.values():
+                        parent = RECORDS.get(base_reference)
+                    if parent is None:
+                        raise SyntaxError(f"Record `{type_name}` can only inherit from another record")
+                else:
+                    parent = (
+                        parent
+                        or STRUCTS.get(base_reference)
+                        or RECORDS.get(base_reference)
+                        or python_globals.get(base_reference)
+                        or getattr(builtins, base_reference, None)
+                    )
+                    if not isinstance(parent, type):
+                        raise SyntaxError(f"Unknown base class `{base_reference}` for struct `{type_name}`")
+                    if issubclass(parent, Enum):
+                        raise SyntaxError(f"Struct `{type_name}` cannot inherit from an enum")
+                if hasattr(parent, "_chemql_fields"):
+                    base_fields = list(parent._chemql_fields)
+                    base_required = list(parent._chemql_required)
+                    defaults.update(parent._chemql_defaults)
+                    tuple_fields = tuple(getattr(parent, "_chemql_tuple_fields", ()))
+                elif kind == "struct":
+                    try:
+                        parameters = list(inspect.signature(parent.__init__).parameters.values())[1:]
+                    except (TypeError, ValueError) as exc:
+                        raise SyntaxError(f"Cannot inspect constructor for base class `{base_name}`") from exc
+                    for parameter in parameters:
+                        if parameter.kind not in (
+                            inspect.Parameter.POSITIONAL_ONLY,
+                            inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                            inspect.Parameter.KEYWORD_ONLY,
+                        ):
+                            continue
+                        if not parameter.name.isidentifier():
+                            continue
+                        base_fields.append(parameter.name)
+                        if parameter.default is inspect.Parameter.empty:
+                            base_required.append(parameter.name)
+                        else:
+                            defaults[parameter.name] = parameter.default
+                        base_init_parameters.append(parameter)
+                if base_fields:
+                    tuple_fields = tuple(getattr(parent, "_chemql_tuple_fields", ()))
+
+            required_fields, optional_fields = [], []
             for field_line in lines[i + 1:end]:
                 field_line = remove_comments(field_line).strip()
                 if not field_line:
                     continue
-                required_match = re.fullmatch(r"required\s+([A-Za-z_]\w*)", field_line, re.IGNORECASE)
+                required_match = re.fullmatch(r"(?:required\s+([A-Za-z_]\w*)|([A-Za-z_]\w*)!)", field_line, re.IGNORECASE)
                 if required_match:
                     if kind != "struct":
                         raise SyntaxError("`required` fields are supported only in structs")
-                    field = required_match.group(1)
+                    field = required_match.group(1) if required_match.group(1) is not None else required_match.group(2)
                     default = None
                     is_required = True
                 else:
@@ -4517,7 +4784,7 @@ def process_lines(lines):
                         raise SyntaxError(f"Invalid {kind} field declaration: {field_line}")
                     field, default = match.groups()
                     is_required = False
-                if field in fields or field in required_fields or field in optional_fields:
+                if field in base_fields or field in required_fields or field in optional_fields:
                     raise SyntaxError((f"Duplicate field `{field}` in {type_name}" if NO_ANSI else f"Duplicate field \033[1m{field}\033[22m in {type_name}"))
                 if is_required:
                     required_fields.append(field)
@@ -4525,47 +4792,142 @@ def process_lines(lines):
                     optional_fields.append(field)
                     if default is not None:
                         defaults[field] = evaluate_python(_expand_definitions(default))
-            # Required struct fields always come first, preserving order within
-            # the required and optional groups. This makes positional calls
-            # consistent with the generated constructor signature.
-            fields = required_fields + optional_fields if kind == "struct" else optional_fields
-            if not fields:
+            declared_fields = required_fields + optional_fields if kind == "struct" else optional_fields
+            duplicate_fields = set(base_fields) & set(declared_fields)
+            if duplicate_fields:
+                raise SyntaxError(f"Field `{sorted(duplicate_fields)[0]}` is already inherited by {type_name}")
+            fields = base_fields + declared_fields
+            if not fields and parent is None:
                 raise SyntaxError((f"{kind.title()} `{type_name}` must declare fields" if NO_ANSI else f"{kind.title()} \033[1m{type_name}\033[22m must declare fields"))
             if kind == "struct":
-                def make_struct(class_name, field_names, field_defaults, required_names):
-                    def __init__(self, *args, **kwargs):
+                all_required = base_required + required_fields
+                own_fields = tuple(declared_fields)
+                native_constructor_base = parent in (
+                    int, float, complex, str, bytes, tuple, frozenset,
+                ) if parent is not None else False
+
+                def make_struct(
+                    class_name, base_class, field_names, required_names,
+                    field_defaults, declared_names, inherited_names,
+                    init_parameters, inherited_tuple_fields, base_is_record,
+                    native_constructor,
+                ):
+                    def bind_fields(*args, **kwargs):
                         if len(args) > len(field_names):
                             raise TypeError(f"{class_name} expected at most {len(field_names)} positional arguments")
                         values = dict(zip(field_names, args))
                         overlap = values.keys() & kwargs.keys()
                         if overlap:
-                            raise TypeError((f"Multiple values for field `{next(iter(overlap))}`" if NO_ANSI else f"Multiple values for field \033[1m{next(iter(overlap))}\033[22m"))
+                            raise TypeError(f"Multiple values for field `{next(iter(overlap))}`")
                         values.update(kwargs)
                         extra = values.keys() - set(field_names)
                         if extra:
                             raise TypeError(f"Unexpected field(s): {', '.join(sorted(extra))}")
                         missing = [name for name in required_names if name not in values]
                         if missing:
-                            names = ", ".join(missing)
-                            raise TypeError(f"{class_name} missing required field(s): {names}")
-                        for field_name in field_names:
-                            setattr(self, field_name, values[field_name] if field_name in values else field_defaults.get(field_name))
-                    def __repr__(self):
-                        return class_name + "{ " + ", ".join(f"{f}={getattr(self, f)!r}" for f in field_names) + " }"
-                    def __eq__(self, other):
-                        return type(other) is type(self) and all(getattr(self, f) == getattr(other, f) for f in field_names)
-                    return type(class_name, (), {"__init__": __init__, "__repr__": __repr__, "__str__": __repr__, "__eq__": __eq__, "__slots__": tuple(field_names)})
-                generated = make_struct(type_name, fields, defaults, required_fields)
+                            raise TypeError(f"{class_name} missing required field(s): {', '.join(missing)}")
+                        return {field: values.get(field, field_defaults.get(field)) for field in field_names}
+
+                    def struct_init(self, *args, **kwargs):
+                        if native_constructor and not field_names:
+                            return
+                        values = bind_fields(*args, **kwargs)
+                        if base_class is not None:
+                            if hasattr(base_class, "_chemql_fields"):
+                                if not base_is_record:
+                                    base_class.__init__(self, **{field: values[field] for field in inherited_names})
+                            elif native_constructor:
+                                pass
+                            elif init_parameters:
+                                positional = [
+                                    values[param.name]
+                                    for param in init_parameters
+                                    if param.kind is inspect.Parameter.POSITIONAL_ONLY
+                                ]
+                                keywords = {
+                                    param.name: values[param.name]
+                                    for param in init_parameters
+                                    if param.kind in (
+                                        inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                                        inspect.Parameter.KEYWORD_ONLY,
+                                    )
+                                }
+                                base_class.__init__(self, *positional, **keywords)
+                            else:
+                                base_class.__init__(self)
+                        for field_name in declared_names:
+                            setattr(self, field_name, values[field_name])
+
+                    def struct_repr(self):
+                        return class_name + "{ " + ", ".join(
+                            f"{field}={getattr(self, field)!r}" for field in field_names
+                        ) + " }"
+
+                    def struct_eq(self, other):
+                        return type(other) is type(self) and all(
+                            getattr(self, field) == getattr(other, field) for field in field_names
+                        )
+
+                    attrs = {
+                        "__init__": struct_init,
+                        "_chemql_fields": tuple(field_names),
+                        "_chemql_required": tuple(required_names),
+                        "_chemql_defaults": dict(field_defaults),
+                        "_chemql_tuple_fields": inherited_tuple_fields,
+                    }
+                    if not (native_constructor and not field_names):
+                        attrs["__repr__"] = struct_repr
+                        attrs["__str__"] = struct_repr
+                        attrs["__eq__"] = struct_eq
+                    if inherited_tuple_fields:
+                        def struct_new(cls, *args, **kwargs):
+                            values = bind_fields(*args, **kwargs)
+                            return tuple.__new__(cls, tuple(values[field] for field in inherited_tuple_fields))
+                        attrs["__new__"] = struct_new
+                    elif native_constructor and not field_names:
+                        def struct_new(cls, *args, **kwargs):
+                            return base_class.__new__(cls, *args, **kwargs)
+                        attrs["__new__"] = struct_new
+                    else:
+                        attrs["__slots__"] = tuple(declared_names)
+                    return type(class_name, (base_class,) if base_class is not None else (), attrs)
+
+                generated = make_struct(
+                    type_name, parent, fields, all_required, defaults, own_fields,
+                    base_fields, base_init_parameters, tuple_fields,
+                    parent in RECORDS.values() if parent is not None else False,
+                    native_constructor_base,
+                )
                 STRUCTS[type_name] = generated
             else:
                 from collections import namedtuple
                 first_default = next((n for n, f in enumerate(fields) if f in defaults), len(fields))
-                if any(f not in defaults for f in fields[first_default:]):
+                if parent is None and any(f not in defaults for f in fields[first_default:]):
                     raise SyntaxError((f"Record `{type_name}` fields with defaults must be trailing fields" if NO_ANSI else f"Record \033[1m{type_name}\033[22m fields with defaults must be trailing fields"))
-                base_record = namedtuple(type_name + "Base", fields, defaults=[defaults[f] for f in fields[first_default:]])
-                def make_record(record_name, record_base, field_names):
+                if parent is None:
+                    base_record = namedtuple(type_name + "Base", fields, defaults=[defaults[f] for f in fields[first_default:]])
+                else:
+                    base_record = parent
+
+                def make_record(record_name, record_base, field_names, field_defaults, derived):
                     def _record_repr(self):
                         return record_name + " -> " + ", ".join(f"{field}: {getattr(self, field)}" for field in field_names)
+                    def _record_new(cls, *args, **kwargs):
+                        if len(args) > len(field_names):
+                            raise TypeError(f"{record_name} expected at most {len(field_names)} positional arguments")
+                        values = dict(zip(field_names, args))
+                        overlap = values.keys() & kwargs.keys()
+                        if overlap:
+                            raise TypeError(f"Multiple values for field `{next(iter(overlap))}`")
+                        values.update(kwargs)
+                        extra = values.keys() - set(field_names)
+                        if extra:
+                            raise TypeError(f"Unexpected field(s): {', '.join(sorted(extra))}")
+                        missing = [field for field in field_names if field not in values and field not in field_defaults]
+                        if missing:
+                            raise TypeError(f"{record_name} missing required field(s): {', '.join(missing)}")
+                        values = {field: values.get(field, field_defaults.get(field)) for field in field_names}
+                        return tuple.__new__(cls, tuple(values[field] for field in field_names))
                     def _binary_method(operation, reverse=False):
                         def method(self, other):
                             if type(other) is type(self):
@@ -4590,9 +4952,22 @@ def process_lines(lines):
                         "__pos__": lambda self: type(self)(*(+getattr(self, f) for f in field_names)),
                         "__abs__": lambda self: type(self)(*(abs(getattr(self, f)) for f in field_names)),
                     }
+                    if derived:
+                        attrs["__new__"] = _record_new
+                        attrs["_fields"] = tuple(field_names)
+                        attrs["__match_args__"] = tuple(field_names)
+                        attrs["_field_defaults"] = dict(field_defaults)
+                        attrs["__slots__"] = ()
+                        for index, field in enumerate(field_names):
+                            if field not in getattr(record_base, "_fields", ()):
+                                attrs[field] = property(lambda self, idx=index: self[idx])
                     return type(record_name, (record_base,), attrs)
-                generated = make_record(type_name, base_record, fields)
+                generated = make_record(type_name, base_record, fields, defaults, parent is not None)
                 RECORDS[type_name] = generated
+            generated._chemql_fields = tuple(fields)
+            generated._chemql_required = tuple(base_required + required_fields) if kind == "struct" else ()
+            generated._chemql_defaults = dict(defaults)
+            generated._chemql_tuple_fields = tuple_fields if kind == "struct" else tuple(fields)
             python_globals[type_name] = generated
             i = end + 1
             continue
@@ -4624,7 +4999,13 @@ def process_lines(lines):
                     process_lines(sections["risk"])
                     python_globals["error"] = None
                 except Exception as exc:
-                    python_globals["error"] = exc.error_type if isinstance(exc, ChemQLSignal) else type(exc).__name__
+                    python_globals["error"] = (
+                        exc.error_type
+                        if isinstance(exc, ChemQLSignal)
+                        else "ChemQLError"
+                        if isinstance(exc, ChemQLError)
+                        else type(exc).__name__
+                    )
                     if sections["fix"]:
                         process_lines(sections["fix"])
                     elif not isinstance(exc, ChemQLSignal):
@@ -4935,13 +5316,7 @@ def process_lines(lines):
                     result = _dump_history(command)
                 else:
                     result = process_inline(command)
-                    # Query parsing can report an error as formatted text instead
-                    # of raising. Inside `risk`, promote that result to an exception
-                    # so `fix` runs and the `error` variable is populated.
-                    if _CHEMQL_RISK_DEPTH and isinstance(result, str):
-                        plain_result = strip_ansi(result).lstrip()
-                        if plain_result.startswith("Error:"):
-                            raise ChemQLError(plain_result[6:].strip())
+
                 rendered = "" if result is None else str(result)
                 if result is not None:
                     if NO_ANSI:
@@ -5560,14 +5935,20 @@ def execute(arguments, query_text=None, positions=None):
 
     if query_text is not None and positions:
         pos, length = error_position(positions, 0)
+        message = f"Unknown command `{arguments[0]}`"
+        if _CHEMQL_RISK_DEPTH:
+            raise _ChemQLUnknownCommand(message, pos, length)
         return format_error(
-            (f"Unknown command `{arguments[0]}`" if NO_ANSI else f"Unknown command \033[1m{arguments[0]}\033[22m"),
+            (message if NO_ANSI else f"Unknown command \033[1m{arguments[0]}\033[22m"),
             query_text,
             pos,
             length
         )
 
-    return format_error((f"Unknown command `{arguments[0]}`" if NO_ANSI else f"Unknown command \033[1m{arguments[0]}\033[22m"))
+    message = f"Unknown command `{arguments[0]}`"
+    if _CHEMQL_RISK_DEPTH:
+        raise _ChemQLUnknownCommand(message)
+    return format_error(message if NO_ANSI else f"Unknown command \033[1m{arguments[0]}\033[22m")
 
 
 HELP = (
@@ -5586,6 +5967,9 @@ HELP = (
     "  \x1b[92mbalance H2 + O2 -> H2O       \x1b[0m \x1b[90m│\x1b[0m Balance a chemical equation\n"
     "  \x1b[92mhelp  or  ?                  \x1b[0m \x1b[90m│\x1b[0m Display this help message\n"
     "  \x1b[92mhelp{read_csv}               \x1b[0m \x1b[90m│\x1b[0m Show detailed built-in documentation\n"
+    "  \x1b[92mhelp{stdlib}                 \x1b[0m \x1b[90m│\x1b[0m List standard-library packages\n"
+    "  \x1b[92mhelp{math}                   \x1b[0m \x1b[90m│\x1b[0m Show package documentation\n"
+    "  \x1b[92mhelp{math::sqrt}             \x1b[0m \x1b[90m│\x1b[0m Show package function help\n"
     "  \x1b[92mversion                      \x1b[0m \x1b[90m│\x1b[0m Display the installed version\n"
     "  \x1b[92mexit                         \x1b[0m \x1b[90m│\x1b[0m Exit the interactive prompt\n"
     "\n"
@@ -5681,10 +6065,21 @@ HELP = (
     "  \x1b[2mThe variable error contains the error type, or None after success.\x1b[0m\n"
     "\n"
     "\x1b[1;93m\x1b[1m◆  STRUCTS & METHODS\x1b[0m\n"
+    "  \x1b[95menum Name ... endenum        \x1b[0m \x1b[90m│\x1b[0m Define named values; omitted values auto-increment\n"
     "  \x1b[95mstruct Name                  \x1b[0m \x1b[90m│\x1b[0m Define a structured data type\n"
-    "  \x1b[95mrecord Name                  \x1b[0m \x1b[90m│\x1b[0m Define or use record data\n"
+    "  \x1b[95mstruct Name from Base        \x1b[0m \x1b[90m│\x1b[0m Inherit from structs, records, or Python classes\n"
+    "  \x1b[95mrecord Name [from Base]      \x1b[0m \x1b[90m│\x1b[0m Define a record; records inherit from records\n"
     "  \x1b[95mfunc Type.__add__            \x1b[0m \x1b[90m│\x1b[0m Define an operator method\n"
+    "  \x1b[2mEnum members use `Name.MEMBER`; explicit values can be mixed with automatic values.\x1b[0m\n"
     "  \x1b[2mStruct methods can implement custom behaviour and operator overloads.\x1b[0m\n"
+    "    \x1b[95menum Levels\x1b[0m\n"
+    "        \x1b[95mLOW = 50\x1b[0m\n"
+    "        \x1b[95mMEDIUM\x1b[0m\n"
+    "        \x1b[95mHIGH\x1b[0m\n"
+    "    \x1b[95mendenum\x1b[0m\n"
+    "    \x1b[95mstruct Dog from Animal\x1b[0m\n"
+    "        \x1b[95mcolor!\x1b[0m\n"
+    "    \x1b[95mendstruct\x1b[0m\n"
     "\n"
     "\x1b[1;93m\x1b[1m◆  PYTHON INTEGRATION\x1b[0m\n"
     "  \x1b[1;96m[x = 10]                     \x1b[0m \x1b[90m│\x1b[0m Execute a Python statement\n"
@@ -5756,8 +6151,8 @@ class ChemqlLexer(Lexer):
         "findre", "set", "add", "remove", "react", "balance", "conditions",
         "view", "help", "dump", "version", "return", "union", "intersection",
         "let", "unset", "variables", "macros", "definitions", "arguments",
-        "define", "func", "struct", "record", "risk", "fix", "cleanup",
-        "signal", "import", "remove", "install",
+        "define", "func", "struct", "record", "enum", "risk", "fix", "cleanup",
+        "signal", "import", "remove", "load"
     }
     OPERATORS = {
         "and", "or", "has", "like", "like!", "likep", "sort", "limit",
@@ -5765,10 +6160,10 @@ class ChemqlLexer(Lexer):
     }
     CONTROL_WORDS = {
         "if", "elif", "else", "for", "while", "break", "continue", "endblock",
-        "endfor", "endwhile", "endif", "endrisk", "endstruct", "endrecord",
+        "endfor", "endwhile", "endif", "endrisk", "endstruct", "endrecord", "endenum",
         "endfunc", "enddefine", "func", "define", "struct", "record", "risk",
         "fix", "cleanup", "signal", "import", "as", "return", "public", "private",
-        "required", "namespace", "endnamespace"
+        "required", "namespace", "endnamespace", "enum", "from"
     }
     CONDITIONS = {
         "temperature", "pressure", "catalyst", "catalysts", "standard", "room",
@@ -5784,6 +6179,7 @@ class ChemqlLexer(Lexer):
             },
             "structs": set(STRUCTS),
             "records": set(RECORDS),
+            "enums": set(ENUMS),
             "functions": set(FUNCTIONS),
             "macros": set(MACROS),
             "definitions": set(DEFINITIONS),
@@ -5810,7 +6206,7 @@ class ChemqlLexer(Lexer):
 
             # Mark declaration names according to the declaration being edited.
             declaration = re.match(
-                r"(?:struct|record|func)\s+([A-Za-z_]\w*(?:\.[A-Za-z_]\w*)?)", line[i:], re.I
+                r"(?:struct|record|enum|func)\s+([A-Za-z_]\w*(?:\.[A-Za-z_]\w*)?)", line[i:], re.I
             )
             macro_declaration = re.match(r"define\s+([A-Za-z_]\w*)\s*\{\s*\}", line[i:], re.I)
             definition_declaration = re.match(r"define\s+([A-Za-z_]\w*)\s+", line[i:], re.I)
@@ -5820,7 +6216,7 @@ class ChemqlLexer(Lexer):
                 prefix = line[i:]
                 keyword = prefix.split(None, 1)[0].casefold()
                 declared_name = declaration.group(1)
-                declared_style = "struct" if keyword == "struct" else "record" if keyword == "record" else "function"
+                declared_style = "struct" if keyword == "struct" else "record" if keyword == "record" else "enum" if keyword == "enum" else "function"
             elif macro_declaration:
                 declared_name, declared_style = macro_declaration.group(1), "macro"
             elif definition_declaration:
@@ -5901,6 +6297,8 @@ class ChemqlLexer(Lexer):
                             style = "class:struct"
                         elif word in names["records"]:
                             style = "class:record"
+                        elif word in names["enums"]:
+                            style = "class:enum"
                         elif word in names["functions"] or word in function_names:
                             style = "class:function"
                         elif word in names["macros"]:
@@ -5944,11 +6342,11 @@ class ChemqlCompleter(Completer):
         "search", "source", "list", "clear", "return", "exit", "findel", "findmol",
         "findre", "set", "add", "remove", "react", "balance", "conditions", "version",
         "help", "view", "dump", "let", "unset", "variables", "func", "define", "struct",
-        "record", "risk", "fix", "cleanup", "signal", "import", "definitions", "macros",
-        "endfor", "endwhile", "endif", "endrisk", "endstruct", "endrecord", "endfunc", "enddefine",
+        "record", "enum", "risk", "fix", "cleanup", "signal", "import", "definitions", "macros",
+        "endfor", "endwhile", "endif", "endrisk", "endstruct", "endrecord", "endenum", "endfunc", "enddefine",
     )
     QUERY_OPERATORS = ["=", "!=", ">", "<", ">=", "<=", "like", "like!", "likep", "has", "sort", "limit", "count", "asc", "desc", "return", "and", "or", "union", "intersection"]
-    CONTROL_COMPLETIONS = ["if ", "for ", "while ", "endfor", "endwhile", "endif", "risk", "fix", "cleanup", "endrisk", "struct ", "endstruct", "record ", "endrecord", "func ", "endfunc", "define ", "enddefine"]
+    CONTROL_COMPLETIONS = ["if ", "for ", "while ", "endfor", "endwhile", "endif", "risk", "fix", "cleanup", "endrisk", "struct ", "endstruct", "record ", "endrecord", "enum ", "endenum", "func ", "endfunc", "define ", "enddefine"]
 
     @staticmethod
     def _names():
@@ -5960,6 +6358,11 @@ class ChemqlCompleter(Completer):
             "variables": variables,
             "structs": set(STRUCTS),
             "records": set(RECORDS),
+            "enums": set(ENUMS),
+            "python_types": {
+                name for name, value in python_globals.items()
+                if isinstance(name, str) and isinstance(value, type) and not issubclass(value, Enum)
+            },
             "functions": set(FUNCTIONS),
             "macros": set(MACROS),
             "definitions": set(DEFINITIONS),
@@ -6028,12 +6431,17 @@ class ChemqlCompleter(Completer):
         elif command == "func":
             suggestions = sorted(names["structs"])
         elif command == "struct":
-            suggestions = sorted(names["structs"])
+            if len(command_words) >= 3 and command_words[2].casefold() == "from":
+                suggestions = sorted(names["structs"] | names["records"] | names["python_types"])
+            else:
+                suggestions = sorted(names["structs"])
         elif command == "record":
             suggestions = sorted(names["records"])
+        elif command == "enum":
+            suggestions = sorted(names["enums"])
         elif command in {"print", "return", "unset"}:
             suggestions = sorted(names["variables"])
-        elif command in {"risk", "fix", "cleanup", "endrisk", "endstruct", "endrecord", "endfunc", "enddefine", "endfor", "endwhile", "endif"}:
+        elif command in {"risk", "fix", "cleanup", "endrisk", "endstruct", "endrecord", "endenum", "endfunc", "enddefine", "endfor", "endwhile", "endif"}:
             suggestions = self.CONTROL_COMPLETIONS
 
         # In expressions, Python blocks, attribute access, and function calls,
@@ -6058,6 +6466,7 @@ chemql_style = Style.from_dict({
     "variable": "ansibrightgreen",
     "struct": "ansibrightblue bold",
     "record": "ansicyan bold",
+    "enum": "ansimagenta bold",
     "function": "ansiyellow bold",
     "macro": "ansimagenta bold",
     "definition": "ansibrightmagenta",
@@ -6286,7 +6695,10 @@ def _unclosed_expression_delimiters(lines):
 
 def main(ANSI: bool = True):
     parser = argparse.ArgumentParser(
-        description="Chemql query and chemistry language"
+        description=(
+            "ChemQL query and chemistry language.\n"
+            "Version 1.5.0 adds enums and inheritance for structs and records."
+        )
     )
 
     parser.add_argument(
@@ -6412,7 +6824,7 @@ def run_interactive():
             # such as `struct Fruit` and `record Point` are headers too.
             stack = []
             closers = {
-                "endrisk": "risk", "endstruct": "struct", "endrecord": "record",
+                "endrisk": "risk", "endstruct": "struct", "endrecord": "record", "endenum": "enum",
                 "endfunc": "func", "enddefine": "macro", "endfor": "for",
                 "endwhile": "while", "endif": "if", "[endblock]": "bracket", "endnamespace": "namespace"
             }
@@ -6424,10 +6836,13 @@ def run_interactive():
 
                 if re.fullmatch(r"namespace\s+[A-Za-z_]\w*", stripped, re.IGNORECASE):
                     stack.append("namespace")
-                if re.fullmatch(r"struct\s+[A-Za-z_]\w*", stripped, re.IGNORECASE):
+                declaration_line = re.sub(r"^(?:public|private)\s+", "", stripped, flags=re.IGNORECASE)
+                if re.fullmatch(r"struct\s+[A-Za-z_]\w*(?:\s+from\s+(?:\[[^\]]+\]|[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*))?", declaration_line, re.IGNORECASE):
                     stack.append("struct")
-                elif re.fullmatch(r"record\s+[A-Za-z_]\w*", stripped, re.IGNORECASE):
+                elif re.fullmatch(r"record\s+[A-Za-z_]\w*(?:\s+from\s+(?:\[[^\]]+\]|[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*))?", declaration_line, re.IGNORECASE):
                     stack.append("record")
+                elif re.fullmatch(r"enum\s+[A-Za-z_]\w*", declaration_line, re.IGNORECASE):
+                    stack.append("enum")
                 elif re.fullmatch(r"func\s+[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)?", stripped, re.IGNORECASE):
                     stack.append("func")
                 elif re.fullmatch(r"define\s+[A-Za-z_]\w*\s*\{\s*\}", stripped, re.IGNORECASE):
@@ -6542,7 +6957,37 @@ def run_interactive():
                         break
                 if not lines:
                     continue
+                        # Collect risk/fix/cleanup blocks as complete REPL units.
+            if lines and lines[0].strip().casefold() == "risk":
+                depth = 0
 
+                for existing_line in lines:
+                    token = existing_line.strip().casefold()
+                    if token == "risk":
+                        depth += 1
+                    elif token == "endrisk":
+                        depth -= 1
+
+                while depth > 0:
+                    try:
+                        next_line = session.prompt("... ")
+                    except (KeyboardInterrupt, EOFError):
+                        print("\nIncomplete risk block")
+                        lines = []
+                        break
+
+                    added_lines = next_line.splitlines() or [next_line]
+                    lines.extend(added_lines)
+
+                    for added_line in added_lines:
+                        token = added_line.strip().casefold()
+                        if token == "risk":
+                            depth += 1
+                        elif token == "endrisk":
+                            depth -= 1
+
+                if not lines:
+                    continue
             # Collect new multiline Python, terminal, and comment blocks in the REPL.
             if lines and lines[0].strip() in {"[[[", "```", "```bash", "```sh", "```cmd", "```terminal"}:
                 opener = lines[0].strip()
