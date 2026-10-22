@@ -138,9 +138,27 @@ Install the package, then open a ChemQL file with the `codecql` command:
 codecql script.cql
 ```
 
-The editor supports syntax highlighting, direct text editing, undo (`Ctrl+Z`),
-redo (`Ctrl+Y`), save (`Ctrl+S`), and quit (`Ctrl+Q`). Its syntax and UI
+The editor supports syntax highlighting, direct text editing, word movement
+with `Ctrl`/`Alt`+Arrow, selection with `Shift`+Arrow, internal copy/cut/paste
+with `Ctrl+C`/`Ctrl+X`/`Ctrl+V` (copy also writes to the system clipboard
+when a supported clipboard command is available), word deletion with
+`Ctrl+Backspace`/`Ctrl+Delete`, and terminal bracketed paste. It also supports
+undo (`Ctrl+Z`), redo (`Ctrl+Y`), save (`Ctrl+S`), and quit (`Ctrl+Q`).
+Namespace declarations are highlighted and auto-indented. Its syntax and UI
 colors are configurable in the packaged `chemql/colors.json` file.
+Use `Ctrl+Up` and `Ctrl+Down` to scroll the viewport while keeping the cursor
+at the same screen position.
+
+Press `Ctrl+F` to search; matches highlight as you type. Press Enter or the
+Down Arrow for the next match, Up Arrow for the previous match, and Escape
+to close the search prompt. Searches are literal and case-insensitive by
+default. Prefix a query with `r:` for a case-sensitive regular expression,
+`ri:` for a case-insensitive regular expression, `l:` for case-sensitive
+literal text, or `li:` for case-insensitive literal text. Add `w` to match
+whole words, for example `lwi:cat`.
+
+Use `Ctrl+Up` and `Ctrl+Down` to scroll the viewport while keeping the cursor
+at the same screen position.
 
 ## Query language
 
@@ -949,10 +967,6 @@ dump bad executions failures.txt
 Supported forms include `dump all|good|bad FILE`,
 `dump all|good|bad queries FILE`, and `dump all|good|bad results FILE`.
 `good` and `bad` select successful and failed executions respectively.
-
-## CLI code editor
-
-You can edit code in the terminal using `codecql script.cql` if your script is named `script.cql`
 
 ## Python API
 

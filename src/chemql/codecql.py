@@ -5,6 +5,106 @@ import argparse
 import keyword
 import builtins
 import sys
+import shutil
+import subprocess
+
+
+def _write_system_clipboard(text):
+    """Copy text to the host system clipboard when a clipboard command exists."""
+    commands = []
+    if os.name == "nt":
+        commands = [["clip"]]
+    elif "WSL_DISTRO_NAME" in os.environ:
+        commands = [["clip.exe"]]
+    elif sys.platform == "darwin":
+        commands = [["pbcopy"]]
+    else:
+        commands = [["wl-copy"], ["xclip", "-selection", "clipboard"], ["xsel", "--clipboard", "--input"]]
+
+    for command in commands:
+        if shutil.which(command[0]):
+            subprocess.run(
+                command, input=text, text=True, encoding="utf-8",
+                check=True, timeout=3,
+            )
+            return True
+    return False
+
+
+def _decode_escape_sequence(sequence):
+    """Translate a terminal escape sequence into an editor key name."""
+    if sequence.startswith(b"["):
+        body = sequence[1:]
+        final = body[-1:] if body else b""
+        if not final or final[0] not in b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz~":
+            return "\x1b"
+        params = body[:-1].decode("ascii", errors="ignore").split(";")
+        try:
+            modifier = int(params[1]) if len(params) > 1 else 1
+        except ValueError:
+            modifier = 1
+        modifier_bits = max(0, modifier - 1)
+        modifiers = []
+        if modifier_bits & 4:
+            modifiers.append("ctrl")
+        if modifier_bits & 2:
+            modifiers.append("alt")
+        if modifier_bits & 1:
+            modifiers.append("shift")
+
+        arrow_keys = {
+            b"A": "arrow_up", b"B": "arrow_down",
+            b"C": "arrow_right", b"D": "arrow_left",
+            b"H": "arrow_home", b"F": "arrow_end",
+        }
+        key = arrow_keys.get(bytes(final))
+        if key:
+            return "+".join((*modifiers, key)) if modifiers else key
+        if final == b"~" and params:
+            key_code = params[0]
+            if key_code in {"1", "7"}:
+                key = "arrow_home"
+            elif key_code in {"4", "8"}:
+                key = "arrow_end"
+            elif key_code == "2":
+                key = "insert"
+            elif key_code == "3":
+                key = "delete"
+            elif key_code == "27" and len(params) > 2 and params[2] == "127":
+                key = "backspace"
+            else:
+                return "\x1b"
+            return "+".join((*modifiers, key)) if modifiers else key
+        if final == b"u" and params and params[0] == "127":
+            key = "backspace"
+            return "+".join((*modifiers, key)) if modifiers else key
+    elif sequence.startswith(b"O") and sequence[-1:] in b"ABCDHF":
+        return {
+            b"A": "arrow_up", b"B": "arrow_down",
+            b"C": "arrow_right", b"D": "arrow_left",
+            b"H": "arrow_home", b"F": "arrow_end",
+        }[sequence[-1:]]
+    return "\x1b"
+
+
+def _parse_search_query(query):
+    flags = ""
+    pattern = query
+    if ":" in query:
+        prefix, remainder = query.split(":", 1)
+        if prefix and all(flag in "rlwi" for flag in prefix):
+            if "r" in prefix and "l" in prefix:
+                raise ValueError("Use either `r` or `l`, not both")
+            flags = prefix
+            pattern = remainder
+
+    expression = pattern if "r" in flags else re.escape(pattern)
+    if "w" in flags:
+        expression = rf"(?<!\w)(?:{expression})(?!\w)"
+    ignore_case = "i" in flags or not flags
+    return re.compile(expression, re.IGNORECASE if ignore_case else 0)
+
+
 # Cross-platform terminal setup for ANSI Processing
 if os.name == 'nt':
     try:
@@ -20,18 +120,40 @@ if os.name == 'nt':
 # Cross-platform raw keystroke capture
 if os.name == 'nt':
     import msvcrt
+
+    WINDOWS_KEYS = {
+        0x48: "arrow_up", 0x50: "arrow_down",
+        0x4B: "arrow_left", 0x4D: "arrow_right",
+        0x47: "arrow_home", 0x4F: "arrow_end",
+        0x53: "delete", 0x73: "ctrl+arrow_left",
+        0x74: "ctrl+arrow_right", 0x8D: "ctrl+arrow_up",
+        0x91: "ctrl+arrow_down", 0x9B: "alt+arrow_left",
+        0x9D: "alt+arrow_right",
+    }
+
     def get_key():
         ch = msvcrt.getch()
         if ch in (b'\x00', b'\xe0'): # Arrow key prefixes on Windows
             ch2 = msvcrt.getch()
-            if ch2 == b'\x53':
-                return "delete"
-            return f"arrow_{ch2.hex()}"
+            return WINDOWS_KEYS.get(ch2[0], f"arrow_{ch2.hex()}")
         return ch.decode('utf-8', errors='ignore')
 else:
     import tty
     import termios
     import select
+
+    def _read_bracketed_paste(fd):
+        end_marker = b"\x1b[201~"
+        pasted = bytearray()
+        while True:
+            char = os.read(fd, 1)
+            if not char:
+                break
+            pasted.extend(char)
+            if pasted.endswith(end_marker):
+                del pasted[-len(end_marker):]
+                break
+        return "paste:" + pasted.decode("utf-8", errors="replace")
 
     def get_key():
         fd = sys.stdin.fileno()
@@ -46,28 +168,14 @@ else:
                     final = bytes(sequence[-1:])
                     if len(sequence) > 1 and 0x40 <= sequence[-1] <= 0x7e:
                         break
+                if sequence.startswith(b"[200~"):
+                    return _read_bracketed_paste(fd)
                 if sequence.startswith(b"["):
-                    final = bytes(sequence[-1:]) if sequence else b""
-                    if final in {b"A", b"B", b"C", b"D", b"H", b"F"}:
-                        return {
-                            b"A": "arrow_up", b"B": "arrow_down",
-                            b"C": "arrow_right", b"D": "arrow_left",
-                            b"H": "arrow_home", b"F": "arrow_end",
-                        }[final]
-                    if final == b"~":
-                        code = bytes(sequence[1:-1]).split(b";", 1)[0]
-                        if code in {b"1", b"7"}:
-                            return "arrow_home"
-                        if code in {b"4", b"8"}:
-                            return "arrow_end"
-                        if code == b"3":
-                            return "delete"
-                elif sequence.startswith(b"O") and bytes(sequence[-1:]) in {b"A", b"B", b"C", b"D", b"H", b"F"}:
-                    return {
-                        b"A": "arrow_up", b"B": "arrow_down",
-                        b"C": "arrow_right", b"D": "arrow_left",
-                        b"H": "arrow_home", b"F": "arrow_end",
-                    }[bytes(sequence[-1:])]
+                    return _decode_escape_sequence(sequence)
+                if sequence.startswith(b"O"):
+                    return _decode_escape_sequence(sequence)
+                if sequence:
+                    return "alt+" + sequence.decode("utf-8", errors="replace")
                 return "\x1b"
             if not first:
                 return ""
@@ -131,7 +239,7 @@ CONTROL_KEYWORDS = {
     "if", "elif", "else", "endif", "for", "while", "in", "endfor",
     "endwhile", "break", "continue", "endblock", "from", "as", "public",
     "private", "required", "struct", "record", "enum", "endstruct",
-    "endrecord", "endenum",
+    "endrecord", "endenum", "namespace", "endnamespace",
 }
 WORD_OPERATORS = {
     "and", "or", "has", "like", "like!", "likep", "sort", "limit",
@@ -169,6 +277,7 @@ TOKEN_RE = re.compile(
 AUTO_INDENT = re.compile(
     r"^\s*(?:(?:func|define)\b.*(?:\{\}|\{)$|"
     r"(?:struct|record|enum)\s+\w+(?:\s+from\b.*)?$|"
+    r"namespace\s+[A-Za-z_]\w*$|"
     r"(?:if|elif|else|for|while)\b.*|.*\\)$",
     re.IGNORECASE,
 )
@@ -220,7 +329,7 @@ def apply_syntax_highlighting(text):
         token = match.group()
         style = _token_style(kind, token) if kind else ""
         if kind == "identifier" and re.search(
-            r"\b(?:enum|struct|record)\s+$", text[:match.start()], re.IGNORECASE
+            r"\b(?:enum|struct|record|namespace)\s+$", text[:match.start()], re.IGNORECASE
         ):
             style = HIGHLIGHT_STYLES["type"]
         if style:
@@ -239,6 +348,14 @@ class Editor:
         self.lines = [""]
         self.cursor_x = 0
         self.cursor_y = 0
+        self.selection_anchor = None
+        self.clipboard = ""
+        self.search_active = False
+        self.search_query = ""
+        self.search_regex = None
+        self.search_error = ""
+        self.search_matches = []
+        self.current_search_match = None
         self.scroll_x = 0
         self.scroll_y = 0
         self.dirty = False
@@ -254,7 +371,7 @@ class Editor:
         self.saved_lines = tuple(self.lines)
 
     def run(self):
-        sys.stdout.write("\x1b[?1049h")
+        sys.stdout.write("\x1b[?1049h\x1b[?2004h")
         sys.stdout.flush()
         try:
             while True:
@@ -263,7 +380,7 @@ class Editor:
                 if self.handle_key(key):
                     break
         finally:
-            sys.stdout.write("\x1b[?1049l")
+            sys.stdout.write("\x1b[?2004l\x1b[?1049l")
             sys.stdout.flush()
 
     def draw_screen(self):
@@ -289,7 +406,7 @@ class Editor:
                 ]
                 output.extend((
                     DIM, MUTED, line_number, RESET,
-                    apply_syntax_highlighting(visible_text), "\x1b[K\r\n",
+                    self._highlight_line(visible_text, line_y), "\x1b[K\r\n",
                 ))
             else:
                 output.extend((DIM, MUTED, " " * (gutter_width - 1), "~", RESET, "\x1b[K\r\n"))
@@ -298,16 +415,73 @@ class Editor:
         status = f"Ln {self.cursor_y + 1}, Col {self.cursor_x + 1}  |  {len(self.lines)} lines"
         if self.dirty:
             status += "  |  Unsaved"
+        if self.search_active:
+            status += f"  |  {self.search_error or f'{len(self.search_matches)} match(es)'}"
         status_text = f"{title:<{max(0, cols - len(status))}}{status}"
         output.extend((STATUS_BG, STATUS_FG, status_text[:cols].ljust(cols), RESET, "\r\n"))
-        footer = self.message or "Ctrl+S Save   Ctrl+Z Undo   Ctrl+Y Redo   Ctrl+Q Quit"
+        footer = (
+            f"Search: {self.search_query}"
+            if self.search_active
+            else self.message or (
+                "Ctrl+S Save  Ctrl+Z Undo  Ctrl+Y Redo  Ctrl+Q Quit  "
+                "Ctrl+F Search  Ctrl+Backspace/Delete Word"
+            )
+        )
         output.extend((DIM, footer[:cols].ljust(cols), RESET))
-        cursor_row = self.cursor_y - self.scroll_y + 1
-        cursor_col = gutter_width + visual_cursor_x - self.scroll_x
+        if self.search_active:
+            cursor_row = rows
+            cursor_col = min(cols, len("Search: ") + len(self.search_query) + 1)
+        else:
+            cursor_row = self.cursor_y - self.scroll_y + 1
+            cursor_col = gutter_width + visual_cursor_x - self.scroll_x
         output.append(f"\x1b[{cursor_row};{cursor_col}H")
 
         sys.stdout.write("".join(output))
         sys.stdout.flush()
+
+    def _highlight_line(self, visible_text, line_y):
+        line_start = self._position_to_offset(0, line_y)
+        line_end = line_start + len(self.lines[line_y])
+        raw_text = self.lines[line_y].expandtabs(4)[self.scroll_x:self.scroll_x + len(visible_text)]
+        overlays = []
+        selection = self._selection_offsets()
+        if selection is not None:
+            start, end = max(selection[0], line_start), min(selection[1], line_end)
+            if start < end:
+                overlays.append((start, end, "\x1b[7m", 2))
+        for match_start, match_end in self.search_matches:
+            start, end = max(match_start, line_start), min(match_end, line_end)
+            if start < end:
+                current = (match_start, match_end) == self.current_search_match
+                overlays.append((start, end, "\x1b[7m" if current else "\x1b[43m", 1))
+        if not overlays:
+            return apply_syntax_highlighting(visible_text)
+
+        boundaries = {line_start, line_end}
+        for start, end, _, _ in overlays:
+            boundaries.update((start, end))
+        ordered = sorted(boundaries)
+        visual_start = self.scroll_x
+        visual_end = visual_start + len(raw_text)
+        parts = []
+        for start, end in zip(ordered, ordered[1:]):
+            text_start = len(self.lines[line_y][:start - line_start].expandtabs(4))
+            text_end = len(self.lines[line_y][:end - line_start].expandtabs(4))
+            visible_left = max(text_start, visual_start)
+            visible_right = min(text_end, visual_end)
+            if visible_left >= visible_right:
+                continue
+            segment = raw_text[visible_left - visual_start:visible_right - visual_start]
+            active = [
+                overlay for overlay in overlays
+                if overlay[0] <= start and end <= overlay[1]
+            ]
+            if active:
+                style = max(active, key=lambda overlay: overlay[3])[2]
+                parts.extend((style, segment, RESET))
+            else:
+                parts.append(apply_syntax_highlighting(segment))
+        return "".join(parts)
 
     def _keep_cursor_visible(self, height, width, visual_cursor_x):
         if self.cursor_y < self.scroll_y:
@@ -320,6 +494,16 @@ class Editor:
             self.scroll_x = visual_cursor_x - width + 1
 
     def handle_key(self, key):
+        if self.search_active:
+            return self._handle_search_key(key)
+        if key in ("\x06", "ctrl+f"):
+            self._open_search()
+            return False
+        if key.startswith("paste:"):
+            self._insert_text(key[6:])
+            self.message = ""
+            self.quit_requested = False
+            return False
         if key == "\x13":
             self.save_file()
             return False
@@ -335,22 +519,65 @@ class Editor:
         if key == "\x19":
             self.redo()
             return False
-        if key in ("arrow_up", "arrow_H", "arrow_A", "arrow_48"):
-            self.cursor_y = max(0, self.cursor_y - 1)
-        elif key in ("arrow_down", "arrow_P", "arrow_B", "arrow_50"):
-            self.cursor_y = min(len(self.lines) - 1, self.cursor_y + 1)
-        elif key in ("arrow_left", "arrow_K", "arrow_D", "arrow_4b"):
-            self.cursor_x = max(0, self.cursor_x - 1)
-        elif key in ("arrow_right", "arrow_M", "arrow_C", "arrow_4d"):
-            self.cursor_x = min(len(self.lines[self.cursor_y]), self.cursor_x + 1)
-        elif key in ("arrow_end", "arrow_4f", "arrow_F"):
-            self.cursor_x = len(self.lines[self.cursor_y])
-        elif key in ("arrow_home", "arrow_47", "arrow_G"):
-            self.cursor_x = 0
-        elif key in ("\x7f", "\x08"):
-            self._backspace()
+        if key in ("\x03", "ctrl+c", "\x1b[2;5~"):
+            self.clipboard = self._selected_text() if self._selection_offsets() else ""
+            if not self.clipboard:
+                self.message = "No selection to copy"
+            else:
+                try:
+                    copied_to_system = _write_system_clipboard(self.clipboard)
+                except (OSError, subprocess.SubprocessError) as error:
+                    self.message = f"Copied in editor; system clipboard failed: {error}"
+                else:
+                    self.message = (
+                        "Copied selection"
+                        if copied_to_system
+                        else "Copied in editor; no system clipboard command is available"
+                    )
+            return False
+        if key in ("\x18",):
+            if self._selection_offsets():
+                self.clipboard = self._selected_text()
+                self._record_history()
+                self._remove_selection()
+                self.dirty = True
+                self._refresh_search_matches()
+                self.message = "Cut selection"
+            return False
+        if key in ("\x16", "shift+insert", "ctrl+v"):
+            if self.clipboard:
+                self._insert_text(self.clipboard)
+            return False
+
+        modifiers = set(key.split("+")[:-1])
+        base_key = key.split("+")[-1]
+        shift = "shift" in modifiers
+        wordwise = bool(modifiers & {"ctrl", "alt"})
+        if base_key in {
+            "arrow_up", "arrow_down", "arrow_left", "arrow_right",
+            "arrow_home", "arrow_end",
+        }:
+            if "ctrl" in modifiers and base_key in {"arrow_up", "arrow_down"}:
+                self._scroll_view(-1 if base_key == "arrow_up" else 1)
+            else:
+                self._move_cursor(base_key, shift=shift, wordwise=wordwise)
+        elif key in ("\x08", "ctrl+backspace"):
+            if os.name == "nt":
+                if not self._delete_selection(): # For some reason on windows it is the opposit
+                    self._backspace()            # I have no idea why just stick to it
+            else:
+                self._delete_word("left")
+        elif key in ("\x7f", "backspace"):
+            if os.name == "nt":
+                self._delete_word("left")        # same here
+            else:
+                if not self._delete_selection():
+                    self._backspace()
+        elif key in ("ctrl+delete",):
+            self._delete_word("right")
         elif key in ("delete", "\x1b[3~"):
-            self._delete_forward()
+            if not self._delete_selection():
+                self._delete_forward()
         elif key in ("\r", "\n"):
             self._insert_newline()
         elif key == "\t":
@@ -365,28 +592,266 @@ class Editor:
         self.cursor_x = min(self.cursor_x, len(self.lines[self.cursor_y]))
         return False
 
-    def _insert_text(self, text):
-        current_line = self.lines[self.cursor_y]
+    def _scroll_view(self, direction):
+        try:
+            _, rows = os.get_terminal_size()
+        except OSError:
+            rows = 24
+        viewport_height = max(rows, 4) - 2
+        max_scroll = max(0, len(self.lines) - viewport_height)
+        new_scroll_y = max(0, min(max_scroll, self.scroll_y + direction))
+        scroll_delta = new_scroll_y - self.scroll_y
+        self.scroll_y = new_scroll_y
+        self.cursor_y = max(0, min(len(self.lines) - 1, self.cursor_y + scroll_delta))
+
+    def _open_search(self):
+        self.search_active = True
+        self.search_query = ""
+        self.search_regex = None
+        self.search_error = ""
+        self.search_matches = []
+        self.current_search_match = None
+        self.message = ""
+
+    def _handle_search_key(self, key):
+        if key in ("\x1b", "\x03"):
+            self.search_active = False
+            self.search_matches = []
+            self.current_search_match = None
+            self.message = "Search closed"
+            return False
+        if key in ("\r", "\n"):
+            self._select_search_match(reverse=False)
+            return False
+        if key in ("arrow_up", "arrow_left"):
+            self._select_search_match(reverse=True)
+            return False
+        if key in ("arrow_down", "arrow_right"):
+            self._select_search_match(reverse=False)
+            return False
+        if key in ("\x7f", "\x08", "backspace"):
+            self.search_query = self.search_query[:-1]
+            self._update_search()
+            return False
+        if key.startswith("paste:"):
+            pasted = key[6:].replace("\r\n", " ").replace("\n", " ").replace("\r", " ")
+            self.search_query += pasted
+            self._update_search()
+            return False
+        if len(key) == 1 and key.isprintable():
+            self.search_query += key
+            self._update_search()
+        return False
+
+    def _update_search(self):
+        self.search_regex = None
+        self.search_error = ""
+        self.search_matches = []
+        self.current_search_match = None
+        if not self.search_query:
+            return
+        try:
+            self.search_regex = _parse_search_query(self.search_query)
+        except (ValueError, re.error) as error:
+            self.search_error = str(error)
+            return
+
+        content = "\n".join(self.lines)
+        self.search_matches = [
+            (match.start(), match.end())
+            for match in self.search_regex.finditer(content)
+            if match.start() != match.end()
+        ]
+
+    def _refresh_search_matches(self):
+        if self.search_query:
+            self._update_search()
+
+    def _select_search_match(self, reverse=False):
+        if not self.search_matches:
+            self.message = f"Search error: {self.search_error}" if self.search_error else "No matches"
+            return
+
+        if self.current_search_match in self.search_matches:
+            index = self.search_matches.index(self.current_search_match)
+            index = (index + (-1 if reverse else 1)) % len(self.search_matches)
+        else:
+            cursor = self._position_to_offset(self.cursor_x, self.cursor_y)
+            if reverse:
+                eligible = [
+                    index for index, (start, _) in enumerate(self.search_matches)
+                    if start < cursor
+                ]
+                index = eligible[-1] if eligible else len(self.search_matches) - 1
+            else:
+                eligible = [
+                    index for index, (start, _) in enumerate(self.search_matches)
+                    if start >= cursor
+                ]
+                index = eligible[0] if eligible else 0
+        self.current_search_match = self.search_matches[index]
+        self.cursor_x, self.cursor_y = self._offset_to_position(self.current_search_match[0])
+        self._clear_selection()
+        self.message = f"Match {index + 1} of {len(self.search_matches)}"
+
+    def _position_to_offset(self, x, y):
+        return sum(len(line) + 1 for line in self.lines[:y]) + x
+
+    def _offset_to_position(self, offset):
+        for y, line in enumerate(self.lines):
+            if offset <= len(line):
+                return offset, y
+            offset -= len(line) + 1
+        last_y = len(self.lines) - 1
+        return len(self.lines[last_y]), last_y
+
+    def _selection_offsets(self):
+        if self.selection_anchor is None:
+            return None
+        anchor_x, anchor_y = self.selection_anchor
+        anchor = self._position_to_offset(anchor_x, anchor_y)
+        cursor = self._position_to_offset(self.cursor_x, self.cursor_y)
+        if anchor == cursor:
+            return None
+        return min(anchor, cursor), max(anchor, cursor)
+
+    def _selected_text(self):
+        selection = self._selection_offsets()
+        if selection is None:
+            return ""
+        content = "\n".join(self.lines)
+        return content[selection[0]:selection[1]]
+
+    def _clear_selection(self):
+        self.selection_anchor = None
+
+    def _remove_selection(self):
+        selection = self._selection_offsets()
+        if selection is None:
+            return False
+        content = "\n".join(self.lines)
+        content = content[:selection[0]] + content[selection[1]:]
+        self.lines = content.split("\n")
+        self.cursor_x, self.cursor_y = self._offset_to_position(selection[0])
+        self._clear_selection()
+        return True
+
+    def _delete_selection(self):
+        if self._selection_offsets() is None:
+            return False
         self._record_history()
-        self.lines[self.cursor_y] = (
-            current_line[:self.cursor_x] + text + current_line[self.cursor_x:]
-        )
-        self.cursor_x += len(text)
+        self._remove_selection()
         self.dirty = True
+        self._refresh_search_matches()
+        return True
+
+    def _delete_word(self, direction):
+        if self._delete_selection():
+            return
+
+        original = (self.cursor_x, self.cursor_y)
+        self._move_word_left() if direction == "left" else self._move_word_right()
+        destination = (self.cursor_x, self.cursor_y)
+        self.cursor_x, self.cursor_y = original
+        if destination == original:
+            return
+
+        self._record_history()
+        self.selection_anchor = original
+        self.cursor_x, self.cursor_y = destination
+        self._remove_selection()
+        self.dirty = True
+        self._refresh_search_matches()
+
+    def _move_cursor(self, direction, shift=False, wordwise=False):
+        if shift and self.selection_anchor is None:
+            self.selection_anchor = (self.cursor_x, self.cursor_y)
+        elif not shift:
+            self._clear_selection()
+
+        if direction == "arrow_up":
+            self.cursor_y = max(0, self.cursor_y - 1)
+            self.cursor_x = min(self.cursor_x, len(self.lines[self.cursor_y]))
+        elif direction == "arrow_down":
+            self.cursor_y = min(len(self.lines) - 1, self.cursor_y + 1)
+            self.cursor_x = min(self.cursor_x, len(self.lines[self.cursor_y]))
+        elif direction in {"arrow_home", "arrow_end"}:
+            self.cursor_x = 0 if direction == "arrow_home" else len(self.lines[self.cursor_y])
+        elif direction == "arrow_left":
+            if wordwise:
+                self._move_word_left()
+            elif self.cursor_x > 0:
+                self.cursor_x -= 1
+            elif self.cursor_y > 0:
+                self.cursor_y -= 1
+                self.cursor_x = len(self.lines[self.cursor_y])
+        elif direction == "arrow_right":
+            if wordwise:
+                self._move_word_right()
+            elif self.cursor_x < len(self.lines[self.cursor_y]):
+                self.cursor_x += 1
+            elif self.cursor_y < len(self.lines) - 1:
+                self.cursor_y += 1
+                self.cursor_x = 0
+
+    def _move_word_left(self):
+        line = self.lines[self.cursor_y]
+        if self.cursor_x == 0:
+            if self.cursor_y > 0:
+                self.cursor_y -= 1
+                self.cursor_x = len(self.lines[self.cursor_y])
+            return
+        self.cursor_x -= 1
+        while self.cursor_x > 0 and line[self.cursor_x].isspace():
+            self.cursor_x -= 1
+        while self.cursor_x > 0 and not line[self.cursor_x - 1].isspace():
+            self.cursor_x -= 1
+
+    def _move_word_right(self):
+        line = self.lines[self.cursor_y]
+        while self.cursor_x < len(line) and not line[self.cursor_x].isspace():
+            self.cursor_x += 1
+        while self.cursor_x < len(line) and line[self.cursor_x].isspace():
+            self.cursor_x += 1
+        if self.cursor_x == len(line) and self.cursor_y < len(self.lines) - 1:
+            self.cursor_y += 1
+            self.cursor_x = 0
+
+    def _insert_text(self, text):
+        self._record_history()
+        self._remove_selection()
+        text = text.replace("\r\n", "\n").replace("\r", "\n")
+        current_line = self.lines[self.cursor_y]
+        left_side = current_line[:self.cursor_x]
+        right_side = current_line[self.cursor_x:]
+        inserted_lines = text.split("\n")
+        replacement = [left_side + inserted_lines[0]]
+        replacement.extend(inserted_lines[1:-1])
+        if len(inserted_lines) > 1:
+            replacement.append(inserted_lines[-1] + right_side)
+        else:
+            replacement[0] += right_side
+        self.lines[self.cursor_y:self.cursor_y + 1] = replacement
+        self.cursor_y += len(inserted_lines) - 1
+        self.cursor_x = len(inserted_lines[-1]) if len(inserted_lines) > 1 else len(left_side) + len(text)
+        self._clear_selection()
+        self.dirty = True
+        self._refresh_search_matches()
 
     def _insert_newline(self):
         current_line = self.lines[self.cursor_y]
         left_side = current_line[:self.cursor_x]
         right_side = current_line[self.cursor_x:]
-        indentation = re.match(r"^\s*", current_line).group() if re.match(r"^\s*", current_line) is not None else "" # type:ignore
+        indentation_match = re.match(r"^\s*", left_side)
+        indentation = indentation_match.group() if indentation_match else ""
         if AUTO_INDENT.match(left_side.rstrip()):
             indentation += "\t"
-        self._record_history()
-        self.lines[self.cursor_y] = left_side
-        self.lines.insert(self.cursor_y + 1, indentation + right_side)
-        self.cursor_y += 1
-        self.cursor_x = len(indentation)
-        self.dirty = True
+        if left_side.strip().casefold() == "endnamespace":
+            if indentation.endswith("\t"):
+                indentation = indentation[:-1]
+            elif indentation.endswith("    "):
+                indentation = indentation[:-4]
+        self._insert_text("\n" + indentation)
 
     def _backspace(self):
         current_line = self.lines[self.cursor_y]
@@ -397,6 +862,7 @@ class Editor:
             )
             self.cursor_x -= 1
             self.dirty = True
+            self._refresh_search_matches()
         elif self.cursor_y > 0:
             self._record_history()
             previous_length = len(self.lines[self.cursor_y - 1])
@@ -405,6 +871,7 @@ class Editor:
             self.cursor_y -= 1
             self.cursor_x = previous_length
             self.dirty = True
+            self._refresh_search_matches()
 
     def _delete_forward(self):
         current_line = self.lines[self.cursor_y]
@@ -414,10 +881,12 @@ class Editor:
                 current_line[:self.cursor_x] + current_line[self.cursor_x + 1:]
             )
             self.dirty = True
+            self._refresh_search_matches()
         elif self.cursor_y < len(self.lines) - 1:
             self._record_history()
             self.lines[self.cursor_y] += self.lines.pop(self.cursor_y + 1)
             self.dirty = True
+            self._refresh_search_matches()
 
     def _current_state(self):
         return tuple(self.lines), self.cursor_x, self.cursor_y
@@ -426,6 +895,7 @@ class Editor:
         lines, self.cursor_x, self.cursor_y = state
         self.lines = list(lines)
         self.dirty = tuple(self.lines) != self.saved_lines
+        self._refresh_search_matches()
 
     def _record_history(self):
         self.undo_stack.append(self._current_state())
