@@ -64,7 +64,7 @@ __all__ = [
     "__version__"
 ]
 
-__version__ = "1.5.8"
+__version__ = "1.5.9"
 
 # Persistent preprocessor/function state for the current ChemQL session.
 DEFINITIONS = {}
@@ -4176,6 +4176,16 @@ def process_inline(text):
     if not stripped:
         return
 
+    # A standalone quoted string is a Python literal, not a ChemQL command.
+    # Check only complete literals so quotes inside queries remain untouched.
+    try:
+        literal_value = ast.literal_eval(stripped)
+    except (SyntaxError, ValueError, TypeError):
+        literal_value = None
+    else:
+        if isinstance(literal_value, str):
+            return literal_value
+
     # Native dynamically typed variables: `let name = expression`.
     let_match = re.fullmatch(r"let\s+([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*=\s*(.+)", stripped, re.DOTALL)
     if let_match:
@@ -4598,6 +4608,12 @@ def process_lines(lines):
             if re.match(r"^(for|while|if)\s+.+$", stripped_source) and not stripped_source.startswith("["):
                 # Existing block parser supplies the trailing colon to Python's AST.
                 source_line = "[" + stripped_source + "]"
+            elif re.match(r"^elif\s+.+$", stripped_source, re.IGNORECASE):
+                # Normalize branch markers so execute_if_block() can recognize
+                # them as part of the current conditional chain.
+                source_line = "[" + stripped_source + "]"
+            elif stripped_source.casefold() == "else":
+                source_line = "[else]"
             elif stripped_source.casefold() in {"endfor", "endwhile", "endif"}:
                 source_line = "[endblock]"
         normalized_lines.append(source_line)
