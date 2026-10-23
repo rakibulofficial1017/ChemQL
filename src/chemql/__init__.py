@@ -64,7 +64,7 @@ __all__ = [
     "__version__"
 ]
 
-__version__ = "1.5.6"
+__version__ = "1.5.7"
 
 # Persistent preprocessor/function state for the current ChemQL session.
 DEFINITIONS = {}

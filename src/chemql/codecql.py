@@ -10,7 +10,7 @@ import shutil
 import subprocess
 import time
 
-VERSION = "0.0.6"
+VERSION = "0.0.7"
 
 
 def _write_system_clipboard(text):
@@ -129,7 +129,7 @@ if os.name == 'nt':
         0x48: "arrow_up", 0x50: "arrow_down",
         0x4B: "arrow_left", 0x4D: "arrow_right",
         0x47: "arrow_home", 0x4F: "arrow_end",
-        0x53: "delete", 0x73: "ctrl+arrow_left",
+        0x53: "delete", 0x93: "ctrl+delete", 0x73: "ctrl+arrow_left",
         0x74: "ctrl+arrow_right", 0x8D: "ctrl+arrow_up",
         0x91: "ctrl+arrow_down", 0x9B: "alt+arrow_left",
         0x9D: "alt+arrow_right",
@@ -455,7 +455,7 @@ class Editor:
             if self.search_active
             else self.message or (
                 "Ctrl+S Save  Ctrl+Z Undo  Ctrl+Y Redo  Ctrl+Q Quit  "
-                "Ctrl+F Search  Ctrl+T Terminal  Ctrl+Backspace/Delete Word"
+                "Ctrl+F Search  Ctrl+T Terminal  Ctrl+R Run ChemQL  Ctrl+Backspace/Delete Word"
             )
         )
         output.extend((DIM, footer[:cols].ljust(cols), RESET))
@@ -529,7 +529,9 @@ class Editor:
             return self._handle_search_key(key)
         if key in ("\x14", "ctrl+t"):
             self._run_split_terminal()
-            self.message = "Terminal closed"
+            return False
+        if key in ("\x12", "ctrl+r"):
+            self._run_split_terminal(run_chemql=True)
             return False
         if key in ("\x06", "ctrl+f"):
             self._open_search()
@@ -627,44 +629,58 @@ class Editor:
         self.cursor_x = min(self.cursor_x, len(self.lines[self.cursor_y]))
         return False
 
-    def _run_split_terminal(self):
-        """Open a shell in a manageable split pane where the platform allows it.
+    def _run_split_terminal(self, run_chemql=False):
+        """Open a shell; Ctrl+R also runs ChemQL on this file's absolute path."""
+        command = None
+        if run_chemql:
+            # Run the current buffer rather than stale on-disk contents.
+            if self.dirty:
+                self.save_file()
+                if self.dirty:
+                    return
+            absolute_path = os.path.abspath(self.filename)
+            if os.name == "nt":
+                command = "chemql -f " + subprocess.list2cmdline([absolute_path])
+            else:
+                import shlex
+                command = "chemql -f " + shlex.quote(absolute_path)
 
-        POSIX uses a PTY in the lower part of the current terminal. Ctrl+T or
-        Esc returns to the editor; Ctrl+Up/Down resizes the shell pane. Window
-        resize events are forwarded to the shell PTY. Windows Terminal owns
-        its split panes, so on Windows its pane is independently resizable and
-        closing the shell returns focus to the editor pane.
-        """
         if os.name == "nt":
             shell = os.environ.get("COMSPEC", "cmd.exe")
             wt = shutil.which("wt.exe") or shutil.which("wt")
 
             if wt and os.environ.get("WT_SESSION"):
                 try:
-                    subprocess.Popen([
+                    args = [
                         wt, "-w", "0", "split-pane", "-V",
                         "--size", "0.35", "--title", "ChemQL Terminal",
                         shell, "/K",
-                    ])
+                    ]
+                    if command:
+                        args.append(command)
+                    subprocess.Popen(args)
                 except OSError as error:
                     self.message = f"Could not open Windows Terminal pane: {error}"
                 else:
                     self.message = (
+                        "ChemQL running in Windows Terminal pane" if command else
                         "Terminal opened in a Windows Terminal pane; resize it with "
                         "Alt+Shift+Plus/Minus or drag the divider. Exit the shell to close it."
                     )
                 return
 
             try:
+                args = [shell]
+                if command:
+                    args.extend(["/K", command])
                 subprocess.Popen(
-                    [shell],
+                    args,
                     creationflags=getattr(subprocess, "CREATE_NEW_CONSOLE", 0),
                 )
             except OSError as error:
                 self.message = f"Could not open terminal: {error}"
             else:
-                self.message = "Terminal opened in a separate console window"
+                self.message = "ChemQL running in a separate console" if command else "Terminal opened in a separate console window"
             return
 
         stdin_fd = sys.stdin.fileno()
@@ -728,6 +744,8 @@ class Editor:
                 struct.pack("HHHH", pane_height, cols, 0, 0),
             )
             tty.setraw(stdin_fd)
+            if command:
+                os.write(master_fd, command.encode("utf-8") + b"\n")
             sys.stdout.write(f"\x1b[{pane_top};{rows}r\x1b[?6h\x1b[1;1H")
             sys.stdout.flush()
 
