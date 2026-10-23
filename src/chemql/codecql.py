@@ -10,7 +10,7 @@ import shutil
 import subprocess
 import time
 
-VERSION = "0.0.7"
+VERSION = "0.0.8"
 
 
 def _write_system_clipboard(text):
@@ -79,7 +79,8 @@ def _decode_escape_sequence(sequence):
             else:
                 return "\x1b"
             return "+".join((*modifiers, key)) if modifiers else key
-        if final == b"u" and params and params[0] == "127":
+        if final == b"u" and params and params[0] in {"8", "127"}:
+            # CSI-u / Kitty keyboard protocol can encode Backspace as 8 or 127.
             key = "backspace"
             return "+".join((*modifiers, key)) if modifiers else key
     elif sequence.startswith(b"O") and sequence[-1:] in b"ABCDHF":
@@ -181,8 +182,16 @@ else:
                     return _decode_escape_sequence(sequence)
                 if sequence.startswith(b"O"):
                     return _decode_escape_sequence(sequence)
+                if sequence in (b"\x7f", b"\x08"):
+                    return "alt+backspace"
                 if sequence:
-                    return "alt+" + sequence.decode("utf-8", errors="replace")
+                    # ESC + one printable character is commonly Alt+<key>.
+                    # Never insert an unknown multi-character escape sequence.
+                    if len(sequence) == 1:
+                        char = sequence.decode("utf-8", errors="replace")
+                        if char.isprintable():
+                            return "alt+" + char
+                    return "\x1b"
                 return "\x1b"
             if not first:
                 return ""
@@ -598,7 +607,7 @@ class Editor:
                 self._scroll_view(-1 if base_key == "arrow_up" else 1)
             else:
                 self._move_cursor(base_key, shift=shift, wordwise=wordwise)
-        elif key in ("\x08", "ctrl+backspace"):
+        elif key in ("\x08", "ctrl+backspace", "alt+backspace"):
             if os.name == "nt":
                 if not self._delete_selection(): # For some reason on windows it is the opposit
                     self._backspace()            # I have no idea why just stick to it
@@ -610,7 +619,7 @@ class Editor:
             else:
                 if not self._delete_selection():
                     self._backspace()
-        elif key in ("ctrl+delete",):
+        elif key in ("ctrl+delete", "alt+delete"):
             self._delete_word("right")
         elif key in ("delete", "\x1b[3~"):
             if not self._delete_selection():
@@ -619,7 +628,8 @@ class Editor:
             self._insert_newline()
         elif key == "\t":
             self._insert_text("\t")
-        elif key and key.isprintable():
+        elif key and key.isprintable() and "+" not in key:
+            # Symbolic key names (e.g. "alt+delete") are control events, not text.
             self._insert_text(key)
         if key not in ("\x11",):
             self.quit_requested = False
