@@ -1,3 +1,6 @@
+import io
+import re
+
 from chemql import codecql
 
 
@@ -190,3 +193,53 @@ def test_copy_paste_and_bracketed_multiline_paste(monkeypatch):
 
     editor.handle_key("paste:first\r\nsecond")
     assert editor.lines == ["one twoonfirst", "second"]
+
+
+def test_ctrl_t_opens_split_terminal_without_changing_editor_buffer(monkeypatch):
+    editor = codecql.Editor(None)
+    editor.lines = ["unsaved editor text"]
+    editor.cursor_x = 8
+    launched = []
+    monkeypatch.setattr(editor, "_run_split_terminal", lambda: launched.append(True))
+
+    editor.handle_key("\x14")
+
+    assert launched == [True]
+    assert editor.lines == ["unsaved editor text"]
+    assert editor.cursor_x == 8
+
+
+def test_editor_draw_does_not_scroll_or_duplicate_footer(monkeypatch):
+    editor = codecql.Editor(None)
+    editor.lines = ["first line", "second line"]
+    editor.message = ""
+    output = io.StringIO()
+    monkeypatch.setattr(codecql.os, "get_terminal_size", lambda: (120, 12))
+    monkeypatch.setattr(codecql.sys, "stdout", output)
+
+    editor.draw_screen()
+
+    rendered = output.getvalue()
+    screen = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", rendered)
+    assert screen.startswith("1 first line")
+    assert screen.count("Ctrl+S Save") == 1
+    assert screen.count("\r\n") == 11
+    assert rendered.endswith("\x1b[1;3H")
+
+
+def test_editor_draw_reserves_rows_above_terminal_pane(monkeypatch):
+    editor = codecql.Editor(None)
+    editor.lines = ["first line", "second line"]
+    editor.message = ""
+    output = io.StringIO()
+    monkeypatch.setattr(codecql.os, "get_terminal_size", lambda: (120, 12))
+    monkeypatch.setattr(codecql.sys, "stdout", output)
+
+    editor.draw_screen(terminal_height=4)
+
+    rendered = output.getvalue()
+    screen = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", rendered)
+    assert screen.startswith("1 first line")
+    assert "Ctrl+T Terminal" in screen
+    assert screen.count("\r\n") == 7
+    assert rendered.endswith("\x1b[1;3H")

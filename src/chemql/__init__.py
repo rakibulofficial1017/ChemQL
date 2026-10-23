@@ -64,7 +64,7 @@ __all__ = [
     "__version__"
 ]
 
-__version__ = "1.5.3"
+__version__ = "1.5.6"
 
 # Persistent preprocessor/function state for the current ChemQL session.
 DEFINITIONS = {}
@@ -568,16 +568,16 @@ def _help_text(topic=None):
 def _call_builtin(name, arguments):
     entry = BUILTIN_FUNCTIONS.get(name)
     if entry is None:
-        raise NameError(f"Unknown ChemQL built-in `{name}`")
+        raise NameError((f"Unknown ChemQL built-in `{name}`" if NO_ANSI else f"Unknown ChemQL built-in \033[1m{name}\033[22m"))
     function, minimum, maximum = entry
     count = len(arguments)
     if count < minimum:
-        raise TooFewArguments(f"Too few arguments for `{name}`: expected at least {minimum}, got {count}")
+        raise TooFewArguments((f"Too few arguments for `{name}`: expected at least {minimum}, got {count}" if NO_ANSI else f"Too few arguments for \033[1m{name}\033[22m: expected at least {minimum}, got {count}"))
     if maximum is not None and count > maximum:
-        raise TooManyArguments(f"Too many arguments for `{name}`: expected at most {maximum}, got {count}")
+        raise TooManyArguments((f"Too many arguments for `{name}`: expected at most {maximum}, got {count}" if NO_ANSI else f"Too many arguments for \033[1m{name}\033[22m: expected at most {maximum}, got {count}"))
     if name == "help":
         if len(arguments) > 1:
-            raise TooManyArguments("Too many arguments for `help`: expected at most 1, got " + str(len(arguments)))
+            raise TooManyArguments(("Too many arguments for `help`: expected at most 1, got " + str(len(arguments)) if NO_ANSI else "Too many arguments for \033[1mhelp\033[22m: expected at most 1, got " + str(len(arguments))))
         topic = arguments[0].strip() if arguments else None
         if topic is not None and len(topic) >= 2 and topic[0] in ("\"", "'") and topic[-1] == topic[0]:
             try:
@@ -591,18 +591,18 @@ def _call_builtin(name, arguments):
     except ChemQLBuiltinError:
         raise
     except TypeError as exc:
-        raise InvalidArgumentType(f"Invalid argument type for `{name}`: {exc}") from exc
+        raise InvalidArgumentType((f"Invalid argument type for `{name}`: {exc}" if NO_ANSI else f"Invalid argument type for \033[1m{name}\033[22m: {exc}")) from exc
     except ValueError as exc:
-        raise InvalidArgumentValue(f"Invalid argument value for `{name}`: {exc}") from exc
+        raise InvalidArgumentValue((f"Invalid argument value for `{name}`: {exc}" if NO_ANSI else f"Invalid argument value for \033[1m{name}\033[22m: {exc}")) from exc
     except IndexError as exc:
-        raise InvalidArgumentValue(f"Invalid argument value for `{name}`: {exc}") from exc
+        raise InvalidArgumentValue((f"Invalid argument value for `{name}`: {exc}" if NO_ANSI else f"Invalid argument value for \033[1m{name}\033[22m: {exc}")) from exc
 
 
 def _call_function(name, arguments):
     """Call a ChemQL function, including let assignments and block syntax."""
     global _CURRENT_NAMESPACE
     if name not in FUNCTIONS:
-        raise NameError(f"Unknown ChemQL function `{name}`")
+        raise NameError((f"Unknown ChemQL function `{name}`" if NO_ANSI else f"Unknown ChemQL function \033[1m{name}\033[22m"))
 
     values = [evaluate_python(arg) for arg in arguments]
     definition = FUNCTIONS[name]
@@ -697,7 +697,7 @@ def _call_function(name, arguments):
                         if risk_depth == 0: break
                     end_risk += 1
                 if end_risk >= len(lines):
-                    raise SyntaxError(f"Missing `endrisk` in function `{name}`")
+                    raise SyntaxError((f"Missing `endrisk` in function `{name}`" if NO_ANSI else f"Missing \033[1mendrisk\033[22m in function \033[1m{name}\033[22m"))
                 sections = {"risk": [], "fix": [], "cleanup": []}
                 section = "risk"
                 for risk_line in lines[i + 1:end_risk]:
@@ -748,7 +748,7 @@ def _call_function(name, arguments):
 
                 if i >= len(lines):
                     raise SyntaxError(
-                        f"Missing `]]]` in function `{name}`"
+                        (f"Missing `]]]` in function `{name}`" if NO_ANSI else f"Missing \033[1m]]]\033[22m in function \033[1m{name}\033[22m")
                     )
 
                 evaluate_python("\n".join(block))
@@ -846,7 +846,7 @@ def _call_function(name, arguments):
 
                 else:
                     raise SyntaxError(
-                        f"Unsupported function block `{code}`"
+                        (f"Unsupported function block `{code}`" if NO_ANSI else f"Unsupported function block \033[1m{code}\033[22m")
                     )
 
                 i = end + 1
@@ -854,7 +854,7 @@ def _call_function(name, arguments):
 
             if line == "[endblock]":
                 raise SyntaxError(
-                    f"Unexpected `[endblock]` in function `{name}`"
+                    (f"Unexpected `[endblock]` in function `{name}`" if NO_ANSI else f"Unexpected \033[1m[endblock]\033[22m in function \033[1m{name}\033[22m")
                 )
 
             # Handle return statements inside the function.
@@ -963,7 +963,7 @@ def _expand_function_calls(text):
                 args = _split_function_arguments(text[opening + 1:end])
                 if resolved_name in FUNCTIONS:
                     if not _namespace_function_is_callable(resolved_name):
-                        raise PermissionError(f"Function `{name}` is private")
+                        raise PermissionError((f"Function `{name}` is private" if NO_ANSI else f"Function \033[1m{name}\033[22m is private"))
                     value = _call_function(resolved_name, args)
                 elif "::" not in resolved_name and resolved_name in BUILTIN_FUNCTIONS:
                     value = _call_builtin(resolved_name, args)
@@ -978,7 +978,7 @@ def _expand_function_calls(text):
                     changed = True
                     break
                 else:
-                    raise ChemQLError(f"Unknown function `{name}`")
+                    raise ChemQLError((f"Unknown function `{name}`" if NO_ANSI else f"Unknown function \033[1m{name}\033[22m"))
                 replacement = repr(value) if isinstance(value, str) else ("None" if value is None else str(value))
                 text = text[:i] + replacement + text[end + 1:]
                 changed = True
@@ -2839,7 +2839,7 @@ def _formula_counts(formula):
             char = formula[index]
             if char == ")":
                 if not nested:
-                    raise ValueError(f"Unmatched closing parenthesis in formula `{formula}`")
+                    raise ValueError((f"Unmatched closing parenthesis in formula `{formula}`" if NO_ANSI else f"Unmatched closing parenthesis in formula \033[1m{formula}\033[22m"))
                 return counts, index
             if char == "(":
                 group, index = parse_group(index + 1, True)
@@ -4391,7 +4391,7 @@ def _package_relative_path(package_name):
     """Convert a canonical `a::b` package name to a relative source path."""
     parts = package_name.split("::")
     if not parts or any(not re.fullmatch(r"[A-Za-z_]\w*", part) for part in parts):
-        raise ImportError(f"Invalid ChemQL package name: `{package_name}`")
+        raise ImportError((f"Invalid ChemQL package name: `{package_name}`" if NO_ANSI else f"Invalid ChemQL package name: \033[1m{package_name}\033[22m"))
     return Path(*parts[:-1], parts[-1] + ".cql")
 
 
@@ -4410,7 +4410,7 @@ def _find_cql_package_file(package_name):
 def _ensure_package_namespace(package_name, allow_namespace_only=False):
     """Load a canonical ChemQL package and return its namespace object."""
     if not re.fullmatch(r"[A-Za-z_]\w*(?:::[A-Za-z_]\w*)*", package_name):
-        raise ImportError(f"Invalid ChemQL package name: `{package_name}`")
+        raise ImportError((f"Invalid ChemQL package name: `{package_name}`" if NO_ANSI else f"Invalid ChemQL package name: \033[1m{package_name}\033[22m"))
     cached = NAMESPACES.get(package_name)
     if cached is not None and package_name in CHEMQL_PACKAGE_SOURCE_LOADED:
         return cached
@@ -4419,8 +4419,11 @@ def _ensure_package_namespace(package_name, allow_namespace_only=False):
     path = _find_cql_package_file(package_name)
     if path is None and not allow_namespace_only:
         raise ImportError(
-            f"Cannot find ChemQL package `{package_name}`. Searched the current "
-            f"directory and ChemQL's bundled `stdlib` directory for .cql files."
+            (f"Cannot find ChemQL package `{package_name}`. Searched the current "
+             f"directory and ChemQL's bundled `stdlib` directory for .cql files."
+             if NO_ANSI else
+             f"Cannot find ChemQL package \033[1m{package_name}\033[22m. Searched the current "
+             f"directory and ChemQL's bundled \033[1mstdlib\033[22m directory for .cql files.")
         )
     parent = _ensure_package_namespace(parent_name, allow_namespace_only=True) if separator else None
 
@@ -4465,7 +4468,7 @@ def _execute_load_statement(statement):
     )
     if not match:
         if statement.startswith("load"):
-            raise SyntaxError("Expected `load package::name` or `load package::name as alias`")
+            raise SyntaxError(("Expected `load package::name` or `load package::name as alias`" if NO_ANSI else "Expected \033[1mload package::name\033[22m or \033[1mload package::name as alias\033[22m"))
         return False
 
     package_name, alias = match.groups()
@@ -4476,24 +4479,34 @@ def _execute_load_statement(statement):
         existing = CHEMQL_PACKAGE_BINDINGS.get(alias)
         if existing is not None and existing != package_name:
             raise ImportError(
-                f"Package name `{alias}` is already bound to `{existing}`; "
-                f"cannot also bind it to `{package_name}`. Use a different alias, "
-                f"for example `load {package_name} as {alias}_pkg`."
+                (f"Package name `{alias}` is already bound to `{existing}`; "
+                 f"cannot also bind it to `{package_name}`. Use a different alias, "
+                 f"for example `load {package_name} as {alias}_pkg`."
+                 if NO_ANSI else
+                 f"Package name \033[1m{alias}\033[22m is already bound to \033[1m{existing}\033[22m; "
+                 f"cannot also bind it to \033[1m{package_name}\033[22m. Use a different alias, "
+                 f"for example \033[1mload {package_name} as {alias}_pkg\033[22m.")
             )
         if alias in CHEMQL_VARIABLES and alias not in CHEMQL_PACKAGE_BINDINGS:
             raise ImportError(
-                f"Name `{alias}` is already defined and cannot be used as a package alias. "
-                f"Choose another alias."
+                (f"Name `{alias}` is already defined and cannot be used as a package alias. "
+                 f"Choose another alias."
+                 if NO_ANSI else
+                 f"Name \033[1m{alias}\033[22m is already defined and cannot be used as a package alias. "
+                 f"Choose another alias.")
             )
     elif "::" not in package_name:
         existing = CHEMQL_PACKAGE_BINDINGS.get(package_name)
         if existing is not None and existing != package_name:
             raise ImportError(
-                f"Name `{package_name}` is already bound to `{existing}`. "
-                f"Use an explicit alias to load `{package_name}` under another name."
+                (f"Name `{package_name}` is already bound to `{existing}`. "
+                 f"Use an explicit alias to load `{package_name}` under another name."
+                 if NO_ANSI else
+                 f"Name \033[1m{package_name}\033[22m is already bound to \033[1m{existing}\033[22m. "
+                 f"Use an explicit alias to load \033[1m{package_name}\033[22m under another name.")
             )
         if package_name in CHEMQL_VARIABLES and package_name not in CHEMQL_PACKAGE_BINDINGS:
-            raise ImportError(f"Name `{package_name}` is already defined; cannot bind package to it.")
+            raise ImportError((f"Name `{package_name}` is already defined; cannot bind package to it." if NO_ANSI else f"Name \033[1m{package_name}\033[22m is already defined; cannot bind package to it."))
 
     namespace = _ensure_package_namespace(package_name)
 
@@ -4505,11 +4518,14 @@ def _execute_load_statement(statement):
         root_binding = CHEMQL_PACKAGE_BINDINGS.get(root_name)
         if root_binding is not None and root_binding != root_name:
             raise ImportError(
-                f"Canonical namespace `{root_name}` is already bound to `{root_binding}`; "
-                f"cannot expose `{package_name}` through its canonical path."
+                (f"Canonical namespace `{root_name}` is already bound to `{root_binding}`; "
+                 f"cannot expose `{package_name}` through its canonical path."
+                 if NO_ANSI else
+                 f"Canonical namespace \033[1m{root_name}\033[22m is already bound to \033[1m{root_binding}\033[22m; "
+                 f"cannot expose \033[1m{package_name}\033[22m through its canonical path.")
             )
         if root_name in CHEMQL_VARIABLES and root_name not in CHEMQL_PACKAGE_BINDINGS:
-            raise ImportError(f"Name `{root_name}` is already defined; cannot expose `{package_name}`.")
+            raise ImportError((f"Name `{root_name}` is already defined; cannot expose `{package_name}`." if NO_ANSI else f"Name \033[1m{root_name}\033[22m is already defined; cannot expose \033[1m{package_name}\033[22m."))
         CHEMQL_PACKAGE_BINDINGS[root_name] = root_name
         python_globals[root_name] = root_namespace
         CHEMQL_VARIABLES.add(root_name)
@@ -4518,15 +4534,22 @@ def _execute_load_statement(statement):
         existing = CHEMQL_PACKAGE_BINDINGS.get(alias)
         if existing is not None and existing != package_name:
             raise ImportError(
-                f"Package name `{alias}` is already bound to `{existing}`; "
-                f"cannot also bind it to `{package_name}`. Use a different alias, "
-                f"for example `load {package_name} as {alias}_pkg`."
+                (f"Package name `{alias}` is already bound to `{existing}`; "
+                 f"cannot also bind it to `{package_name}`. Use a different alias, "
+                 f"for example `load {package_name} as {alias}_pkg`."
+                 if NO_ANSI else
+                 f"Package name \033[1m{alias}\033[22m is already bound to \033[1m{existing}\033[22m; "
+                 f"cannot also bind it to \033[1m{package_name}\033[22m. Use a different alias, "
+                 f"for example \033[1mload {package_name} as {alias}_pkg\033[22m.")
             )
         # Avoid silently overwriting a non-package ChemQL variable either.
         if alias in CHEMQL_VARIABLES and alias not in CHEMQL_PACKAGE_BINDINGS:
             raise ImportError(
-                f"Name `{alias}` is already defined and cannot be used as a package alias. "
-                f"Choose another alias."
+                (f"Name `{alias}` is already defined and cannot be used as a package alias. "
+                 f"Choose another alias."
+                 if NO_ANSI else
+                 f"Name \033[1m{alias}\033[22m is already defined and cannot be used as a package alias. "
+                 f"Choose another alias.")
             )
         CHEMQL_PACKAGE_BINDINGS[alias] = package_name
         python_globals[alias] = namespace
@@ -4540,11 +4563,14 @@ def _execute_load_statement(statement):
             existing = CHEMQL_PACKAGE_BINDINGS.get(package_name)
             if existing is not None and existing != package_name:
                 raise ImportError(
-                    f"Name `{package_name}` is already bound to `{existing}`. "
-                    f"Use an explicit alias to load `{package_name}` under another name."
+                    (f"Name `{package_name}` is already bound to `{existing}`. "
+                     f"Use an explicit alias to load `{package_name}` under another name."
+                     if NO_ANSI else
+                     f"Name \033[1m{package_name}\033[22m is already bound to \033[1m{existing}\033[22m. "
+                     f"Use an explicit alias to load \033[1m{package_name}\033[22m under another name.")
                 )
             if package_name in CHEMQL_VARIABLES and package_name not in CHEMQL_PACKAGE_BINDINGS:
-                raise ImportError(f"Name `{package_name}` is already defined; cannot bind package to it.")
+                raise ImportError((f"Name `{package_name}` is already defined; cannot bind package to it." if NO_ANSI else f"Name \033[1m{package_name}\033[22m is already defined; cannot bind package to it."))
             CHEMQL_PACKAGE_BINDINGS[package_name] = package_name
             python_globals[package_name] = namespace
             CHEMQL_VARIABLES.add(package_name)
@@ -4602,7 +4628,7 @@ def process_lines(lines):
                         break
                 end += 1
             if end >= len(lines):
-                raise SyntaxError(f"Missing `endnamespace` for namespace `{ns_name}`")
+                raise SyntaxError((f"Missing `endnamespace` for namespace `{ns_name}`" if NO_ANSI else f"Missing \033[1mendnamespace\033[22m for namespace \033[1m{ns_name}\033[22m"))
             parent = _CURRENT_NAMESPACE
             full_name = (parent._chemql_name + "::" + ns_name) if parent else ns_name # type: ignore
             ns = NAMESPACES.get(full_name)
@@ -4623,7 +4649,7 @@ def process_lines(lines):
             i = end + 1
             continue
         if stripped.casefold() == "endnamespace":
-            raise SyntaxError("Unexpected `endnamespace`")
+            raise SyntaxError(("Unexpected `endnamespace`" if NO_ANSI else "Unexpected \033[1mendnamespace\033[22m"))
         visibility_match = re.match(r"^(public|private)\s+(.+)$", stripped, re.IGNORECASE)
         if visibility_match:
             visibility, declaration = visibility_match.groups()
@@ -4638,7 +4664,7 @@ def process_lines(lines):
                     while block_end < len(lines) and lines[block_end].strip().casefold() != "endfunc":
                         block_end += 1
                     if block_end >= len(lines):
-                        raise SyntaxError("Missing `endfunc` after visibility declaration")
+                        raise SyntaxError(("Missing `endfunc` after visibility declaration" if NO_ANSI else "Missing \033[1mendfunc\033[22m after visibility declaration"))
                 elif re.match(r"^namespace\s+", declaration, re.IGNORECASE):
                     depth = 1
                     block_end = i + 1
@@ -4652,7 +4678,7 @@ def process_lines(lines):
                                 break
                         block_end += 1
                     if block_end >= len(lines):
-                        raise SyntaxError("Missing `endnamespace` after visibility declaration")
+                        raise SyntaxError(("Missing `endnamespace` after visibility declaration" if NO_ANSI else "Missing \033[1mendnamespace\033[22m after visibility declaration"))
                 elif re.match(r"^(struct|record|enum)\s+[A-Za-z_]\w*(?:\s+from\s+(?:\[[^\]]+\]|[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*))?\s*$", declaration, re.IGNORECASE):
                     kind = re.match(r"^(struct|record|enum)", declaration, re.IGNORECASE).group(1).casefold() # type:ignore
                     terminator = {"struct": "endstruct", "record": "endrecord", "enum": "endenum"}[kind]
@@ -4660,7 +4686,7 @@ def process_lines(lines):
                     while block_end < len(lines) and lines[block_end].strip().casefold() != terminator:
                         block_end += 1
                     if block_end >= len(lines):
-                        raise SyntaxError(f"Missing `{terminator}` after visibility declaration")
+                        raise SyntaxError((f"Missing `{terminator}` after visibility declaration" if NO_ANSI else f"Missing \033[1m{terminator}\033[22m after visibility declaration"))
                 process_lines([declaration] + lines[i + 1:block_end + 1])
             finally:
                 _CURRENT_VISIBILITY = old_visibility
@@ -4674,7 +4700,7 @@ def process_lines(lines):
             while end < len(lines) and lines[end].strip().casefold() != "endenum":
                 end += 1
             if end >= len(lines):
-                raise SyntaxError(f"Missing `endenum` for enum `{type_name}`")
+                raise SyntaxError((f"Missing `endenum` for enum `{type_name}`" if NO_ANSI else f"Missing \033[1mendenum\033[22m for enum \033[1m{type_name}\033[22m"))
             members = []
             member_names = set()
             for member_line in lines[i + 1:end]:
@@ -4686,12 +4712,12 @@ def process_lines(lines):
                     raise SyntaxError(f"Invalid enum member declaration: {member_line}")
                 member_name, value_expression = member_match.groups()
                 if member_name in member_names:
-                    raise SyntaxError(f"Duplicate enum member `{member_name}` in {type_name}")
+                    raise SyntaxError((f"Duplicate enum member `{member_name}` in {type_name}" if NO_ANSI else f"Duplicate enum member \033[1m{member_name}\033[22m in {type_name}"))
                 member_names.add(member_name)
                 value = auto() if value_expression is None else evaluate_python(_expand_definitions(value_expression))
                 members.append((member_name, value))
             if not members:
-                raise SyntaxError(f"Enum `{type_name}` must declare members")
+                raise SyntaxError((f"Enum `{type_name}` must declare members" if NO_ANSI else f"Enum \033[1m{type_name}\033[22m must declare members"))
             generated = Enum(type_name, members, module=__name__)
             ENUMS[type_name] = generated
             python_globals[type_name] = generated
@@ -4725,7 +4751,7 @@ def process_lines(lines):
                     if parent not in RECORDS.values():
                         parent = RECORDS.get(base_reference)
                     if parent is None:
-                        raise SyntaxError(f"Record `{type_name}` can only inherit from another record")
+                        raise SyntaxError((f"Record `{type_name}` can only inherit from another record" if NO_ANSI else f"Record \033[1m{type_name}\033[22m can only inherit from another record"))
                 else:
                     parent = (
                         parent
@@ -4735,9 +4761,9 @@ def process_lines(lines):
                         or getattr(builtins, base_reference, None)
                     )
                     if not isinstance(parent, type):
-                        raise SyntaxError(f"Unknown base class `{base_reference}` for struct `{type_name}`")
+                        raise SyntaxError((f"Unknown base class `{base_reference}` for struct `{type_name}`" if NO_ANSI else f"Unknown base class \033[1m{base_reference}\033[22m for struct \033[1m{type_name}\033[22m"))
                     if issubclass(parent, Enum):
-                        raise SyntaxError(f"Struct `{type_name}` cannot inherit from an enum")
+                        raise SyntaxError((f"Struct `{type_name}` cannot inherit from an enum" if NO_ANSI else f"Struct \033[1m{type_name}\033[22m cannot inherit from an enum"))
                 if hasattr(parent, "_chemql_fields"):
                     base_fields = list(parent._chemql_fields)
                     base_required = list(parent._chemql_required)
@@ -4747,7 +4773,7 @@ def process_lines(lines):
                     try:
                         parameters = list(inspect.signature(parent.__init__).parameters.values())[1:]
                     except (TypeError, ValueError) as exc:
-                        raise SyntaxError(f"Cannot inspect constructor for base class `{base_name}`") from exc
+                        raise SyntaxError((f"Cannot inspect constructor for base class `{base_name}`" if NO_ANSI else f"Cannot inspect constructor for base class \033[1m{base_name}\033[22m")) from exc
                     for parameter in parameters:
                         if parameter.kind not in (
                             inspect.Parameter.POSITIONAL_ONLY,
@@ -4774,7 +4800,7 @@ def process_lines(lines):
                 required_match = re.fullmatch(r"(?:required\s+([A-Za-z_]\w*)|([A-Za-z_]\w*)!)", field_line, re.IGNORECASE)
                 if required_match:
                     if kind != "struct":
-                        raise SyntaxError("`required` fields are supported only in structs")
+                        raise SyntaxError(("`required` fields are supported only in structs" if NO_ANSI else "\033[1mrequired\033[22m fields are supported only in structs"))
                     field = required_match.group(1) if required_match.group(1) is not None else required_match.group(2)
                     default = None
                     is_required = True
@@ -4795,7 +4821,7 @@ def process_lines(lines):
             declared_fields = required_fields + optional_fields if kind == "struct" else optional_fields
             duplicate_fields = set(base_fields) & set(declared_fields)
             if duplicate_fields:
-                raise SyntaxError(f"Field `{sorted(duplicate_fields)[0]}` is already inherited by {type_name}")
+                raise SyntaxError((f"Field `{sorted(duplicate_fields)[0]}` is already inherited by {type_name}" if NO_ANSI else f"Field \033[1m{sorted(duplicate_fields)[0]}\033[22m is already inherited by {type_name}"))
             fields = base_fields + declared_fields
             if not fields and parent is None:
                 raise SyntaxError((f"{kind.title()} `{type_name}` must declare fields" if NO_ANSI else f"{kind.title()} \033[1m{type_name}\033[22m must declare fields"))
@@ -4818,7 +4844,7 @@ def process_lines(lines):
                         values = dict(zip(field_names, args))
                         overlap = values.keys() & kwargs.keys()
                         if overlap:
-                            raise TypeError(f"Multiple values for field `{next(iter(overlap))}`")
+                            raise TypeError((f"Multiple values for field `{next(iter(overlap))}`" if NO_ANSI else f"Multiple values for field \033[1m{next(iter(overlap))}\033[22m"))
                         values.update(kwargs)
                         extra = values.keys() - set(field_names)
                         if extra:
@@ -4918,7 +4944,7 @@ def process_lines(lines):
                         values = dict(zip(field_names, args))
                         overlap = values.keys() & kwargs.keys()
                         if overlap:
-                            raise TypeError(f"Multiple values for field `{next(iter(overlap))}`")
+                            raise TypeError((f"Multiple values for field `{next(iter(overlap))}`" if NO_ANSI else f"Multiple values for field \033[1m{next(iter(overlap))}\033[22m"))
                         values.update(kwargs)
                         extra = values.keys() - set(field_names)
                         if extra:
@@ -5225,7 +5251,7 @@ def process_lines(lines):
                 body.append(lines[i])
                 i += 1
             if i >= len(lines):
-                raise SyntaxError("Missing closing \033[1m```\033[22m for terminal block")
+                raise SyntaxError(("Missing closing ``` for terminal block" if NO_ANSI else "Missing closing \033[1m```\033[22m for terminal block"))
             body = [_expand_definitions(source_line) for source_line in body]
             command = "\n".join(body)
             result = run_shell_command(command)
@@ -5673,15 +5699,36 @@ def execute(arguments, query_text=None, positions=None):
     # These are syntactic sugar for normal search queries.
     if arguments[0] == "findel":
         if len(arguments) < 2:
-            return "Usage: findel <name-or-symbol>"
+            return "Usage: findel <name-or-symbol> [return <attribute> ...]"
 
         value = arguments[1]
         
         return_attributes = None
+        if "return" in arguments[2:]:
+            return_index = arguments.index("return", 2)
+            return_attributes = arguments[return_index + 1:]
 
-        return execute(
-            ["search", "elements", "name", "like", value, "or", "symbol", "like", value]
-        )
+            if not return_attributes:
+                return "Usage: findel <name-or-formula> return <attribute> ..."
+
+            for attribute in return_attributes:
+                if attribute not in elementKeys:
+                    return (f"There is no key `{attribute}`" if NO_ANSI else f"There is no key \033[1m{attribute}\033[22m")
+
+            if return_index != 2:
+                return "Usage: findel <name-or-formula> [return <attribute> ...]"
+
+        elif len(arguments) > 2:
+            return "Usage: findel <name-or-formula> [return <attribute> ...]"
+
+        if return_attributes is not None:
+            return execute(
+                ["search", "elements", "name", "like", value, "or", "symbol", "like", value, "return", *return_attributes]
+            )
+        else:
+            return execute(
+                ["search", "elements", "name", "like", value, "or", "symbol", "like", value]
+            )
 
     if arguments[0] == "findmol":
         if len(arguments) < 2:

@@ -4,9 +4,13 @@ import json
 import argparse
 import keyword
 import builtins
+import signal
 import sys
 import shutil
 import subprocess
+import time
+
+VERSION = "0.0.6"
 
 
 def _write_system_clipboard(text):
@@ -138,6 +142,9 @@ if os.name == 'nt':
             return WINDOWS_KEYS.get(ch2[0], f"arrow_{ch2.hex()}")
         return ch.decode('utf-8', errors='ignore')
 else:
+    import fcntl
+    import pty
+    import struct
     import tty
     import termios
     import select
@@ -198,8 +205,29 @@ DIM = "\x1b[2m"
 
 def load_color_styles():
     config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "colors.json")
-    with open(config_path, encoding="utf-8") as config_file:
-        config = json.load(config_file)
+    try:
+        with open(config_path, encoding="utf-8") as config_file:
+            config = json.load(config_file)
+    except FileNotFoundError:
+        # Keep informational flags such as --version usable without the theme
+        # file. The editor still gets a readable built-in ANSI palette.
+        syntax_colors = {
+            "comment": 244, "string": 114, "number": 179,
+            "formula": 117, "operator": 213, "delimiter": 250,
+            "command": 81, "keyword": 141, "constant": 215,
+            "type": 150, "source": 110, "condition": 180,
+            "property": 116, "builtin": 222,
+        }
+        ui_colors = {"line_numbers": 244, "status_background": 24,
+                     "status_foreground": 255}
+        config = {
+            "syntax": {key: {"ansi256": value} for key, value in syntax_colors.items()},
+            "ui": {
+                "line_numbers": {"ansi256": ui_colors["line_numbers"]},
+                "status_background": {"ansi256": ui_colors["status_background"], "channel": "background"},
+                "status_foreground": {"ansi256": ui_colors["status_foreground"]},
+            },
+        }
     groups = {}
     for group_name in ("syntax", "ui"):
         colors = config.get(group_name)
@@ -380,10 +408,12 @@ class Editor:
                 if self.handle_key(key):
                     break
         finally:
+            if os.name != "nt":
+                sys.stdout.write("\x1b[?6l\x1b[r")
             sys.stdout.write("\x1b[?2004l\x1b[?1049l")
             sys.stdout.flush()
 
-    def draw_screen(self):
+    def draw_screen(self, terminal_height=0):
         try:
             cols, rows = os.get_terminal_size()
         except OSError:
@@ -391,7 +421,8 @@ class Editor:
         cols = max(cols, 20)
         rows = max(rows, 4)
         gutter_width = len(str(max(len(self.lines), self.cursor_y + 1))) + 2
-        viewport_height = rows - 2
+        terminal_height = min(max(0, terminal_height), rows - 2)
+        viewport_height = rows - terminal_height - 2
         viewport_width = max(1, cols - gutter_width)
         visual_cursor_x = len(self.lines[self.cursor_y][:self.cursor_x].expandtabs(4))
         self._keep_cursor_visible(viewport_height, viewport_width, visual_cursor_x)
@@ -424,7 +455,7 @@ class Editor:
             if self.search_active
             else self.message or (
                 "Ctrl+S Save  Ctrl+Z Undo  Ctrl+Y Redo  Ctrl+Q Quit  "
-                "Ctrl+F Search  Ctrl+Backspace/Delete Word"
+                "Ctrl+F Search  Ctrl+T Terminal  Ctrl+Backspace/Delete Word"
             )
         )
         output.extend((DIM, footer[:cols].ljust(cols), RESET))
@@ -496,6 +527,10 @@ class Editor:
     def handle_key(self, key):
         if self.search_active:
             return self._handle_search_key(key)
+        if key in ("\x14", "ctrl+t"):
+            self._run_split_terminal()
+            self.message = "Terminal closed"
+            return False
         if key in ("\x06", "ctrl+f"):
             self._open_search()
             return False
@@ -591,6 +626,250 @@ class Editor:
         self.cursor_y = min(self.cursor_y, len(self.lines) - 1)
         self.cursor_x = min(self.cursor_x, len(self.lines[self.cursor_y]))
         return False
+
+    def _run_split_terminal(self):
+        """Open a shell in a manageable split pane where the platform allows it.
+
+        POSIX uses a PTY in the lower part of the current terminal. Ctrl+T or
+        Esc returns to the editor; Ctrl+Up/Down resizes the shell pane. Window
+        resize events are forwarded to the shell PTY. Windows Terminal owns
+        its split panes, so on Windows its pane is independently resizable and
+        closing the shell returns focus to the editor pane.
+        """
+        if os.name == "nt":
+            shell = os.environ.get("COMSPEC", "cmd.exe")
+            wt = shutil.which("wt.exe") or shutil.which("wt")
+
+            if wt and os.environ.get("WT_SESSION"):
+                try:
+                    subprocess.Popen([
+                        wt, "-w", "0", "split-pane", "-V",
+                        "--size", "0.35", "--title", "ChemQL Terminal",
+                        shell, "/K",
+                    ])
+                except OSError as error:
+                    self.message = f"Could not open Windows Terminal pane: {error}"
+                else:
+                    self.message = (
+                        "Terminal opened in a Windows Terminal pane; resize it with "
+                        "Alt+Shift+Plus/Minus or drag the divider. Exit the shell to close it."
+                    )
+                return
+
+            try:
+                subprocess.Popen(
+                    [shell],
+                    creationflags=getattr(subprocess, "CREATE_NEW_CONSOLE", 0),
+                )
+            except OSError as error:
+                self.message = f"Could not open terminal: {error}"
+            else:
+                self.message = "Terminal opened in a separate console window"
+            return
+
+        stdin_fd = sys.stdin.fileno()
+        stdout_fd = sys.stdout.fileno()
+        old_settings = termios.tcgetattr(stdin_fd)
+        try:
+            cols, rows = os.get_terminal_size(stdin_fd)
+        except OSError:
+            cols, rows = 80, 24
+        rows, cols = max(rows, 6), max(cols, 20)
+        pane_height = min(max(4, rows // 3), rows - 3)
+        master_fd = None
+        child_pid = None
+        resize_pending = False
+        previous_winch_handler = None
+
+        def on_resize(_signum, _frame):
+            nonlocal resize_pending
+            resize_pending = True
+
+        try:
+            previous_winch_handler = signal.getsignal(signal.SIGWINCH)
+            signal.signal(signal.SIGWINCH, on_resize)
+        except (AttributeError, ValueError):
+            previous_winch_handler = None
+
+        def dimensions():
+            try:
+                current_cols, current_rows = os.get_terminal_size(stdin_fd)
+            except OSError:
+                current_cols, current_rows = 80, 24
+            current_rows = max(current_rows, 6)
+            current_cols = max(current_cols, 20)
+            current_pane_height = min(max(4, pane_height), current_rows - 3)
+            current_top = current_rows - current_pane_height + 1
+            return current_cols, current_rows, current_pane_height, current_top
+
+        try:
+            self.message = "Terminal open · Ctrl+T/Esc returns · Ctrl+↑/↓ resizes pane"
+            cols, rows, pane_height, pane_top = dimensions()
+            self.draw_screen(terminal_height=pane_height)
+            for row in range(pane_top, rows + 1):
+                sys.stdout.write(f"\x1b[{row};1H\x1b[2K")
+            sys.stdout.flush()
+
+            child_pid, master_fd = pty.fork()
+            if child_pid == 0:
+                fcntl.ioctl(
+                    sys.stdin.fileno(), termios.TIOCSWINSZ,
+                    struct.pack("HHHH", pane_height, cols, 0, 0),
+                )
+                shell = os.environ.get("SHELL") or ("/bin/bash" if os.path.exists("/bin/bash") else "/bin/sh")
+                try:
+                    os.execvp(shell, [shell, "-i"])
+                except OSError as error:
+                    os.write(2, f"Could not start {shell}: {error}\n".encode())
+                    os._exit(127)
+
+            fcntl.ioctl(
+                master_fd, termios.TIOCSWINSZ,
+                struct.pack("HHHH", pane_height, cols, 0, 0),
+            )
+            tty.setraw(stdin_fd)
+            sys.stdout.write(f"\x1b[{pane_top};{rows}r\x1b[?6h\x1b[1;1H")
+            sys.stdout.flush()
+
+            resize_keys = {
+                b"\x1b[1;5A": -1, b"\x1b[1;5B": 1,
+                b"\x1b[1;5;1A": -1, b"\x1b[1;5;1B": 1,
+            }
+            while True:
+                try:
+                    ready, _, _ = select.select([stdin_fd, master_fd], [], [], 0.25)
+                except InterruptedError:
+                    ready = []
+
+                if resize_pending:
+                    resize_pending = False
+                    cols, rows, pane_height, pane_top = dimensions()
+                    fcntl.ioctl(
+                        master_fd, termios.TIOCSWINSZ,
+                        struct.pack("HHHH", pane_height, cols, 0, 0),
+                    )
+                    try:
+                        os.kill(child_pid, signal.SIGWINCH)
+                    except ProcessLookupError:
+                        pass
+                    sys.stdout.write("\x1b[r\x1b[H\x1b[2J")
+                    self.draw_screen(terminal_height=pane_height)
+                    for row in range(pane_top, rows + 1):
+                        sys.stdout.write(f"\x1b[{row};1H\x1b[2K")
+                    sys.stdout.write(f"\x1b[{pane_top};{rows}r\x1b[?6h")
+                    sys.stdout.flush()
+
+                if master_fd in ready:
+                    try:
+                        output = os.read(master_fd, 4096)
+                    except OSError:
+                        output = b""
+                    if not output:
+                        break
+                    view = memoryview(output)
+                    while view:
+                        written = os.write(stdout_fd, view)
+                        view = view[written:]
+
+                if stdin_fd in ready:
+                    user_input = os.read(stdin_fd, 4096)
+                    if not user_input:
+                        break
+
+                    # Intercept pane controls without sending them to the shell.
+                    resized = False
+                    for sequence, delta in resize_keys.items():
+                        if user_input == sequence:
+                            pane_height = max(4, min(rows - 3, pane_height + delta))
+                            cols, rows, pane_height, pane_top = dimensions()
+                            fcntl.ioctl(
+                                master_fd, termios.TIOCSWINSZ,
+                                struct.pack("HHHH", pane_height, cols, 0, 0),
+                            )
+                            try:
+                                os.kill(child_pid, signal.SIGWINCH)
+                            except ProcessLookupError:
+                                pass
+                            sys.stdout.write("\x1b[r\x1b[H\x1b[2J")
+                            self.draw_screen(terminal_height=pane_height)
+                            for row in range(pane_top, rows + 1):
+                                sys.stdout.write(f"\x1b[{row};1H\x1b[2K")
+                            sys.stdout.write(f"\x1b[{pane_top};{rows}r\x1b[?6h")
+                            sys.stdout.flush()
+                            resized = True
+                            break
+                    if resized:
+                        continue
+
+                    exit_positions = [
+                        position for marker in (b"\x14", b"\x11")
+                        if (position := user_input.find(marker)) >= 0
+                    ]
+                    escape_position = user_input.find(b"\x1b")
+                    if escape_position >= 0 and user_input[escape_position:] == b"\x1b":
+                        try:
+                            escaped_input, _, _ = select.select([stdin_fd], [], [], 0.05)
+                        except InterruptedError:
+                            escaped_input = []
+                        if escaped_input:
+                            user_input += os.read(stdin_fd, 4096)
+                        else:
+                            exit_positions.append(escape_position)
+                    if exit_positions:
+                        exit_position = min(exit_positions)
+                        if exit_position:
+                            os.write(master_fd, user_input[:exit_position])
+                        break
+                    os.write(master_fd, user_input)
+        except OSError as error:
+            self.message = f"Terminal error: {error}"
+        finally:
+            if previous_winch_handler is not None:
+                try:
+                    signal.signal(signal.SIGWINCH, previous_winch_handler)
+                except (AttributeError, ValueError):
+                    pass
+            try:
+                termios.tcsetattr(stdin_fd, termios.TCSADRAIN, old_settings)
+            except termios.error:
+                pass
+            sys.stdout.write("\x1b[?6l\x1b[r\x1b[?25h\x1b[?2004h\x1b[?1l\x1b[H\x1b[2J")
+            sys.stdout.flush()
+            if master_fd is not None:
+                try:
+                    os.close(master_fd)
+                except OSError:
+                    pass
+            if child_pid is not None:
+                try:
+                    waited_pid, _ = os.waitpid(child_pid, os.WNOHANG)
+                except ChildProcessError:
+                    waited_pid = child_pid
+                if waited_pid != child_pid:
+                    try:
+                        os.kill(child_pid, signal.SIGHUP)
+                    except ProcessLookupError:
+                        pass
+                    deadline = time.monotonic() + 1
+                    while time.monotonic() < deadline:
+                        try:
+                            waited_pid, _ = os.waitpid(child_pid, os.WNOHANG)
+                        except ChildProcessError:
+                            waited_pid = child_pid
+                        if waited_pid == child_pid:
+                            break
+                        time.sleep(0.02)
+                    else:
+                        try:
+                            os.kill(child_pid, signal.SIGKILL)
+                        except ProcessLookupError:
+                            pass
+                        try:
+                            os.waitpid(child_pid, 0)
+                        except ChildProcessError:
+                            pass
+            if not self.message.startswith("Terminal error:"):
+                self.message = "Terminal closed · returned to editor"
 
     def _scroll_view(self, direction):
         try:
@@ -938,10 +1217,12 @@ def main(argv: list[str] | None = None) -> None:
         prog="codecql",
         description="Open and edit a ChemQL source file.",
     )
-    parser.add_argument("file", help="ChemQL file to edit")
+    parser.add_argument("-V", "--version", action="version", version=f"codecql {VERSION}")
+    parser.add_argument("file", nargs="?", help="ChemQL file to edit")
     arguments = parser.parse_args(argv)
+    if not arguments.file:
+        parser.error("the following arguments are required: file")
     Editor(arguments.file).run()
-
 
 if __name__ == "__main__":
     main()

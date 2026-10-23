@@ -6,7 +6,7 @@ SQL-inspired syntax, inspect elements and molecules, look up reactions,
 balance equations, and combine chemistry queries with Python and shell
 commands.
 
--   **Version:** `1.5.1`
+-   **Version:** `1.5.6`
 -   **PyPI distribution:** `chemql-python`
 -   **Python import / CLI name:** `chemql`
 -   **Author:** Mohammad Rakibul Islam
@@ -157,8 +157,10 @@ default. Prefix a query with `r:` for a case-sensitive regular expression,
 literal text, or `li:` for case-insensitive literal text. Add `w` to match
 whole words, for example `lwi:cat`.
 
+Press `CTRL+T` to open a terminal inside the code editor to test your code. You can leave the terminal by pressing the Escape key or typing `exit` on Unix-like systems but on windows, you have to type in `exit` or if you have already typed in commands, you have to typed in commands, you have to type `exit` followed by pressing `Ctrl+D`
+
 Use `Ctrl+Up` and `Ctrl+Down` to scroll the viewport while keeping the cursor
-at the same screen position.
+at the same screen position. However on Unix-like systems `Ctrl+Up` and `Ctrl+Down` in the terminal mode resizes the editor to terminal emulator ratio
 
 ## Query language
 
