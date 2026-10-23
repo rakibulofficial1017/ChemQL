@@ -1,5 +1,0 @@
-*.cql linguist-language=ChemQL
-*.cql linguist-documentation=false
-*.cql linguist-vendored=false
-*.cql linguist-generated=false
-*.cql linguist-detectable=true
