@@ -64,7 +64,7 @@ __all__ = [
     "__version__"
 ]
 
-__version__ = "1.5.9"
+__version__ = "1.5.10"
 
 # Persistent preprocessor/function state for the current ChemQL session.
 DEFINITIONS = {}
@@ -3738,12 +3738,50 @@ def execute_query_block(text):
     return execute_query_text(text)
 
 
+def _run_python_in_active_namespace(compiled, mode):
+    """Run compiled Python with the active ChemQL namespace's members visible.
+
+    Namespace members are temporarily overlaid on the shared Python globals so
+    private helpers (for example ``_gui_add_button``) resolve inside functions
+    belonging to their package, without permanently leaking those names into the
+    caller's Python/ChemQL global scope.
+    """
+    namespace = _CURRENT_NAMESPACE
+    if namespace is None:
+        if mode == "eval":
+            return eval(compiled, python_globals)
+        exec(compiled, python_globals)
+        return None
+
+    members = {}
+    members.update(namespace._chemql_private)
+    for member_name in namespace._chemql_public:
+        if member_name in namespace.__dict__:
+            members[member_name] = namespace.__dict__[member_name]
+
+    missing = object()
+    previous = {name: python_globals.get(name, missing) for name in members}
+    python_globals.update(members)
+    try:
+        if mode == "eval":
+            return eval(compiled, python_globals)
+        exec(compiled, python_globals)
+        return None
+    finally:
+        for name, old_value in previous.items():
+            if old_value is missing:
+                python_globals.pop(name, None)
+            else:
+                python_globals[name] = old_value
+
+
 def evaluate_python(code):
     """Evaluate Python, with {{ query }} expressions available inside it.
 
     If the Python is an expression, its value is returned.
     Otherwise it is executed and None is returned.
     """
+    code = code.strip()
     query_values = {}
     rewritten = []
     i = 0
@@ -3785,10 +3823,13 @@ def evaluate_python(code):
             if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
                 if isinstance(node.ctx, ast.Store) and node.id.isidentifier() and not node.id.startswith("__chemql_"):
                     CHEMQL_VARIABLES.add(node.id)
-        exec(compile(module, "<embedded-python>", "exec"), python_globals)
-        return None
+        return _run_python_in_active_namespace(
+            compile(module, "<embedded-python>", "exec"), "exec"
+        )
 
-    return eval(compile(tree, "<embedded-python>", "eval"), python_globals)
+    return _run_python_in_active_namespace(
+        compile(tree, "<embedded-python>", "eval"), "eval"
+    )
 
 
 def is_python_block_header(text):
@@ -4448,10 +4489,32 @@ def _ensure_package_namespace(package_name, allow_namespace_only=False):
     if path is not None and CHEMQL_PACKAGE_BINDINGS.get(package_name) != package_name:
         source_lines = path.read_text(encoding="utf-8").splitlines()
         old_namespace, old_visibility = _CURRENT_NAMESPACE, _CURRENT_VISIBILITY
+        # A package's Python blocks execute in the shared Python globals. Keep
+        # a snapshot so names created by any supported Python syntax (single-line
+        # blocks, multiline blocks, imports, assignments, defs, and classes) can
+        # be attached to the package namespace after its source has executed.
+        globals_before_package = python_globals.copy()
         try:
             globals()["_CURRENT_NAMESPACE"] = namespace
             globals()["_CURRENT_VISIBILITY"] = "private"
             process_lines(source_lines)
+
+            # Capture Python names introduced or replaced by this package. Do
+            # not overwrite explicit ChemQL members, and do not capture runtime
+            # internals or temporary values used by embedded-query expansion.
+            existing_members = (
+                set(namespace._chemql_public)
+                | set(namespace._chemql_private)
+            )
+            ignored_prefixes = ("__chemql_",)
+            for member_name, member_value in list(python_globals.items()):
+                if member_name.startswith(ignored_prefixes):
+                    continue
+                if member_name in {"__builtins__", "math", "error"}:
+                    continue
+                if member_name not in globals_before_package or globals_before_package.get(member_name) is not member_value:
+                    if member_name not in existing_members:
+                        namespace._set_member(member_name, member_value, False)
         except Exception:
             # Do not mark a partially executed package as successfully loaded.
             NAMESPACES.pop(package_name, None)
@@ -5245,6 +5308,50 @@ def process_lines(lines):
             try:
                 with contextlib.redirect_stdout(captured):
                     value = evaluate_python(code)
+
+                # Python names declared inside a package's Python block must
+                # also belong to that package's private namespace. Otherwise
+                # a ChemQL function such as `GUI::addButton` cannot resolve
+                # `_gui_add_button` when it executes in the package context.
+                if _CURRENT_NAMESPACE is not None:
+                    try:
+                        python_module = ast.parse(code, mode="exec")
+                        declared_names = set()
+
+                        def collect_target_names(target):
+                            if isinstance(target, ast.Name):
+                                declared_names.add(target.id)
+                            elif isinstance(target, (ast.Tuple, ast.List)):
+                                for element in target.elts:
+                                    collect_target_names(element)
+
+                        for node in python_module.body:
+                            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                                declared_names.add(node.name)
+                            elif isinstance(node, ast.Import):
+                                for alias in node.names:
+                                    declared_names.add(alias.asname or alias.name.split(".")[0])
+                            elif isinstance(node, ast.ImportFrom):
+                                for alias in node.names:
+                                    if alias.name != "*":
+                                        declared_names.add(alias.asname or alias.name)
+                            elif isinstance(node, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
+                                targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+                                for target in targets:
+                                    collect_target_names(target)
+
+                        for declared_name in declared_names:
+                            if declared_name in python_globals:
+                                _CURRENT_NAMESPACE._set_member(
+                                    declared_name,
+                                    python_globals[declared_name],
+                                    _CURRENT_VISIBILITY == "public",
+                                )
+                    except (SyntaxError, AttributeError):
+                        # The Python block already executed successfully; name
+                        # capture is best-effort and must not mask its result.
+                        pass
+
                 output = captured.getvalue()
                 if value is not None:
                     output += str(value)
