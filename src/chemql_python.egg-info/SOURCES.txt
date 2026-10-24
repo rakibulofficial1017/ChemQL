@@ -3,6 +3,7 @@ README.md
 pyproject.toml
 src/chemql/__init__.py
 src/chemql/__main__.py
+src/chemql/build.py
 src/chemql/codecql.py
 src/chemql/colors.json
 src/chemql/data/BondEnergies.json

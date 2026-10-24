@@ -10,7 +10,7 @@ import shutil
 import subprocess
 import time
 
-VERSION = "0.0.8"
+VERSION = "0.0.9"
 
 
 def _write_system_clipboard(text):
@@ -357,7 +357,76 @@ def _token_style(kind, value):
     return HIGHLIGHT_STYLES[category]
 
 
-def apply_syntax_highlighting(text):
+MANIFEST_TOKEN_RE = re.compile(
+    r"(?P<comment>#.*$)"
+    r"|(?P<string>'(?:\\.|[^'\\])*'|\"(?:\\.|[^\"\\])*\")"
+    r"|(?P<number>(?<![\w.])[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?(?!\w))"
+    r"|(?P<literal>\b(?:true|false|null)\b)"
+    r"|(?P<identifier>[A-Za-z_][A-Za-z0-9_-]*)"
+    r"|(?P<operator>=)"
+    r"|(?P<delimiter>[\[\]{}:,.])",
+    re.IGNORECASE,
+)
+
+def _apply_manifest_syntax_highlighting(text, filename):
+    """Highlight JSON/TOML package manifests with the editor's existing theme."""
+    is_json = os.path.basename(filename).casefold() == "cqlpackage.json"
+    is_toml = os.path.basename(filename).casefold() == "cqlpackage.toml"
+    if not (is_json or is_toml):
+        return None
+
+    # TOML table headers are clearer when highlighted as a unit.
+    stripped = text.lstrip()
+    if is_toml and stripped.startswith("[") and stripped.endswith("]"):
+        leading = text[:len(text) - len(stripped)]
+        return leading + HIGHLIGHT_STYLES["type"] + stripped + RESET
+
+    parts = []
+    last_end = 0
+    for match in MANIFEST_TOKEN_RE.finditer(text):
+        parts.append(text[last_end:match.start()])
+        token = match.group()
+        kind = match.lastgroup
+        tail = text[match.end():]
+        style = ""
+
+        if kind == "comment" and is_toml:
+            style = HIGHLIGHT_STYLES["comment"]
+        elif kind == "string":
+            next_nonspace = tail.lstrip()[:1]
+            if (is_json and next_nonspace == ":") or (is_toml and next_nonspace == "="):
+                style = HIGHLIGHT_STYLES["property"]
+            else:
+                style = HIGHLIGHT_STYLES["string"]
+        elif kind == "number":
+            style = HIGHLIGHT_STYLES["number"]
+        elif kind == "literal":
+            # JSON literals are lowercase; TOML booleans are lowercase too.
+            style = HIGHLIGHT_STYLES["constant"]
+        elif kind == "identifier" and is_toml:
+            if tail.lstrip().startswith("="):
+                style = HIGHLIGHT_STYLES["property"]
+            elif token.casefold() in {"true", "false", "inf", "nan"}:
+                style = HIGHLIGHT_STYLES["constant"]
+        elif kind == "operator":
+            style = HIGHLIGHT_STYLES["operator"]
+        elif kind == "delimiter" and token.strip():
+            style = HIGHLIGHT_STYLES["delimiter"]
+
+        if style:
+            parts.extend((style, token, RESET))
+        else:
+            parts.append(token)
+        last_end = match.end()
+    parts.append(text[last_end:])
+    return "".join(parts)
+
+
+def apply_syntax_highlighting(text, filename=None):
+    if filename:
+        manifest_highlighting = _apply_manifest_syntax_highlighting(text, filename)
+        if manifest_highlighting is not None:
+            return manifest_highlighting
     parts = []
     last_end = 0
     for match in TOKEN_RE.finditer(text):
@@ -495,7 +564,7 @@ class Editor:
                 current = (match_start, match_end) == self.current_search_match
                 overlays.append((start, end, "\x1b[7m" if current else "\x1b[43m", 1))
         if not overlays:
-            return apply_syntax_highlighting(visible_text)
+            return apply_syntax_highlighting(visible_text, self.filename)
 
         boundaries = {line_start, line_end}
         for start, end, _, _ in overlays:
@@ -520,7 +589,7 @@ class Editor:
                 style = max(active, key=lambda overlay: overlay[3])[2]
                 parts.extend((style, segment, RESET))
             else:
-                parts.append(apply_syntax_highlighting(segment))
+                parts.append(apply_syntax_highlighting(segment, self.filename))
         return "".join(parts)
 
     def _keep_cursor_visible(self, height, width, visual_cursor_x):
@@ -628,8 +697,9 @@ class Editor:
             self._insert_newline()
         elif key == "\t":
             self._insert_text("\t")
-        elif key and key.isprintable() and "+" not in key:
-            # Symbolic key names (e.g. "alt+delete") are control events, not text.
+        elif key and key.isprintable() and (len(key) == 1 or "+" not in key):
+            # Single printable characters (including '+') are text; multi-part
+            # names such as "alt+delete" are symbolic key events.
             self._insert_text(key)
         if key not in ("\x11",):
             self.quit_requested = False

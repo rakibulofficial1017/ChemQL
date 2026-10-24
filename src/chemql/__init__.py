@@ -1,5 +1,6 @@
 import argparse
 import ast
+import hashlib
 import atexit
 import builtins
 import contextlib
@@ -24,6 +25,9 @@ from prompt_toolkit.completion import Completer, Completion
 import queue
 import re
 import shlex
+import shutil
+import tarfile
+import tempfile
 import subprocess
 import sys
 import select
@@ -64,7 +68,7 @@ __all__ = [
     "__version__"
 ]
 
-__version__ = "1.5.10"
+__version__ = "1.6.1"
 
 # Persistent preprocessor/function state for the current ChemQL session.
 DEFINITIONS = {}
@@ -509,6 +513,135 @@ _STDLIB_HELP = {
 }
 
 
+def _read_package_manifest_file(manifest_path):
+    """Read a package manifest, supporting the formats accepted by the builder."""
+    manifest_path = Path(manifest_path)
+    if manifest_path.name == "cqlpackage.json":
+        with manifest_path.open("r", encoding="utf-8") as stream:
+            data = json.load(stream)
+    else:
+        try:
+            import tomllib
+        except ImportError:
+            try:
+                import tomli as tomllib
+            except ImportError as exc:
+                raise RuntimeError("TOML package manifests require Python 3.11+ or the 'tomli' package.") from exc
+        with manifest_path.open("rb") as stream:
+            data = tomllib.load(stream)
+    return data if isinstance(data, dict) else {}
+
+
+def _package_manifest_candidates(package_name):
+    """Yield likely manifest paths for a local or installed package, newest first."""
+    candidates = []
+    cwd = Path.cwd()
+    # Running from inside the package project.
+    for filename in ("cqlpackage.json", "cqlpackage.toml"):
+        candidates.append(cwd / filename)
+    # Running from the parent directory of a package project.
+    for filename in ("cqlpackage.json", "cqlpackage.toml"):
+        candidates.append(cwd / package_name / filename)
+    for root in _installed_package_roots():
+        package_root = root / package_name
+        if not package_root.is_dir():
+            continue
+        version_dirs = sorted(
+            (item for item in package_root.iterdir() if item.is_dir()),
+            key=lambda item: _version_sort_key(item.name), reverse=True,
+        )
+        for version_dir in version_dirs:
+            for filename in ("cqlpackage.json", "cqlpackage.toml"):
+                candidates.append(version_dir / filename)
+    seen = set()
+    for candidate in candidates:
+        try:
+            resolved = candidate.resolve()
+        except OSError:
+            resolved = candidate
+        if resolved in seen:
+            continue
+        seen.add(resolved)
+        if candidate.is_file():
+            yield candidate
+
+
+def _package_manifest(package_name):
+    """Return (manifest path, parsed manifest) for a local/installed package."""
+    for candidate in _package_manifest_candidates(package_name):
+        try:
+            data = _read_package_manifest_file(candidate)
+        except (OSError, ValueError, json.JSONDecodeError):
+            continue
+        if str(data.get("name", "")).casefold() == package_name.casefold():
+            return candidate, data
+    return None, None
+
+
+def _render_help_markdown(markdown_text):
+    """Render Markdown with Rich when available, returning printable terminal text."""
+    try:
+        from rich.console import Console
+        from rich.markdown import Markdown
+    except ImportError:
+        return markdown_text
+    output = io.StringIO()
+    console = Console(
+        file=output,
+        force_terminal=not NO_ANSI,
+        color_system=None if NO_ANSI else "auto",
+        no_color=NO_ANSI,
+        width=100,
+    )
+    console.print(Markdown(markdown_text))
+    return output.getvalue().rstrip("\n")
+
+
+def _package_help_text(topic):
+    """Resolve help{Package} and help{Package::member} from installed manifests."""
+    package_name, separator, member_name = str(topic).partition("::")
+    manifest_path, manifest = _package_manifest(package_name)
+    if manifest is None:
+        return None
+
+    individual = manifest.get("help-individual", {})
+    if not isinstance(individual, dict):
+        individual = {}
+    if separator:
+        # Accept the exact manifest key, and a case-insensitive match.
+        matched_key = next((key for key in individual if str(key).casefold() == member_name.casefold()), None)
+        if matched_key is not None:
+            return f"{package_name} — {matched_key}\n\n{individual[matched_key]}"
+        return None
+
+    help_value = manifest.get("help", "")
+    sections = [f"{manifest.get('name', package_name)} — {manifest.get('description', 'ChemQL package help')}"]
+    if isinstance(help_value, str) and help_value.strip():
+        # A Markdown filename is loaded relative to the manifest. Non-file values
+        # are displayed literally as the package's help text.
+        help_path = Path(help_value).expanduser()
+        if help_path.suffix.casefold() == ".md" and not help_path.is_absolute():
+            candidate = manifest_path.parent / help_path
+            if candidate.is_file():
+                try:
+                    help_content = candidate.read_text(encoding="utf-8")
+                except OSError as exc:
+                    help_content = f"Could not read help file {candidate.name}: {exc}"
+                sections.append(_render_help_markdown(help_content))
+            else:
+                sections.append(f"Help Markdown file not found: {help_value}")
+        elif help_path.suffix.casefold() == ".md" and help_path.is_absolute() and help_path.is_file():
+            sections.append(_render_help_markdown(help_path.read_text(encoding="utf-8")))
+        else:
+            sections.append(help_value)
+
+    if individual:
+        sections.append("Individual help")
+        for key, value in individual.items():
+            sections.append(f"{key}:\n{value}")
+    return "\n\n".join(section for section in sections if section is not None and str(section).strip())
+
+
 def _help_text(topic=None):
     if topic is None or not str(topic).strip():
         names = sorted(_BUILTIN_HELP)
@@ -550,6 +683,9 @@ def _help_text(topic=None):
     if key in _HELP_TOPICS:
         title, lines = _HELP_TOPICS[key]
         return "\n".join([title, *[f"  {line}" for line in lines]])
+    package_help = _package_help_text(key)
+    if package_help is not None:
+        return package_help
     if key in FUNCTIONS:
         return f"User-defined ChemQL function: {key}{{...}}\nDefined in the current session. Use `view`/`dump` where appropriate to inspect program state."
     if "::" in key:
@@ -4446,16 +4582,60 @@ def _package_relative_path(package_name):
     return Path(*parts[:-1], parts[-1] + ".cql")
 
 
+def _installed_package_roots():
+    configured = os.environ.get("CHEMQL_PACKAGE_DIR")
+    return [Path(configured).expanduser()] if configured else [Path.home() / ".chemql" / "packages"]
+
+
+def _version_sort_key(version):
+    parts = re.findall(r"\d+|[A-Za-z]+", str(version))
+    return tuple((0, int(part)) if part.isdigit() else (1, part.casefold()) for part in parts)
+
+
 def _find_cql_package_file(package_name):
-    """Find a .cql package locally first, then in ChemQL's bundled stdlib."""
+    """Find local, installed, then bundled standard-library ChemQL source."""
     relative = _package_relative_path(package_name)
     local_path = Path.cwd() / relative
     if local_path.is_file():
         return local_path
+
+    package_parts = package_name.split("::")
+    package_root_name = package_parts[0]
+    package_relative = Path(*package_parts[:-1], package_parts[-1] + ".cql")
+    for root in _installed_package_roots():
+        package_root = root / package_root_name
+        if not package_root.is_dir():
+            continue
+        versions = sorted(
+            (p for p in package_root.iterdir() if p.is_dir()),
+            key=lambda p: _version_sort_key(p.name),
+            reverse=True,
+        )
+        for version_dir in versions:
+            if len(package_parts) == 1:
+                # The manifest's `main` field is the package entry point; it need
+                # not be named exactly PackageName.cql.
+                for manifest_name in ("cqlpackage.json", "cqlpackage.toml"):
+                    manifest_path = version_dir / manifest_name
+                    if not manifest_path.is_file():
+                        continue
+                    try:
+                        manifest_data = _read_package_manifest_file(manifest_path)
+                        main_value = manifest_data.get("main")
+                        if isinstance(main_value, str) and main_value.strip():
+                            main_path = Path(main_value)
+                            if not main_path.is_absolute() and ".." not in main_path.parts:
+                                candidate = version_dir / main_path
+                                if candidate.is_file():
+                                    return candidate
+                    except (OSError, ValueError, RuntimeError, json.JSONDecodeError):
+                        pass
+            candidate = version_dir / package_relative
+            if candidate.is_file():
+                return candidate
+
     stdlib_path = Path(__file__).resolve().parent / "stdlib" / relative
-    if stdlib_path.is_file():
-        return stdlib_path
-    return None
+    return stdlib_path if stdlib_path.is_file() else None
 
 
 def _ensure_package_namespace(package_name, allow_namespace_only=False):
@@ -5722,6 +5902,33 @@ def execute(arguments, query_text=None, positions=None):
     if not arguments:
         return
 
+    # Package installation is available both as a terminal CLI subcommand
+    # (`chemql install NAME`) and from inside the interactive ChemQL prompt
+    # (`install NAME [--version VERSION]`).
+    if arguments[0].lower() == "install":
+        if len(arguments) < 2:
+            return "Usage: install PACKAGE [--version VERSION]"
+        package_name = arguments[1]
+        package_version = None
+        index = 2
+        while index < len(arguments):
+            option = arguments[index]
+            if option == "--version" and index + 1 < len(arguments):
+                package_version = arguments[index + 1]
+                index += 2
+            else:
+                return f"Usage: install PACKAGE [--version VERSION] (unexpected argument: {option})"
+        output = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(output):
+                status = _download_package(package_name, package_version)
+        except (RuntimeError, OSError, ValueError, KeyError, tarfile.TarError, json.JSONDecodeError) as exc:
+            return format_error(f"Install failed: {exc}", query_text)
+        message = output.getvalue().strip()
+        if status != 0 and not message:
+            message = f"Installation of {package_name} failed."
+        return message or f"Installed {package_name}."
+
     if arguments[0].lower() == "balance":
         try:
             return _execute_balance_command(
@@ -6863,13 +7070,412 @@ def _unclosed_expression_delimiters(lines):
     return expected
 
 
+
+# ---------------------------------------------------------------------------
+# ChemQL package manager and project commands
+# ---------------------------------------------------------------------------
+
+def _registry_url():
+    return "https://chemqlreg.pythonanywhere.com/".rstrip("/")
+
+
+def _package_root():
+    configured = os.environ.get("CHEMQL_PACKAGE_DIR")
+    return Path(configured).expanduser() if configured else Path.home() / ".chemql" / "packages"
+
+
+def _installed_state_path():
+    configured = os.environ.get("CHEMQL_INSTALLED_FILE")
+    return Path(configured).expanduser() if configured else Path.home() / ".chemql" / "installed.json"
+
+
+def _read_installed_state():
+    path = _installed_state_path()
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except FileNotFoundError:
+        return {}
+    except (OSError, json.JSONDecodeError) as exc:
+        raise RuntimeError(f"Could not read installed package state {path}: {exc}") from exc
+
+
+def _write_installed_state(state):
+    path = _installed_state_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(".tmp")
+    temporary.write_text(json.dumps(state, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    temporary.replace(path)
+
+
+def _http_json(url):
+    request = urllib.request.Request(url, headers={"Accept": "application/json", "User-Agent": f"ChemQL/{__version__}"})
+    try:
+        with urllib.request.urlopen(request, timeout=20) as response:
+            return json.loads(response.read(5_000_001).decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        detail = exc.read(2048).decode("utf-8", errors="replace")
+        raise RuntimeError(f"Registry returned HTTP {exc.code}: {detail or exc.reason}") from exc
+    except urllib.error.URLError as exc:
+        raise RuntimeError(f"Could not connect to ChemQL registry {_registry_url()}: {exc.reason}") from exc
+    except (UnicodeError, json.JSONDecodeError) as exc:
+        raise RuntimeError(f"Registry returned invalid JSON: {exc}") from exc
+
+
+def _api_object(data):
+    if not isinstance(data, dict):
+        raise RuntimeError("Unexpected registry response: expected a JSON object.")
+    for key in ("package", "data", "result", "release", "version_info", "version_data"):
+        if isinstance(data.get(key), dict):
+            return data[key]
+    return data
+
+
+def _safe_package_name(name):
+    return bool(re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name))
+
+
+def _read_archive_manifest(archive_path):
+    with tarfile.open(archive_path, "r:gz") as archive:
+        members = archive.getmembers()
+        if len(members) > 10000:
+            raise RuntimeError("Package archive contains too many entries (limit: 10000).")
+        total_size = 0
+        manifests = []
+        for member in members:
+            raw = member.name.replace("\\", "/")
+            parts = Path(raw).parts
+            if raw.startswith("/") or not parts or any(part == ".." for part in parts) or ":" in parts[0]:
+                raise RuntimeError(f"Unsafe path in package archive: {member.name!r}")
+            if not (member.isfile() or member.isdir()):
+                raise RuntimeError(f"Unsupported archive entry type: {member.name!r}")
+            total_size += max(0, member.size)
+            if total_size > 100 * 1024 * 1024:
+                raise RuntimeError("Package archive is too large (limit: 100 MiB uncompressed).")
+            if member.isfile() and Path(raw).name in {"cqlpackage.json", "cqlpackage.toml"}:
+                manifests.append(member)
+        if not manifests:
+            raise RuntimeError("Archive has no cqlpackage.json or cqlpackage.toml manifest.")
+        manifests.sort(key=lambda m: (len(Path(m.name).parts), m.name))
+        member = manifests[0]
+        stream = archive.extractfile(member)
+        if stream is None:
+            raise RuntimeError("Could not read package manifest.")
+        raw = stream.read(1_000_001)
+        if len(raw) > 1_000_000:
+            raise RuntimeError("Package manifest is too large.")
+        if Path(member.name).name == "cqlpackage.json":
+            return json.loads(raw.decode("utf-8"))
+        try:
+            import tomllib
+        except ImportError as exc:
+            raise RuntimeError("TOML manifests require Python 3.11 or newer.") from exc
+        return tomllib.loads(raw.decode("utf-8"))
+
+
+def _download_package(name, version=None, force_replace=False):
+    if not _safe_package_name(name):
+        raise RuntimeError("Invalid package name.")
+    base = _registry_url()
+    endpoint = f"{base}/api/v1/packages/{urllib.parse.quote(name, safe='')}"
+    package_info = _api_object(_http_json(endpoint))
+    if version is None:
+        release_info = _api_object(_http_json(f"{endpoint}/latest"))
+    else:
+        release_info = _api_object(_http_json(f"{endpoint}/{urllib.parse.quote(version, safe='')}"))
+    actual_version = str(release_info.get("version") or release_info.get("version_number") or version or "")
+    if not actual_version or not re.fullmatch(r"[A-Za-z0-9.+_-]+", actual_version):
+        raise RuntimeError("Registry response did not include a valid package version.")
+
+    install_dir = _package_root() / name / actual_version
+    if install_dir.is_dir() and not force_replace:
+        print(f"{name} {actual_version} is already installed at {install_dir}")
+        return 0
+
+    download_url = f"{endpoint}/{urllib.parse.quote(actual_version, safe='')}/download"
+    request = urllib.request.Request(download_url, headers={"User-Agent": f"ChemQL/{__version__}"})
+    try:
+        with urllib.request.urlopen(request, timeout=60) as response:
+            final_url = urllib.parse.urlparse(response.geturl())
+            origin_url = urllib.parse.urlparse(base)
+            if final_url.scheme not in {"http", "https"} or final_url.netloc != origin_url.netloc:
+                raise RuntimeError("Registry redirected the download to an unexpected host.")
+            payload = response.read(100 * 1024 * 1024 + 1)
+    except urllib.error.HTTPError as exc:
+        detail = exc.read(2048).decode("utf-8", errors="replace")
+        raise RuntimeError(f"Package download failed (HTTP {exc.code}): {detail or exc.reason}") from exc
+    except urllib.error.URLError as exc:
+        raise RuntimeError(f"Package download failed: {exc.reason}") from exc
+    if len(payload) > 100 * 1024 * 1024:
+        raise RuntimeError("Package archive exceeds the 100 MiB download limit.")
+
+    _package_root().mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="chemql-install-") as temporary:
+        temp = Path(temporary)
+        archive_path = temp / "package.tar.gz"
+        archive_path.write_bytes(payload)
+        manifest = _read_archive_manifest(archive_path)
+        manifest_name = str(manifest.get("name", ""))
+        manifest_version = str(manifest.get("version", ""))
+        if manifest_name.casefold() != name.casefold() or manifest_version != actual_version:
+            raise RuntimeError(f"Manifest identity mismatch: expected {name} {actual_version}, got {manifest_name or '(missing)'} {manifest_version or '(missing)'}.")
+        stage = temp / "contents"
+        stage.mkdir()
+        with tarfile.open(archive_path, "r:gz") as archive:
+            members = archive.getmembers()
+            top_names = {Path(m.name.replace("\\", "/")).parts[0] for m in members if Path(m.name.replace("\\", "/")).parts}
+            strip_root = len(top_names) == 1 and all(len(Path(m.name.replace("\\", "/")).parts) > 1 for m in members)
+            for member in members:
+                raw = member.name.replace("\\", "/")
+                parts = Path(raw).parts
+                if raw.startswith("/") or not parts or any(part in {"", ".", ".."} for part in parts) or ":" in parts[0]:
+                    raise RuntimeError(f"Unsafe path in package archive: {member.name!r}")
+                if not (member.isfile() or member.isdir()):
+                    raise RuntimeError(f"Unsupported archive entry type: {member.name!r}")
+                relative = parts[1:] if strip_root else parts
+                if not relative:
+                    continue
+                target = stage.joinpath(*relative)
+                if member.isdir():
+                    target.mkdir(parents=True, exist_ok=True)
+                else:
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    stream = archive.extractfile(member)
+                    if stream is None:
+                        raise RuntimeError(f"Could not extract {member.name!r}")
+                    with target.open("wb") as output:
+                        shutil.copyfileobj(stream, output)
+        if not any(stage.rglob("*.cql")):
+            raise RuntimeError("Package archive contains no .cql source files.")
+        install_dir.parent.mkdir(parents=True, exist_ok=True)
+        if install_dir.exists():
+            shutil.rmtree(install_dir)
+        shutil.move(str(stage), str(install_dir))
+
+    state = _read_installed_state()
+    state[name] = {
+        "version": actual_version,
+        "path": str(install_dir),
+        "sha256": hashlib.sha256(payload).hexdigest(),
+    }
+    _write_installed_state(state)
+    print(f"{'Upgraded' if force_replace else 'Installed'} {name} {actual_version}")
+    print(f"Location: {install_dir}")
+    print(f"Load it in ChemQL with: load {name}")
+    return 0
+
+
+def _package_command(args):
+    try:
+        if args.subcommand == "install":
+            return _download_package(args.name, args.version)
+        if args.subcommand == "upgrade":
+            return _download_package(args.name, args.version, force_replace=True)
+        if args.subcommand == "search":
+            data = _http_json(f"{_registry_url()}/api/v1/search?q={urllib.parse.quote(args.query)}")
+            results = data.get("results", data.get("packages", [])) if isinstance(data, dict) else data
+            if isinstance(results, dict):
+                results = results.get("results", [])
+            if not results:
+                print("No packages found.")
+            for item in results:
+                if isinstance(item, dict):
+                    print(f"{item.get('name', '?')} {item.get('version', '')} — {item.get('description', '')}")
+            return 0
+        if args.subcommand == "info":
+            data = _api_object(_http_json(f"{_registry_url()}/api/v1/packages/{urllib.parse.quote(args.name, safe='')}"))
+            print(json.dumps(data, indent=2, ensure_ascii=False))
+            return 0
+        if args.subcommand == "list":
+            state = _read_installed_state()
+            if not state:
+                print("No ChemQL packages installed.")
+            for name, info in sorted(state.items()):
+                print(f"{name} {info.get('version', '?')} — {info.get('path', '')}")
+            return 0
+        if args.subcommand == "uninstall":
+            state = _read_installed_state()
+            if args.name not in state:
+                print(f"{args.name} is not recorded as installed.")
+                return 1
+            root = _package_root().resolve()
+            package_dir = (_package_root() / args.name).resolve()
+            if root not in package_dir.parents:
+                raise RuntimeError("Refusing to remove a directory outside the package directory.")
+            if package_dir.exists():
+                shutil.rmtree(package_dir)
+            del state[args.name]
+            _write_installed_state(state)
+            print(f"Uninstalled {args.name}")
+            return 0
+        if args.subcommand == "build":
+            return _build_project()
+        if args.subcommand == "init":
+            return _init_project(args.name, args.directory)
+    except (RuntimeError, OSError, ValueError, KeyError, tarfile.TarError, json.JSONDecodeError) as exc:
+        print(f"ChemQL: {exc}", file=sys.stderr)
+        return 1
+    return 2
+
+
+def _build_project(directory="."):
+    """Build a ChemQL package without requiring a package-local build.py."""
+    root = Path(directory).expanduser().resolve()
+    json_manifest = root / "cqlpackage.json"
+    toml_manifest = root / "cqlpackage.toml"
+
+    if json_manifest.is_file():
+        manifest_path = json_manifest
+        with manifest_path.open("r", encoding="utf-8") as stream:
+            package = json.load(stream)
+    elif toml_manifest.is_file():
+        try:
+            import tomllib
+        except ImportError:
+            try:
+                import tomli as tomllib
+            except ImportError as exc:
+                raise RuntimeError(
+                    "Building from cqlpackage.toml requires Python 3.11+ or the 'tomli' package."
+                ) from exc
+        manifest_path = toml_manifest
+        with manifest_path.open("rb") as stream:
+            package = tomllib.load(stream)
+    else:
+        raise FileNotFoundError(
+            f"No cqlpackage.json or cqlpackage.toml found in {root}"
+        )
+
+    if not isinstance(package, dict):
+        raise RuntimeError("The package manifest must contain an object/table.")
+    name = package.get("name")
+    version = str(package.get("version", "")).strip()
+    if not isinstance(name, str) or not _safe_package_name(name):
+        raise RuntimeError(f"Invalid or missing package name in {manifest_path.name}: {name!r}")
+    if not version or version in {".", ".."} or any(c in version for c in "/\\\0"):
+        raise RuntimeError(f"Invalid or missing package version in {manifest_path.name}: {version!r}")
+
+    root_name = f"{name}-{version}"
+    dist_dir = root / "dist"
+    dist_dir.mkdir(parents=True, exist_ok=True)
+    archive_path = dist_dir / f"{root_name}.tar.gz"
+
+    excluded_dirs = {
+        ".git", ".venv", "venv", "__pycache__", ".pytest_cache",
+        ".mypy_cache", ".ruff_cache", "node_modules", "dist", "build",
+    }
+    excluded_files = {"build.py", ".DS_Store"}
+    included = []
+    for path in root.rglob("*"):
+        if not path.is_file():
+            continue
+        relative = path.relative_to(root)
+        if any(part in excluded_dirs for part in relative.parts):
+            continue
+        if path.name in excluded_files or path.suffix in {".pyc", ".pyo"}:
+            continue
+        included.append(path)
+
+    if manifest_path not in included:
+        raise RuntimeError("The package manifest was not included in the build.")
+    if not any(path.suffix == ".cql" for path in included):
+        raise RuntimeError("The package contains no .cql source files.")
+
+    with tarfile.open(archive_path, "w:gz") as archive:
+        for path in sorted(included):
+            relative = path.relative_to(root)
+            archive.add(path, arcname=f"{root_name}/{relative.as_posix()}", recursive=False)
+
+    print(f"Package  : {name}")
+    print(f"Version  : {version}")
+    print(f"Manifest : {manifest_path.name}")
+    print(f"Files    : {len(included)}")
+    print(f"Archive  : {archive_path}")
+    print("Build successful!")
+    return 0
+
+
+def _init_project(name=None, directory="."):
+    package_name = name or Path(directory).expanduser().resolve().name
+
+    if not _safe_package_name(package_name):
+        raise RuntimeError(f"Invalid project/package name: {package_name!r}")
+
+    target = Path(directory).expanduser().resolve()
+    if name and target == Path(".").resolve():
+        target = target / name
+
+    target.mkdir(parents=False, exist_ok=True)
+
+    manifest = target / "cqlpackage.json"
+    source = target / f"{package_name}.cql"
+    readme = target / "README.md"
+    existing = [p.name for p in (manifest, source, readme) if p.exists()]
+    if existing:
+        raise RuntimeError("Refusing to overwrite existing files: " + ", ".join(existing))
+    manifest.write_text(json.dumps({
+        "name": package_name, "author": "", "version": "1.0.0",
+        "description": f"A ChemQL package named {package_name}.",
+        "help": "README.md", "main": f"{package_name}.cql", "submodules": [],
+        "buildsystem": "chemql-build", "chemql-dependencies": [],
+        "python-dependencies": [], "readme": "README.md", "license": "MIT",
+        "source-code": {}, "help-individual": {}
+    }, indent=4, ensure_ascii=False) + "\n", encoding="utf-8")
+    source.write_text(
+        f'// {package_name} — ChemQL package entry point\n'
+        'public func hello\n'
+        f'    return "Hello from {package_name}!"\n'
+        'endfunc\n', encoding="utf-8")
+    readme.write_text(
+        f"# {package_name}\n\nA ChemQL package.\n\n## Usage\n\n"
+        f"```chemql\nload {package_name}\n{package_name}::hello{{}}\n```\n",
+        encoding="utf-8")
+    print(f"Created ChemQL project: {target}")
+    print(f"  {manifest.name}\n  {source.name}\n  {readme.name}")
+    print("Next: chemql build")
+    return 0
+
+
 def main(ANSI: bool = True):
+    if len(sys.argv) >= 2 and sys.argv[1] == "edit":
+        from .codecql import main as codecql_main # type: ignore
+
+        sys.argv = ["codecql"] + sys.argv[2:]
+        codecql_main()
+        return
     parser = argparse.ArgumentParser(
         description=(
             "ChemQL query and chemistry language.\n"
             "Version 1.5.0 adds enums and inheritance for structs and records."
         )
     )
+
+    subparsers = parser.add_subparsers(dest="subcommand")
+
+    p_install = subparsers.add_parser("install", help="Install a package from the ChemQL registry")
+    p_install.add_argument("name")
+    p_install.add_argument("--version", default=None)
+
+    p_upgrade = subparsers.add_parser("upgrade", help="Upgrade an installed package")
+    p_upgrade.add_argument("name")
+    p_upgrade.add_argument("--version", default=None)
+
+    p_search = subparsers.add_parser("search", help="Search the ChemQL package registry")
+    p_search.add_argument("query")
+
+    p_info = subparsers.add_parser("info", help="Show registry information for a package")
+    p_info.add_argument("name")
+
+    subparsers.add_parser("list", help="List installed packages")
+
+    p_uninstall = subparsers.add_parser("uninstall", help="Uninstall a package")
+    p_uninstall.add_argument("name")
+
+    subparsers.add_parser("build", help="Build the current ChemQL package")
+
+    p_init = subparsers.add_parser("init", help="Create a ChemQL package project")
+    p_init.add_argument("name", nargs="?", default=None)
+    p_init.add_argument("--directory", "-d", default=".")
 
     parser.add_argument(
         "-c",
@@ -6921,6 +7527,11 @@ def main(ANSI: bool = True):
     )
 
     args = parser.parse_args()
+
+    if args.subcommand:
+        if args.command is not None or args.file is not None or args.output:
+            parser.error("ChemQL subcommands cannot be combined with -c, -f, or -o.")
+        sys.exit(_package_command(args))
 
     if args.upgrade is not None:
         version_target = (
@@ -6981,7 +7592,7 @@ def run_interactive():
                 closer = "]]]" if first == "[[[" else "```"
                 return not (len(source_lines) > 1 and last == closer)
 
-            if re.fullmatch(r"(?:(?:static\s+func|func\s+static|func)\s+)" + _DEFINITION_NAME, first, re.IGNORECASE):
+            if re.fullmatch(r"(?:(?:static\s+func|func\s+static|func)\s+)" + _DEFINITION_NAME + "(?:\\." + _DEFINITION_NAME + ")?" , first, re.IGNORECASE):
                 return last.casefold() != "endfunc"
 
             if re.fullmatch(r"define\s+" + _DEFINITION_NAME + r"\s*\{\s*\}", first):

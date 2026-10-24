@@ -1,12 +1,13 @@
 Metadata-Version: 2.4
 Name: chemql-python
-Version: 1.5.10
+Version: 1.6.1
 Summary: A chemistry-focused query language and REPL
 Author-email: Mohammad Rakibul Islam <rakibulofficial1017@gmail.com>
 Requires-Python: >=3.10
 Description-Content-Type: text/markdown
 License-File: LICENSE
 Requires-Dist: prompt_toolkit>=3.0
+Requires-Dist: rich>=13.7
 Provides-Extra: test
 Requires-Dist: pytest>=8.0; extra == "test"
 Dynamic: license-file
@@ -19,7 +20,7 @@ SQL-inspired syntax, inspect elements and molecules, look up reactions,
 balance equations, and combine chemistry queries with Python and shell
 commands.
 
--   **Version:** `1.5.10`
+-   **Version:** `1.6.1`
 -   **PyPI distribution:** `chemql-python`
 -   **Python import / CLI name:** `chemql`
 -   **Author:** Mohammad Rakibul Islam
@@ -46,6 +47,7 @@ commands.
 -   [Built-in help](#built-in-help)
 -   [Shell integration and scripting](#shell-integration-and-scripting)
 -   [CLI options and history export](#cli-options-and-history-export)
+-   [ChemQL package management](#chemql-package-management)
 -   [Python API](#python-api)
 -   [Data sources and network access](#data-sources-and-network-access)
 -   [Troubleshooting](#troubleshooting)
@@ -79,9 +81,10 @@ commands.
 ChemQL is distributed as `chemql-python`; the executable and import name
 are `chemql`.
 
-**Requirements:** Python 3.10 or newer. `prompt_toolkit` is installed as
-a dependency. Internet access is needed only for optional online lookups
-or package upgrades.
+**Requirements:** Python 3.10 or newer. `prompt_toolkit` and `rich` are
+installed as dependencies. Internet access is needed for package registry
+operations and optional online lookups; local queries and the standard library
+remain available offline.
 
 Install from PyPI:
 
@@ -145,10 +148,11 @@ exit
 
 ### Terminal editor
 
-Install the package, then open a ChemQL file with the `codecql` command:
+Install the package, then open a ChemQL file with the `codecql` command or `chemql edit`:
 
 ``` bash
 codecql script.cql
+chemql edit script.cql # this works too
 ```
 
 The editor supports syntax highlighting, direct text editing, word movement
@@ -820,7 +824,9 @@ geometry::circle_area{2}
 ## Standard library
 
 ChemQL loads reusable `.cql` packages with `load`. The loader searches the
-current directory first and then ChemQL's bundled `stdlib/` directory.
+current directory, installed packages (normally under `~/.chemql/packages/`),
+and then ChemQL's bundled `stdlib/` directory. Installed package entry points
+are resolved from the manifest's `main` field.
 
 | Package | Purpose |
 | --- | --- |
@@ -982,6 +988,97 @@ dump bad executions failures.txt
 Supported forms include `dump all|good|bad FILE`,
 `dump all|good|bad queries FILE`, and `dump all|good|bad results FILE`.
 `good` and `bad` select successful and failed executions respectively.
+
+## ChemQL package management
+
+ChemQL includes commands for creating, building, installing, and managing
+reusable ChemQL packages. Run package-management commands in your system
+terminal, not inside the interactive ChemQL prompt.
+
+### Create and build a package
+
+Create a starter project:
+
+```bash
+chemql init MyPackage # the name of the package is optional, if the name is empty it will just use the current folders name
+cd MyPackage
+```
+
+`chemql init` creates a `cqlpackage.json` manifest, `MyPackage.cql` entry
+point, and `README.md`. It does not create a package-local `build.py`.
+
+Build the package from the project directory:
+
+```bash
+chemql build
+```
+
+The builder reads `cqlpackage.json` or `cqlpackage.toml` and writes an archive
+to `dist/`, named `PACKAGE-VERSION.tar.gz`. The archive contains a top-level
+`PACKAGE-VERSION/` directory and is intended for uploading to a ChemQL package
+registry. Build excludes common generated directories such as virtual
+environments, caches, `node_modules`, `dist`, and `build`.
+
+You can upload these .tar.gz files to https://chemqlreg.pythonanywhere.com/
+
+### Install and manage packages
+
+The package commands are:
+
+| Command | Purpose |
+|---|---|
+| `chemql search QUERY` | Search the configured package registry |
+| `chemql info NAME` | Display registry metadata for a package |
+| `chemql install NAME` | Install the latest available version |
+| `chemql install NAME --version 1.2.0` | Install a specific version |
+| `chemql upgrade NAME` | Upgrade an installed package |
+| `chemql upgrade NAME --version 1.2.0` | Upgrade to a specific version |
+| `chemql list` | List packages recorded as installed |
+| `chemql uninstall NAME` | Remove an installed package |
+
+By default, packages are installed under `~/.chemql/packages/` and the
+installed-package record is stored in `~/.chemql/installed.json`.
+
+Configure the installation paths with environment variables (optional):
+
+- `CHEMQL_PACKAGE_DIR`: package installation directory.
+- `CHEMQL_INSTALLED_FILE`: installed-package state file.
+
+For example, after installing a package named `GUI`, use it from ChemQL:
+
+```chemql
+load GUI
+```
+
+ChemQL uses the package manifest's `main` field to find the installed
+package's entry point.
+
+### Package manifest help
+
+The manifest can point `help` at a Markdown file:
+
+```json
+{
+    "name": "GUI",
+    "version": "1.0.0",
+    "description": "A GUI for ChemQL",
+    "main": "GUI.cql",
+    "help": "README.md",
+    "help-individual": {
+        "addButton": "Adds a button to the GUI."
+    }
+}
+```
+
+Use `help{GUI}` to display the package description, the help content, and
+the individual help entries. If `help` names a `.md` file, ChemQL reads it
+relative to the manifest and renders it with Rich. Otherwise, the `help`
+value is displayed as literal text. Individual entries can be requested
+with `help{GUI::addButton}`. You do not even need to load it, you can simply run it
+
+Package installation and registry operations require a reachable registry.
+The default registry URL is local to the machine; set `CHEMQL_REGISTRY_URL`
+when using a remote or hosted registry.
 
 ## Python API
 
