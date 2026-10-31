@@ -6,7 +6,7 @@ SQL-inspired syntax, inspect elements and molecules, look up reactions,
 balance equations, and combine chemistry queries with Python and shell
 commands.
 
--   **Version:** `1.6.1`
+-   **Version:** `1.6.2`
 -   **PyPI distribution:** `chemql-python`
 -   **Python import / CLI name:** `chemql`
 -   **Author:** Mohammad Rakibul Islam
@@ -874,6 +874,73 @@ overview, and `help{math::sqrt}` for function help. These help pages are
 available before loading the package. `pathlib::read_text` and
 `pathlib::write_text` access files with the permissions of the ChemQL
 process.
+
+## Importing Package Members
+
+ChemQL allows you to import individual members from a package while retaining access to the package's other members through its qualified namespace.
+
+### Importing a Single Member
+
+Use `load MEMBER from PACKAGE` to import a specific member into the current scope.
+
+```chemql
+load sin from math
+
+sin{10}
+```
+
+The imported member can be called directly without specifying its package name.
+
+### Importing with an Alias
+
+You can use `as` to assign a different name to an imported member.
+
+```chemql
+load cos from math as c
+
+c{10}
+```
+
+This is useful when you want a shorter name or want to avoid naming conflicts.
+
+### Qualified Namespace Access
+
+Importing an individual member does not prevent you from accessing other members of its package. ChemQL can initialize the package as needed and resolve qualified function calls using the package namespace.
+
+```chemql
+load sin from math
+
+# Call the imported member directly
+sin{10}
+
+# Access other package members
+math::cos{10}
+math::sin{30}
+```
+
+You can therefore combine direct member imports with qualified calls in the same program.
+
+### Importing an Entire Package
+
+To load a package explicitly, use `load PACKAGE` or assign it an alias with `as`.
+
+```chemql
+load math
+
+math::sin{10}
+math::cos{10}
+```
+
+You can also assign a package alias:
+
+```chemql
+load math as MATH
+
+MATH::sin{10}
+MATH::cos{10}
+```
+
+**Note:** ChemQL's package initialization and namespace resolution allow qualified package functions to remain accessible even when you initially import only one member. Importing a member is therefore a convenience for direct access, not a restriction on the rest of the package.
 
 ## Built-in help
 

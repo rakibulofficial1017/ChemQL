@@ -10,7 +10,7 @@ import shutil
 import subprocess
 import time
 
-VERSION = "0.0.9"
+VERSION = "0.0.10"
 
 
 def _write_system_clipboard(text):
@@ -275,7 +275,7 @@ COMMANDS = {
 CONTROL_KEYWORDS = {
     "if", "elif", "else", "endif", "for", "while", "in", "endfor",
     "endwhile", "break", "continue", "endblock", "from", "as", "public",
-    "private", "required", "struct", "record", "enum", "endstruct",
+    "private", "required", "struct", "record", "enum", "endstruct", "static",
     "endrecord", "endenum", "namespace", "endnamespace",
 }
 WORD_OPERATORS = {

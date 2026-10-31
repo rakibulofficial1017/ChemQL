@@ -68,7 +68,7 @@ __all__ = [
     "__version__"
 ]
 
-__version__ = "1.6.1"
+__version__ = "1.6.2"
 
 # Persistent preprocessor/function state for the current ChemQL session.
 DEFINITIONS = {}
@@ -1094,6 +1094,24 @@ def _expand_function_calls(text):
             if match:
                 name = match.group(1)
                 resolved_name = _resolve_package_qualified_name(name)
+                # Enforce explicit package loading BEFORE checking FUNCTIONS.
+                # Otherwise a function registered while internally initializing
+                # a package bypasses the qualified-access restriction below.
+                if "::" in resolved_name:
+                    package_name = resolved_name.rsplit("::", 1)[0]
+                    root_package = package_name.split("::", 1)[0]
+                    explicitly_loaded_packages = globals().get(
+                        "CHEMQL_EXPLICITLY_LOADED_PACKAGES", set()
+                    )
+                    if (
+                        package_name not in explicitly_loaded_packages
+                        and root_package not in explicitly_loaded_packages
+                    ):
+                        raise ChemQLError(
+                            f"Unknown function `{name}`"
+                            if NO_ANSI else
+                            f"Unknown function \\033[1m{name}\\033[22m"
+                        )
                 opening = i + match.end() - 1
                 end = find_matching(text, opening, "{", "}")
                 args = _split_function_arguments(text[opening + 1:end])
@@ -1103,6 +1121,47 @@ def _expand_function_calls(text):
                     value = _call_function(resolved_name, args)
                 elif "::" not in resolved_name and resolved_name in BUILTIN_FUNCTIONS:
                     value = _call_builtin(resolved_name, args)
+                elif (
+                    "::" not in resolved_name
+                    and resolved_name in CHEMQL_VARIABLES
+                    and callable(python_globals.get(resolved_name))
+                ):
+                    # `load member from package` binds the actual public member
+                    # in the global scope. Imported function wrappers therefore
+                    # need to be callable through the same `name{args}` syntax
+                    # as registered ChemQL functions.
+                    imported_callable = python_globals[resolved_name]
+                    values = [evaluate_python(arg) for arg in args]
+                    value = imported_callable(*values)
+                elif "::" in resolved_name:
+                    # A qualified call is permitted only after the user has
+                    # explicitly loaded its package (possibly under an alias).
+                    # `_ensure_package_namespace()` is also used internally by
+                    # `load MEMBER from package`; that internal initialization
+                    # must not make every member of the package accessible.
+                    package_name = resolved_name.rsplit("::", 1)[0]
+                    root_package = package_name.split("::", 1)[0]
+                    explicitly_loaded_packages = globals().get(
+                        "CHEMQL_EXPLICITLY_LOADED_PACKAGES", set()
+                    )
+                    # Explicit imports are tracked separately from package bindings:
+                    # internal package initialization and incidental bindings must not
+                    # expose sibling members through qualified calls.
+                    explicitly_loaded = (
+                        package_name in explicitly_loaded_packages
+                        or root_package in explicitly_loaded_packages
+                    )
+                    if explicitly_loaded:
+                        try:
+                            _ensure_package_namespace(package_name)
+                        except (ImportError, OSError, ValueError):
+                            pass
+                    if explicitly_loaded and resolved_name in FUNCTIONS:
+                        if not _namespace_function_is_callable(resolved_name):
+                            raise PermissionError((f"Function `{name}` is private" if NO_ANSI else f"Function \033[1m{name}\033[22m is private"))
+                        value = _call_function(resolved_name, args)
+                    else:
+                        raise ChemQLError((f"Unknown function `{name}`" if NO_ANSI else f"Unknown function \033[1m{name}\033[22m"))
                 elif (
                     "::" not in resolved_name
                     and isinstance(python_globals.get(resolved_name), type)
@@ -4571,6 +4630,9 @@ def _find_unquoted_marker(text, marker, start=0):
 # Canonical ChemQL package names and user-defined aliases are deliberately
 # tracked separately. An alias must never replace a canonical package binding.
 CHEMQL_PACKAGE_BINDINGS = {}
+# Tracks packages explicitly imported by the user. Internal namespace initialization
+# for `load MEMBER from package` must not grant qualified-call access.
+CHEMQL_EXPLICITLY_LOADED_PACKAGES = set()
 CHEMQL_PACKAGE_SOURCE_LOADED = set()
 
 
@@ -4706,22 +4768,42 @@ def _ensure_package_namespace(package_name, allow_namespace_only=False):
             globals()["_CURRENT_VISIBILITY"] = old_visibility
         CHEMQL_PACKAGE_SOURCE_LOADED.add(package_name)
 
-    # A namespace-only parent is a canonical container, not an independently
-    # loadable package unless it has its own .cql source file.
-    if path is not None:
-        CHEMQL_PACKAGE_BINDINGS.setdefault(package_name, package_name)
+    # Merely resolving a package namespace must not count as a user-visible
+    # package import. `_execute_load_statement` records bindings explicitly.
     return namespace
 
 
 def _execute_load_statement(statement):
-    """Load a ChemQL .cql package, optionally binding an explicit alias."""
+    """Load a package, optionally alias it or import one public member."""
+    from_match = re.fullmatch(
+        r"load\s+([A-Za-z_]\w*)\s+from\s+([A-Za-z_]\w*(?:::[A-Za-z_]\w*)*)(?:\s+as\s+([A-Za-z_]\w*))?",
+        statement,
+    )
+    if from_match:
+        member_name, package_name, alias = from_match.groups()
+        binding_name = alias or member_name
+        namespace = _ensure_package_namespace(package_name)
+        if member_name not in namespace._chemql_public:
+            raise ImportError(f"Package `{package_name}` has no public member `{member_name}`")
+        value = getattr(namespace, member_name)
+        # Bind only the requested member, under either its original name or
+        # the explicit alias. Loading the source is necessary to resolve it,
+        # but does not create a package-name binding in the user's globals.
+        if binding_name in CHEMQL_PACKAGE_BINDINGS:
+            raise ImportError(f"Name `{binding_name}` is already bound as a package name; cannot import `{member_name}` from `{package_name}`.")
+        if binding_name in CHEMQL_VARIABLES:
+            raise ImportError(f"Name `{binding_name}` is already defined; cannot import `{member_name}` from `{package_name}`.")
+        python_globals[binding_name] = value
+        CHEMQL_VARIABLES.add(binding_name)
+        return True
+
     match = re.fullmatch(
         r"load\s+([A-Za-z_]\w*(?:::[A-Za-z_]\w*)*)(?:\s+as\s+([A-Za-z_]\w*))?",
         statement,
     )
     if not match:
         if statement.startswith("load"):
-            raise SyntaxError(("Expected `load package::name` or `load package::name as alias`" if NO_ANSI else "Expected \033[1mload package::name\033[22m or \033[1mload package::name as alias\033[22m"))
+            raise SyntaxError(("Expected `load package`, `load package as alias`, or `load MEMBER from package [as alias]`" if NO_ANSI else "Expected \033[1mload package\033[22m, \033[1mload package as alias\033[22m, or \033[1mload MEMBER from package [as alias]\033[22m"))
         return False
 
     package_name, alias = match.groups()
@@ -4827,6 +4909,10 @@ def _execute_load_statement(statement):
             CHEMQL_PACKAGE_BINDINGS[package_name] = package_name
             python_globals[package_name] = namespace
             CHEMQL_VARIABLES.add(package_name)
+
+    # Only `load package [as alias]` reaches this point. Member imports return
+    # earlier, so they never grant qualified access to sibling package members.
+    CHEMQL_EXPLICITLY_LOADED_PACKAGES.add(package_name)
     return True
 
 
@@ -6538,7 +6624,7 @@ class ChemqlLexer(Lexer):
     CONTROL_WORDS = {
         "if", "elif", "else", "for", "while", "break", "continue", "endblock",
         "endfor", "endwhile", "endif", "endrisk", "endstruct", "endrecord", "endenum",
-        "endfunc", "enddefine", "func", "define", "struct", "record", "risk",
+        "endfunc", "enddefine", "func", "define", "struct", "record", "risk", "static",
         "fix", "cleanup", "signal", "import", "as", "return", "public", "private",
         "required", "namespace", "endnamespace", "enum", "from"
     }
