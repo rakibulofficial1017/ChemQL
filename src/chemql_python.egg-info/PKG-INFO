@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: chemql-python
-Version: 1.6.2
+Version: 1.6.4
 Summary: A chemistry-focused query language and REPL
 Author-email: Mohammad Rakibul Islam <rakibulofficial1017@gmail.com>
 Requires-Python: >=3.10
@@ -12,113 +12,94 @@ Provides-Extra: test
 Requires-Dist: pytest>=8.0; extra == "test"
 Dynamic: license-file
 
-# ChemQL
+# ChemQL & CodecQL
 
-**ChemQL** is a Python-powered chemistry query language and interactive
-command-line environment. Query chemical datasets with a compact,
-SQL-inspired syntax, inspect elements and molecules, look up reactions,
-balance equations, and combine chemistry queries with Python and shell
-commands.
+ChemQL is a chemistry-oriented query and programming language with an
+interactive terminal, a Python-backed execution environment, chemistry
+data types and operations, user-defined functions, and a package system.
 
--   **Version:** `1.6.2`
--   **PyPI distribution:** `chemql-python`
--   **Python import / CLI name:** `chemql`
--   **Author:** Mohammad Rakibul Islam
+CodecQL is the terminal text editor distributed with ChemQL. It edits
+source files, provides syntax highlighting, and supports configurable
+highlighting profiles for multiple file extensions.
 
-> ChemQL is a learning and productivity tool, not a substitute for
-> authoritative chemical references or professional laboratory guidance.
-> Results depend on the available data and implemented calculations.
+> **Version represented by this documentation:** ChemQL `1.6.4`; CodecQL
+> `0.0.11`.
+>
+> This README documents the implementation represented by the
+> accompanying source files. Some advanced syntax is intentionally
+> described at a high level; use the built-in `help` system for the
+> authoritative in-app reference.
+
+------------------------------------------------------------------------
 
 ## Contents
 
--   [Highlights](#highlights)
--   [Installation](#installation)
--   [Start and quick start](#start-and-quick-start)
--   [Query language](#query-language)
--   [Filters and result operations](#filters-and-result-operations)
--   [Lookup commands](#lookup-commands)
--   [Reaction tools](#reaction-tools)
--   [Python integration](#python-integration)
--   [Functions, definitions, and
-    macros](#functions-definitions-and-macros)
--   [Structs and records](#structs-and-records)
--   [Namespaces](#namespaces)
--   [Standard library](#standard-library)
--   [Built-in help](#built-in-help)
--   [Shell integration and scripting](#shell-integration-and-scripting)
--   [CLI options and history export](#cli-options-and-history-export)
--   [ChemQL package management](#chemql-package-management)
--   [Python API](#python-api)
--   [Data sources and network access](#data-sources-and-network-access)
+-   [Installation and requirements](#installation-and-requirements)
+-   [ChemQL](#chemql)
+    -   [Starting ChemQL](#starting-chemql)
+    -   [Running scripts and commands](#running-scripts-and-commands)
+    -   [Language syntax at a glance](#language-syntax-at-a-glance)
+    -   [Built-in functions](#built-in-functions)
+    -   [Standard-library packages](#standard-library-packages)
+    -   [Chemistry features](#chemistry-features)
+    -   [Package management](#package-management)
+    -   [Python interoperability](#python-interoperability)
+    -   [Help and errors](#help-and-errors)
+-   [CodecQL](#codecql)
+    -   [Opening and creating files](#opening-and-creating-files)
+    -   [Keyboard shortcuts](#keyboard-shortcuts)
+    -   [Search syntax](#search-syntax)
+    -   [Terminal integration](#terminal-integration)
+-   [CodecQL configuration](#codecql-configuration)
+    -   [`colors.json`: editor colors](#colorsjson-editor-colors)
+    -   [`highlighting.json`: language
+        profiles](#highlightingjson-language-profiles)
+    -   [Rule types](#rule-types)
+    -   [Style syntax](#style-syntax)
+    -   [Configuration lookup and
+        precedence](#configuration-lookup-and-precedence)
+    -   [Editing configuration from
+        CodecQL](#editing-configuration-from-codecql)
 -   [Troubleshooting](#troubleshooting)
--   [Security](#security)
--   [Development and contributing](#development-and-contributing)
--   [License and attribution](#license-and-attribution)
 
-## Highlights
+------------------------------------------------------------------------
 
--   Search bundled element, molecule, and reaction datasets.
--   Filter records using comparisons, wildcard matching, boolean logic,
-    and collection membership.
--   Sort, limit, count, and project query results.
--   Combine compatible result sets with `union` and `intersection`.
--   Find elements, molecules, and reactions with convenience commands.
--   Balance supported chemical equations and match supplied reactants
-    against stored reactions.
--   Set reaction temperature, pressure, and catalysts for supported
-    matching.
--   Use Python statements, expressions, variables, control flow,
-    functions, macros, and structured values.
--   Define enums with automatic or explicit values, and inherit structs
-      from structs, records, or Python classes; records can inherit from
-      other records.
--   Execute shell commands and multiline shell blocks from the REPL.
--   Export recorded commands and results.
--   Use the command-line interface or import ChemQL from Python.
+# Installation and requirements
 
-## Installation
+ChemQL is a Python package. CodecQL is a Python terminal application
+that is imported by ChemQL and can also be launched through its editor
+command.
 
-ChemQL is distributed as `chemql-python`; the executable and import name
-are `chemql`.
+The ChemQL runtime imports `prompt_toolkit` for the interactive prompt.
+The editor uses Python's standard library and ANSI terminal escape
+sequences. On Windows it attempts to initialize ANSI support with
+`colorama`, and falls back to enabling virtual-terminal processing when
+`colorama` is unavailable.
 
-**Requirements:** Python 3.10 or newer. `prompt_toolkit` and `rich` are
-installed as dependencies. Internet access is needed for package registry
-operations and optional online lookups; local queries and the standard library
-remain available offline.
+Install ChemQL using the distribution method provided by the project. If
+installing from a local source checkout, install the project from its
+package root so that its package metadata and dependencies are installed
+together.
 
-Install from PyPI:
+Check the installed version:
 
 ``` bash
-python -m pip install --upgrade chemql-python
+chemql --version
+codecql --version
 ```
 
-### Windows PowerShell
-
-``` powershell
-py -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade chemql-python
-chemql
-```
-
-### Linux, macOS, or WSL
+If the `codecql` command is not exposed as a separate executable in your
+installation, launch the editor through ChemQL:
 
 ``` bash
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade chemql-python
-chemql
+chemql edit path/to/file.cql
 ```
 
-If `chemql` is not found, confirm that you installed the package into
-the Python environment you are currently using:
+------------------------------------------------------------------------
 
-``` bash
-python -m pip show chemql-python
-python -m pip install --upgrade chemql-python
-```
+# ChemQL
 
-## Start and quick start
+## Starting ChemQL
 
 Start the interactive prompt:
 
@@ -126,1182 +107,1235 @@ Start the interactive prompt:
 chemql
 ```
 
-At the prompt, try:
+The prompt accepts ChemQL commands and expressions. The welcome message
+points to the built-in help system:
 
 ``` text
 help
-version
-list all
-findel "He"
-findmol "Water"
-findre "Haber process"
-search elements symbol = "Fe"
-search molecules molecular_weight < 50 sort molecular_weight limit 10
-balance H2 + O2 -> H2O
+```
+
+or:
+
+``` text
+?
+```
+
+Exit the interactive prompt with:
+
+``` text
 exit
 ```
 
--   `help` or `?` prints the built-in guide.
--   `version` prints the running version.
--   `list all` shows available sources and fields.
--   `exit` leaves the prompt.
+You can also press `Ctrl+C` to leave the prompt.
 
-### Terminal editor
+The prompt supports multiline input for constructs such as functions,
+macros, Python blocks, and other block forms. The continuation prompt is
+shown as `...`.
 
-Install the package, then open a ChemQL file with the `codecql` command or `chemql edit`:
+## Running scripts and commands
+
+Execute a one-line or multi-line ChemQL command supplied on the command
+line:
 
 ``` bash
-codecql script.cql
-chemql edit script.cql # this works too
+chemql -c 'molar_mass{"H2O"}'
 ```
 
-The editor supports syntax highlighting, direct text editing, word movement
-with `Ctrl`/`Alt`+Arrow, selection with `Shift`+Arrow, internal copy/cut/paste
-with `Ctrl+C`/`Ctrl+X`/`Ctrl+V` (copy also writes to the system clipboard
-when a supported clipboard command is available), word deletion with
-`Ctrl+Backspace`/`Ctrl+Delete`, and terminal bracketed paste. It also supports
-undo (`Ctrl+Z`), redo (`Ctrl+Y`), save (`Ctrl+S`), and quit (`Ctrl+Q`).
-Namespace declarations are highlighted and auto-indented. Its syntax and UI
-colors are configurable in the packaged `chemql/colors.json` file.
-Use `Ctrl+Up` and `Ctrl+Down` to scroll the viewport while keeping the cursor
-at the same screen position.
+Execute a source file:
 
-Press `Ctrl+F` to search; matches highlight as you type. Press Enter or the
-Down Arrow for the next match, Up Arrow for the previous match, and Escape
-to close the search prompt. Searches are literal and case-insensitive by
-default. Prefix a query with `r:` for a case-sensitive regular expression,
-`ri:` for a case-insensitive regular expression, `l:` for case-sensitive
-literal text, or `li:` for case-insensitive literal text. Add `w` to match
-whole words, for example `lwi:cat`.
+``` bash
+chemql -f path/to/script.cql
+```
 
-Press `CTRL+T` to open a terminal inside the code editor to test your code. You can leave the terminal by pressing the Escape key or typing `exit` on Unix-like systems but on windows, you have to type in `exit` or if you have already typed in commands, you have to typed in commands, you have to type `exit` followed by pressing `Ctrl+D`
+Write command or script output to a file without ANSI escape sequences:
 
-Use `Ctrl+Up` and `Ctrl+Down` to scroll the viewport while keeping the cursor
-at the same screen position. However on Unix-like systems `Ctrl+Up` and `Ctrl+Down` in the terminal mode resizes the editor to terminal emulator ratio
+``` bash
+chemql -f path/to/script.cql -o output.txt
+```
 
-## Query language
+Useful runtime options:
 
-A typical query starts with `search`, a source, optional conditions, and
-optional result operations:
+  -----------------------------------------------------------------------
+  Option                              Purpose
+  ----------------------------------- -----------------------------------
+  `-c`, `--command`                   Execute ChemQL code supplied as an
+                                      argument
+
+  `-f`, `--file`                      Execute ChemQL code from a file
+
+  `--no-ansi`                         Disable ANSI styling in output
+
+  `--suppress-warnings`               Suppress warning messages
+
+  `-o`, `--output FILE`               Write captured output to a file
+                                      without ANSI sequences
+
+  `-v`, `--version`                   Print the ChemQL version
+
+  `--upgrade [VERSION]`               Upgrade ChemQL, optionally to a
+                                      specified version
+
+  `--force` / `--dangerously`         Force an upgrade, including
+                                      bypassing system-package
+                                      protections
+  -----------------------------------------------------------------------
+
+`-o` is only valid with `-c` or `-f`.
+
+## Language syntax at a glance
+
+ChemQL combines its own command/query syntax with Python expressions and
+statements in explicitly delimited blocks.
+
+### Function calls
+
+ChemQL function calls use braces rather than parentheses:
 
 ``` text
-search <source> <conditions> <result operations>
+function_name{argument1, argument2}
 ```
-
-Available sources:
-
-  Source        Contents
-  ------------- -----------------------------------------
-  `elements`    Element / periodic-table records
-  `molecules`   Bundled molecule records and properties
-  `reactions`   Bundled reaction records
-
-Use `source` to set the current source for commands that rely on it:
-
-``` text
-source elements
-source molecules
-source reactions
-```
-
-### Select fields
-
-Use `return` to choose which fields are displayed:
-
-``` text
-search elements symbol = "O" return name symbol number atomic_mass
-search molecules name like "*water*" return name formula molecular_weight
-search reactions reversible = true return name equation source
-```
-
-A single returned field can be displayed as a list; multiple fields are
-formatted as a table. Use `list all` to check valid field names.
-
-## Filters and result operations
-
-### Comparison operators
-
-  Operator      Meaning
-  ------------- ------------------------------
-  `=` / `!=`    Equal / not equal
-  `>` / `<`     Greater / less than
-  `>=` / `<=`   Greater / less than or equal
-
-``` text
-search elements number >= 10
-search molecules molecular_weight < 25
-search reactions reversible = true
-```
-
-### Matching and logic
-
-  Operator      Meaning
-  ------------- ----------------------------------------
-  `like`        Case-insensitive pattern matching
-  `like!`       Case-sensitive pattern matching
-  `likep`       Pattern-oriented matching
-  `has`         Tests whether a value contains an item
-  `and`, `or`   Combine conditions
-  `( ... )`     Group conditions
-
-The `*` wildcard matches a sequence of characters in `like` patterns:
-
-``` text
-search molecules name like "*water*"
-search elements number > 10 and number < 20
-search molecules (name like "*water*" or formula = "H2O") and molecular_weight < 25
-```
-
-### Result operations
-
-  -------------------------------------------------------------------------
-  Operation               Purpose                 Example
-  ----------------------- ----------------------- -------------------------
-  `return FIELD ...`      Choose fields to        `return name formula`
-                          display                 
-
-  `sort FIELD`            Sort results            `sort molecular_weight`
-
-  `sort FIELD asc`        Ascending order         `sort number asc`
-
-  `sort FIELD desc`       Descending order        `sort number desc`
-
-  `limit N`               Limit result count      `limit 10`
-
-  `first` / `last`        Select an end result    `first`
-
-  `count`                 Count matches           `count`
-
-  `union`                 Combine result sets     See below
-
-  `intersection`          Keep common results     See below
-  -------------------------------------------------------------------------
 
 Examples:
 
 ``` text
-search molecules molecular_weight < 20 sort molecular_weight asc limit 5
-search elements number < 10 union search elements number > 90
-search molecules name like "*water*" intersection search molecules molecular_weight < 50
+molar_mass{"H2O"}
+upper{"hello world"}
+math::sqrt{81}
 ```
 
-Set operations are intended for compatible result sets.
+Separate arguments with commas. Quote text containing spaces.
 
-## Lookup commands
+### Variables
 
-### `findel`
-
-Find an element by name or symbol:
-
-``` text
-findel "He"
-findel "Helium"
-findel "Fe"
-```
-
-### `findmol`
-
-Find a molecule by name or formula. ChemQL searches locally first and
-may try external lookup services if the local dataset has no match.
-
-``` text
-findmol "Water"
-findmol "H2O"
-findmol "Ethanol"
-findmol "Water" return name formula molecular_weight
-```
-
-External molecule lookup requires network access and can fail if a
-service is unavailable.
-
-### `findre`
-
-Find a reaction by name, ID, or equation:
-
-``` text
-findre "Haber process"
-findre "ethanol"
-findre "RHEA:..."
-findre "propanol" return name equation source reactants products
-```
-
-`findre` checks local reaction records first and can then try external
-sources such as Chempirical and Rhea. External results may have
-different metadata from local records. For deterministic offline
-searching, use `search reactions ...`, which searches the bundled
-dataset only.
-
-## Reaction tools
-
-### Balance equations
-
-``` text
-balance H2 + O2 -> H2O
-balance Fe + O2 -> Fe2O3
-balance N2 + H2 <-> NH3
-```
-
-The balancer supports the formula notation accepted by its parser.
-Complex ionic equations or unusual formula syntax may require checking
-or simplifying. `->` denotes a forward equation; reversible arrows such
-as `<->` are accepted by supported command syntax.
-
-### Match reactants to stored reactions
-
-``` text
-react N2 3H2
-react H2 O2
-```
-
-`react` attempts to match the supplied reactants against stored reaction
-records and the active conditions. It is a dataset lookup, not a
-general-purpose reaction predictor, and cannot guarantee that a reaction
-will occur.
-
-### Conditions
-
-``` text
-set temperature 723K
-set temperature 150C
-set temperature 300F
-set temperature room
-set temperature standard
-
-set pressure 101325Pa
-set pressure 2bar
-set pressure 1atm
-set pressure room
-set pressure standard
-
-set catalysts iron zinc
-add catalyst "Vanadium oxide"
-remove catalyst "Vanadium oxide"
-set catalysts
-conditions
-```
-
-Supported temperature units include `C`, `F`, and `K`. Pressure syntax
-includes `Pa`, `N/m^2`, `Nm^-2`, `bar`, and `atm` forms accepted by the
-parser. The built-in help describes `standard` as 0 °C and 100000 Pa,
-and `room` as 25 °C and 101325 Pa. Use `set catalysts` without names to
-clear the catalyst list.
-
-Reaction matching and calculations depend on the bundled records and
-implementation; they are not experimental validation or safety advice.
-
-## Python integration
-
-Square brackets execute Python statements or expressions, and Python
-state can be reused in the session:
-
-``` text
-[x = 10]
-[print(x)]
-[x * 2]
-```
-
-Use `{{ ... }}` to evaluate a ChemQL query as a Python value:
-
-``` text
-{{ search elements name = "Hydrogen" }}
-let hydrogen = {{ search elements name = "Hydrogen" }}
-```
-
-The returned value depends on the query result shape.
-
-## Control Flow
-
-ChemQL supports conditional statements and loops, allowing you to control the execution of your code. Native control-flow syntax uses keywords such as `if`, `endif`, `while`, `endwhile`, `for`, and `endfor` without requiring square brackets.
-
-### Conditional statements: `if`, `else`, and `endif`
-
-Use `if` to execute a block only when a condition is true. The optional `else` block executes when the condition is false. Close the conditional with `endif`.
-
-```text
-let temperature = 25
-
-if temperature > 30
-    print("It is hot")
-else
-    print("It is not too hot")
-endif
-```
-
-You can also use `if` without an `else`:
-
-```text
-if temperature > 20
-    print("Above 20 degrees")
-endif
-```
-
-### While loops: `while` and `endwhile`
-
-A `while` loop repeats its body as long as its condition remains true. Use `endwhile` to close the loop.
-
-```text
-let counter = 0
-
-while counter < 5
-    print(counter)
-    counter = counter + 1
-endwhile
-```
-
-Make sure the condition eventually becomes false; otherwise, the loop may run indefinitely.
-
-### For loops: `for` and `endfor`
-
-Use `for` to iterate over a sequence or other supported iterable. The loop ends at `endfor`.
-
-```text
-for i in range(5)
-    print(i)
-endfor
-```
-
-This prints the numbers from `0` through `4`.
-
-You can also iterate over a list:
-
-```text
-let fruits = ["Apple", "Banana", "Orange"]
-
-for fruit in fruits
-    print(fruit)
-endfor
-```
-
-### Nested control-flow blocks
-
-Control-flow statements can be nested. Each closing keyword must match its corresponding opening statement.
-
-```text
-for i in range(3)
-    if i > 0
-        print(i)
-    endif
-endfor
-```
-
-For nested loops, close the innermost loop first:
-
-```text
-for i in range(3)
-    for j in range(2)
-        print(i, j)
-    endfor
-endfor
-```
-
-### Bracketed Python-style syntax
-
-ChemQL also supports bracketed Python-style control-flow blocks, which use `endblock` as the closing keyword.
-
-**Conditional example:**
-
-```text
-[if 3 > 2]
-    [print("True")]
-[else]
-    [print("False")]
-[endblock]
-```
-
-**While loop example:**
-
-```text
-let counter = 0
-
-[while counter < 3]
-    [print(counter)]
-    [counter = counter + 1]
-[endblock]
-```
-
-**For loop example:**
-
-```text
-[for i in range(5)]
-    [print(i)]
-[endblock]
-```
-
-### Summary
-
-| Native syntax | Purpose |
-|---|---|
-| `if ... endif` | Conditional execution |
-| `if ... else ... endif` | Choose between two branches |
-| `while ... endwhile` | Repeat while a condition is true |
-| `for ... endfor` | Iterate over a sequence |
-| `endblock` | Close a bracketed Python-style control-flow block |
-
-Use native control-flow syntax for ChemQL's keyword-based blocks, and bracketed syntax when writing Python-style blocks. Always match each opening statement with the appropriate closing keyword.
-
-For a multiline Python block, start with `[[[` and close with `]]]` on
-its own line:
-
-``` text
-[[[
-for i in range(3):
-    print(i)
-]]]
-```
-
-Use `let` to assign session values:
+Use `let` to assign a value:
 
 ``` text
 let answer = 42
-let double = answer * 2
-```
-## Error Handling and Cleanup
-
-ChemQL provides `risk`, `fix`, `cleanup`, and `signal` for handling errors, responding to failures, and organizing cleanup logic.
-
-### `risk`
-
-`risk` executes its body. If a command raises an exception, ChemQL stores
-the error type name in the Python variable `error` and runs the optional
-`fix` body. A returned string that happens to contain error-looking text
-does not trigger `fix`.
-
-```text
-risk
-    [result = 10 / 2]
-    print(result)
-fix
-    print(error)
-cleanup
-    print("Always runs")
-endrisk
+let message = "Hello from ChemQL"
 ```
 
-### `fix`
+Variables can be used in later expressions:
 
-The `fix` section runs only when the `risk` section raises an exception.
-The `error` variable contains the exception type name, such as
-`ChemQLError`, `ValueError`, or the error name carried by `signal`.
-
-```text
-risk
-    [result = 10 / 0]
-fix
-    print("Handled:", error)
-endrisk
+``` text
+let radius = 5
+let area = math::PI * radius ** 2
 ```
 
-### `cleanup`
+The runtime also supports listing and removing variables:
 
-The optional `cleanup` section runs whether the `risk` section succeeds
-or fails, after the risk body and any fix body.
-
-```text
-risk
-    print("Performing operation")
-fix
-    print("Handling an error")
-cleanup
-    print("Cleaning up")
-endrisk
+``` text
+variables
+unset answer
 ```
 
-### `signal`
+### Definitions and macros
 
-Use `signal` to raise a named ChemQL error that can be handled by
-`fix`.
+Definitions are expanded using an `@NAME` reference:
 
-```text
-if temperature < 0
-    signal "Temperature cannot be negative"
+``` text
+define MAX {
+    100
+}
+```
+
+Use the definition as:
+
+``` text
+@MAX
+```
+
+Definitions are maintained in the current ChemQL session. The
+preprocessor performs one literal substitution pass; replacement text is
+not recursively expanded.
+
+Macros use a block form and are invoked by name according to the macro
+syntax supported by the interpreter. Use `help{syntax}` and the in-app
+completion/help facilities for the exact forms supported by your
+installed version.
+
+### Embedded Python
+
+A single-line Python statement or expression can be placed inside square
+brackets:
+
+``` text
+[print("Hello from Python")]
+```
+
+A multiline Python block uses triple square brackets:
+
+``` text
+[[[
+numbers = [1, 2, 3, 4]
+total = sum(numbers)
+print(total)
+]]]
+```
+
+Python code executes in ChemQL's Python-backed environment. This makes
+Python expressions and available Python objects usable alongside ChemQL
+features.
+
+### Embedded ChemQL expressions
+
+Double curly braces are used for embedded/lazy ChemQL query expressions
+in supported contexts:
+
+``` text
+{{ search molecules ... }}
+```
+
+The precise query expression depends on the operation being performed.
+See `help{syntax}` and the query examples shipped with the project.
+
+### Control flow
+
+ChemQL supports block-oriented control-flow constructs including `if`,
+`elif`, `else`, `for`, and `while`. Closing markers are explicit:
+
+``` text
+if condition
+    ...
+else
+    ...
 endif
 ```
 
-### Summary
-
-| Keyword | Purpose |
-|---|---|
-| `risk` | Executes the protected body |
-| `fix` | Runs when the risk body raises an exception |
-| `cleanup` | Runs after the risk and fix bodies |
-| `signal` | Raises a named error |
-| `endrisk` | Ends the risk handler |
-
-Without a `fix` section, an ordinary exception propagates. `cleanup`
-still runs during exception propagation.
-
-## Functions, definitions, and macros
-
-These definitions are session-local and should be declared before they
-are used.
-
-### Literal definitions
-
 ``` text
-define MAX 9
-search elements number <= @MAX
-definitions
-remove definition MAX
+for item in items
+    ...
+endfor
 ```
 
-A definition is a literal replacement, not a Python variable. Choose
-names and replacement text carefully.
+``` text
+while condition
+    ...
+endwhile
+```
+
+`break` and `continue` are also recognized control keywords.
 
 ### Functions
 
-Functions use `func`, positional placeholders such as `\1` and `\2`, and
-`endfunc`:
+User-defined functions are declared with `func` and closed with
+`endfunc`. Functions can accept arguments and return values. Inside a
+function, positional arguments are available through the function's
+argument mechanism; the implementation also supports `\1`, `\2`, and so
+on as positional argument references in function bodies.
+
+A minimal illustrative shape:
 
 ``` text
-func square
-    return [\1 * \1]
+func greet
+    return "Hello"
 endfunc
-
-square{5}
 ```
 
-Example with two arguments:
+Call a function using ChemQL's brace-call syntax:
 
 ``` text
-func add
-    return [\1 + \2]
-endfunc
-
-add{10, 32}
+greet{}
 ```
 
-Test more complex function bodies against your installed build before
-using them in larger scripts.
+### Structs, records, and enums
 
-### Macros
+ChemQL supports user-defined `struct`, `record`, and `enum`
+declarations. Structs and records can declare fields, and the
+implementation supports inheritance using `from Base`. Structs can
+inherit from structs, records, or Python classes; records can inherit
+from records.
 
-Macros expand reusable ChemQL text with positional placeholders:
+Declarations are closed with their corresponding terminators, such as
+`endstruct`, `endrecord`, and `endenum`.
+
+Example declaration shape:
 
 ``` text
-define light{}
-    search molecules molecular_weight < \1 return name formula
-enddefine
-
-@light{50}
-macros
-```
-
-Use `\1`, `\2`, and subsequent placeholders for arguments. The `macros`
-command lists definitions in the current session.
-
-## Structs and records
-
-ChemQL 1.5.0 supports enums and inheritance in addition to required fields,
-marked with a trailing `!` or the
-`required` keyword:
-
-```text
-struct Fruit
-    name
-    price
+struct Point
+    x
+    y
 endstruct
-
-let apple = Fruit{name="Apple", price=35}
-apple
-apple.name
-apple.price
-let orange = Fruit{"Orange", 20} // you can use position rather than just keyword arguments
-let banana = Fruit{"Banana", price = 10} // or you can even mix
 ```
 
-```text
-struct Vegetable
-    name!
-    required weight
-    price
-endstruct
+Enum members can receive automatically generated values when values are
+omitted.
 
-let apple = Vegetable{name="Carrot"} //this gives an error
-```
+### Namespaces
 
-The implementation also supports defining methods on structured types.
-Special methods such as `__add__` are intended for custom behaviour, but
-do not assume every Python data-model feature or operator dispatch path
-is fully implemented.
+Namespaces group related declarations and support public/private
+members:
 
-### Enums
-
-An enum member without an explicit value receives an automatically generated
-integer value. Automatic values continue from the preceding numeric value:
-
-```text
-enum Levels
-    LOW = 50
-    MEDIUM
-    HIGH
-endenum
-
-let selected = Levels.MEDIUM
-[selected.value] // 51
-```
-
-### Inheritance
-
-Structs can inherit fields and behavior from another struct, a record, or a
-Python class available in ChemQL's Python globals. Records can inherit only
-from other records:
-
-```text
-struct Animal
-    name!
-endstruct
-
-struct Dog from Animal
-    color!
-    isSmall = False
-endstruct
-
-let pet = Dog{"Rex", "brown"}
-pet.name
-pet.color
-
-record Identity
-    id
-endrecord
-
-record Product from Identity
-    name
-endrecord
-
-let item = Product{7, "Copper"}
-item.id
-item.name
-```
-
-Structs may also extend a Python class defined or imported into the active
-Python namespace. Built-in classes such as `int` can be named directly; a
-bracketed Python expression such as `[int]` is also accepted. Initializer
-parameters from ordinary Python classes become inherited constructor fields,
-and the Python initializer is called when the ChemQL struct is constructed.
-Native value types such as `int` keep their native constructor and value
-behavior:
-
-```text
-[[[
-class PythonAnimal:
-    def __init__(self, name):
-        self.name = name
-]]]
-
-struct Pet from PythonAnimal
-    species = "unknown"
-endstruct
-
-let pet = Pet{"Milo", "cat"}
-pet.name
-pet.species
-```
-
-```text
-struct Integer from int
-endstruct
-
-let answer = Integer{42}
-[answer + 1] // 43
-```
-
-## Namespaces
-
-Namespaces group functions, structs, records, and variables. Members are
-private by default; use `public` to expose a member through the namespace:
-
-```chemql
-namespace geometry
-    public let PI = 3.141592653589793
-    public func circle_area
-        return [PI * \1 * \1]
-    endfunc
+``` text
+namespace Geometry
+    public func ...
+    private func ...
 endnamespace
-
-geometry::circle_area{2}
 ```
 
-## Standard library
+A namespace member is referenced with a qualified name using `::`, for
+example `Geometry::member`. Private namespace members are intended for
+internal use by functions in the same namespace.
 
-ChemQL loads reusable `.cql` packages with `load`. The loader searches the
-current directory, installed packages (normally under `~/.chemql/packages/`),
-and then ChemQL's bundled `stdlib/` directory. Installed package entry points
-are resolved from the manifest's `main` field.
+### Error handling and signals
 
-| Package | Purpose |
-| --- | --- |
-| `math` | `PI`, `E`, trigonometry, logarithms, factorial, `gcd`, `lcm`, and more |
-| `math::statistics` | `mean`, `median`, `mode`, `variance`, `stdev`, and quantiles |
-| `text` | String casing, trimming, splitting/joining, substring and regex helpers |
-| `collections` | `unique`, `flatten`, `zip`, `pairwise`, frequency counts, product |
-| `datetime` | Current date/time, ISO dates, timestamps, weekday and date arithmetic |
-| `json` | JSON serialization, pretty serialization, parsing and type inspection |
-| `random` | Pseudo-random numbers and sequence sampling |
-| `decimal` | Base-10 decimal arithmetic and quantization |
-| `fractions` | Exact rational numbers and fraction arithmetic |
-| `pathlib` | Path inspection and UTF-8 text file operations |
+The interpreter supports structured `risk`, `fix`, and `cleanup`
+sections, closed by `endrisk`. It also supports `signal` and `warn`
+statements in the relevant execution contexts.
 
-```chemql
+The `fix` section is used when the risk section raises a handled error;
+`cleanup` is for cleanup side effects. The current error information is
+exposed to the execution environment.
+
+## Built-in functions
+
+The built-in function set includes general-purpose operations, string
+and collection helpers, file I/O, and chemistry helpers. Calls use
+braces.
+
+  -----------------------------------------------------------------------
+  Category                            Functions
+  ----------------------------------- -----------------------------------
+  Numbers                             `abs`, `round`, `min`, `max`, `sum`
+
+  Core and conversion                 `len`, `type`, `str`, `int`,
+                                      `float`, `bool`
+
+  Strings                             `upper`, `lower`, `contains`,
+                                      `replace`, `split`, `join`
+
+  Collections                         `first`, `last`, `unique`, `sort`,
+                                      `reversed`
+
+  Files and data                      `read_text`, `read_lines`,
+                                      `read_json`, `read_csv`,
+                                      `write_text`, `write_json`,
+                                      `write_csv`, `file_exists`,
+                                      `list_files`
+
+  Chemistry                           `element`, `count_atoms`,
+                                      `molar_mass`, `empirical_formula`
+
+  Help                                `help`
+  -----------------------------------------------------------------------
+
+Examples:
+
+``` text
+abs{-15}
+round{3.14159, 2}
+sum{1, 2, 3, 4}
+upper{"chemql"}
+unique{1, 2, 2, 3}
+molar_mass{"H2O"}
+count_atoms{"H2SO4", "O"}
+empirical_formula{"C6H12O6"}
+```
+
+File examples:
+
+``` text
+let text = read_text{"notes.txt"}
+let rows = read_csv{"data.csv"}
+let data = read_json{"data.json"}
+
+write_text{"output.txt", "Hello"}
+write_json{"output.json", data}
+write_csv{"output.csv", rows}
+```
+
+`read_csv` treats the first row as headers by default and returns rows
+as dictionaries. Pass `false` as the `headers` argument to read rows as
+lists.
+
+For exact signatures, optional arguments, and examples, use:
+
+``` text
+help{function_name}
+```
+
+For example:
+
+``` text
+help{read_csv}
+help{molar_mass}
+```
+
+## Standard-library packages
+
+ChemQL includes loadable standard-library namespaces. Load a package
+before using its members:
+
+``` text
 load math
 math::sqrt{81}
-math::sin{math::radians{30}}
-
-load math::statistics
-math::statistics::mean{2, 4, 6}
-
-load text
-text::upper{"hello"}
-text::split{"red,green,blue", ","}
-text::regex_findall{"[A-Z][a-z]+", "Water and Sodium Chloride"}
-
-load collections
-collections::unique{1, 2, 1, 3}
-collections::frequencies{"red", "blue", "red"}
-
-load datetime
-datetime::date{2026, 10, 20}
-datetime::date_add_days{"2026-10-20", 7}
-
-load json
-json::loads{"{\"formula\": \"H2O\"}"}
-
-load random
-random::seed{42}
-random::randint{1, 6}
-
-load decimal
-decimal::add{"0.1", "0.2"}
-decimal::quantize{"3.14159", "0.01"}
-
-load fractions
-fractions::create{1, 3}
-fractions::add{"1/3", "1/6"}
-
-load pathlib
-pathlib::name{"data/results.csv"}
-pathlib::join{"data", "results.csv"}
 ```
 
-These packages use Python's standard library only; they add no third-party dependencies.
-Use `help{stdlib}` for the package index, `help{math}` for a module
-overview, and `help{math::sqrt}` for function help. These help pages are
-available before loading the package. `pathlib::read_text` and
-`pathlib::write_text` access files with the permissions of the ChemQL
-process.
+The source's built-in help index lists these standard-library
+namespaces:
 
-## Importing Package Members
+  Package              Purpose
+  -------------------- --------------------------------------------------
+  `math`               Mathematical constants and numeric functions
+  `math::statistics`   Descriptive statistics
+  `text`               String operations and regular expressions
+  `collections`        Collection and iterable helpers
+  `datetime`           Dates, times, timestamps, and date arithmetic
+  `json`               JSON serialization, parsing, and type inspection
+  `random`             Pseudorandom values and sequence sampling
 
-ChemQL allows you to import individual members from a package while retaining access to the package's other members through its qualified namespace.
+Ask ChemQL for a package's documented members:
 
-### Importing a Single Member
-
-Use `load MEMBER from PACKAGE` to import a specific member into the current scope.
-
-```chemql
-load sin from math
-
-sin{10}
+``` text
+help{stdlib}
+help{math}
+help{math::statistics}
+help{text}
 ```
 
-The imported member can be called directly without specifying its package name.
+A function can be documented individually when its help entry is
+registered:
 
-### Importing with an Alias
-
-You can use `as` to assign a different name to an imported member.
-
-```chemql
-load cos from math as c
-
-c{10}
+``` text
+help{math::sqrt}
 ```
 
-This is useful when you want a shorter name or want to avoid naming conflicts.
+## Chemistry features
 
-### Qualified Namespace Access
+ChemQL exposes chemistry-oriented data types and operations, including:
 
-Importing an individual member does not prevent you from accessing other members of its package. ChemQL can initialize the package as needed and resolve qualified function calls using the package namespace.
+-   `Element`, `Molecule`, and `Reaction` objects.
+-   Element and molecule lookup helpers.
+-   Reaction lookup and reaction searching.
+-   Stoichiometric balancing through `balance_stoichiometry`.
+-   Reaction matching against the current temperature, pressure, and
+    catalyst conditions.
+-   Chemistry built-ins such as `element`, `count_atoms`, `molar_mass`,
+    and `empirical_formula`.
 
-```chemql
-load sin from math
+The interactive command set includes chemistry/query commands such as
+`search`, `source`, `findel`, `findmol`, `findre`, `react`, `balance`,
+`conditions`, and `view`.
 
-# Call the imported member directly
-sin{10}
+Examples of built-in chemistry functions:
 
-# Access other package members
-math::cos{10}
-math::sin{30}
+``` text
+element{"Na"}
+count_atoms{"H2SO4", "O"}
+molar_mass{"H2O"}
+empirical_formula{"C6H12O6"}
 ```
 
-You can therefore combine direct member imports with qualified calls in the same program.
+Reaction operations can depend on the current reaction conditions.
+Inspect or set conditions with the relevant interactive commands and use
+`conditions` to display the current state.
 
-### Importing an Entire Package
+The available data sources and query fields are defined by the ChemQL
+package/data files. Use the interactive prompt's completion and
+`help{chemistry}` for the current details.
 
-To load a package explicitly, use `load PACKAGE` or assign it an alias with `as`.
+## Package management
 
-```chemql
-load math
+ChemQL provides package-management subcommands:
 
-math::sin{10}
-math::cos{10}
+  -------------------------------------------------------------------------------
+  Command                                     Purpose
+  ------------------------------------------- -----------------------------------
+  `chemql init [NAME] [-d DIRECTORY]`         Create a ChemQL package project
+
+  `chemql build`                              Build the current package
+
+  `chemql search QUERY`                       Search the package registry
+
+  `chemql info NAME`                          Show registry information for a
+                                              package
+
+  `chemql install NAME [--version VERSION]`   Install a package
+
+  `chemql upgrade NAME [--version VERSION]`   Upgrade an installed package
+
+  `chemql list`                               List installed packages
+
+  `chemql uninstall NAME`                     Uninstall a package
+
+  `chemql upload`                             Upload the current package to the
+                                              registry
+  -------------------------------------------------------------------------------
+
+Example workflow:
+
+``` bash
+chemql search statistics
+chemql info package_name
+chemql install package_name
+chemql list
 ```
 
-You can also assign a package alias:
+Load an installed package from the ChemQL prompt:
 
-```chemql
-load math as MATH
-
-MATH::sin{10}
-MATH::cos{10}
+``` text
+load package_name
 ```
 
-**Note:** ChemQL's package initialization and namespace resolution allow qualified package functions to remain accessible even when you initially import only one member. Importing a member is therefore a convenience for direct access, not a restriction on the rest of the package.
+Then call its namespaced functions:
 
-## Built-in help
+``` text
+package_name::function_name{...}
+```
 
-The help system includes a general index and topic/function pages:
+The package manager also supports upgrading ChemQL itself:
 
-```chemql
+``` bash
+chemql --upgrade
+chemql --upgrade 1.6.4
+```
+
+Use `--force` only when you understand that it bypasses normal
+protections around system-managed installations.
+
+## Python interoperability
+
+ChemQL is implemented in Python and evaluates embedded Python blocks in
+its Python execution environment. The runtime imports and uses Python
+modules internally, and the language exposes Python-backed objects and
+functions.
+
+Use square-bracket blocks for Python statements and expressions. Use
+`[[[ ... ]]]` for multiline Python. This is the intended boundary
+between ChemQL's command/query syntax and general Python code.
+
+## Help and errors
+
+The interactive help system is the quickest way to discover the exact
+syntax supported by the installed version:
+
+``` text
 help
-help{read_csv}
-help{TooFewArguments}
 help{syntax}
 help{errors}
 help{files}
 help{chemistry}
 help{stdlib}
-help{math}
-help{math::sqrt}
+help{function_name}
 ```
 
-Use `help{function_name}` for built-in documentation and
-`help{module::function}` for standard-library function documentation. The
-help index also lists the available standard-library packages.
+The runtime defines specific built-in error classes:
 
-## Shell integration and scripting
+-   `TooFewArguments`
+-   `TooManyArguments`
+-   `InvalidArgumentType`
+-   `InvalidArgumentValue`
+-   `FileReadError`
+-   `FileWriteError`
 
-Backticks execute a command through the host system shell:
+Other errors can include `SyntaxError`, `NameError`, and
+`PermissionError`.
 
-``` text
-`pwd`
-`python --version`
-```
+------------------------------------------------------------------------
 
-The shell and command syntax depend on the operating system: Windows
-PowerShell / Command Prompt differ from Bash and other POSIX shells.
+# CodecQL
 
-Multiline shell blocks use triple backticks. Labels such as `bash`,
-`sh`, `cmd`, and `terminal` are recognised, but the commands must be
-valid for the host shell:
+CodecQL is a terminal-based text editor intended for ChemQL source
+files. It also supports configurable syntax-highlighting profiles for
+other extensions.
 
-```` text
-```bash
-echo "Starting"
-python --version
-echo "Finished"
-```
-````
+## Opening and creating files
 
-Other conveniences:
-
-``` text
-// A single-line comment
-///
-A multiline comment.
-///
-view
-clear
-```
-
-Commands can be separated with semicolons, and a trailing backslash can
-continue a line where supported by the input processor. `view` opens the
-bundled periodic-table viewer in a browser where the environment allows
-it. `clear` clears the terminal.
-
-## CLI options and history export
-
-  Command                         Purpose
-  ------------------------------- -----------------------------------------------
-  `chemql`                        Start the REPL
-  `chemql --version`              Print the version
-  `chemql -c "COMMAND"`           Execute a command
-  `chemql -f FILE`                Execute commands from a file
-  `chemql --no-ansi`              Disable ANSI styling
-  `chemql -c "COMMAND" -o FILE`   Write command output to a text file
-  `chemql --upgrade`              Upgrade to the latest release
-  `chemql --upgrade VERSION`      Request a particular release
-  `chemql --force`                Force upgrade past system-package protections
-
-Examples:
+Open an existing file:
 
 ``` bash
-chemql --version
-chemql -c 'search elements symbol = "O"'
-chemql -c 'search molecules name like "*water*" return name formula' -o results.txt
-chemql -f examples.chemql
+codecql script.cql
 ```
 
-Quote commands according to your shell's rules.
+Create a new file by opening a path that does not exist yet:
 
-The `dump` command exports recorded execution history, queries, and
-results:
+``` bash
+codecql new_script.cql
+```
+
+The editor starts with an empty buffer when the file does not exist.
+Save with `Ctrl+S` to create it.
+
+Launch it through ChemQL:
+
+``` bash
+chemql edit script.cql
+```
+
+Open the editor's main highlighting configuration:
+
+``` bash
+codecql --main-highlighting
+```
+
+Open the current working directory's local highlighting configuration:
+
+``` bash
+codecql --local-highlighting
+```
+
+The two highlighting flags cannot be used together. If the selected
+configuration file does not exist, CodecQL creates an empty JSON object
+in that location.
+
+## Keyboard shortcuts
+
+  -----------------------------------------------------------------------
+  Shortcut                            Action
+  ----------------------------------- -----------------------------------
+  `Ctrl+S`                            Save the current file
+
+  `Ctrl+Q`                            Quit; if there are unsaved changes,
+                                      press it again to discard and quit
+
+  `Ctrl+Z`                            Undo
+
+  `Ctrl+Y`                            Redo
+
+  `Ctrl+F`                            Open search
+
+  `Ctrl+C`                            Copy the current selection
+
+  `Ctrl+X`                            Cut the current selection
+
+  `Ctrl+V`                            Paste the editor clipboard
+
+  `Shift+Insert`                      Paste the editor clipboard
+
+  `Ctrl+T`                            Open a split terminal
+
+  `Ctrl+R`                            Save if needed and run the current
+                                      file with ChemQL
+
+  `Shift+Arrow`                       Extend the selection while moving
+                                      the cursor
+
+  `Ctrl+Arrow Up/Down`                Scroll the viewport
+
+  `Ctrl+Arrow Left/Right`             Move by word
+
+  `Home` / `End`                      Move to the start/end of the line
+
+  `Backspace` / `Delete`              Delete text
+  -----------------------------------------------------------------------
+
+Clipboard integration uses the available system clipboard command when
+possible: - Windows: `clip` - WSL: `clip.exe` - macOS: `pbcopy` - Linux:
+`wl-copy`, `xclip`, or `xsel`
+
+If no system clipboard utility is available, CodecQL keeps the copied
+text in its own editor clipboard.
+
+## Search syntax
+
+Press `Ctrl+F` to open search. Enter a query and use the arrow keys to
+move between matches. Press `Enter` to select the next match; `Up` or
+`Left` selects the previous match. `Esc` closes search.
+
+Search supports optional prefix flags:
+
+  Flag   Meaning
+  ------ -----------------------------------------
+  `r`    Treat the query as a regular expression
+  `l`    Literal search (the default)
+  `w`    Match whole words
+  `i`    Ignore case
+
+Place flags before a colon. Examples:
 
 ``` text
-dump history.txt
-dump all queries queries.txt
-dump good results results.txt
-dump bad executions failures.txt
+hello
+i:hello
+w:hello
+ri:\b[A-Z]{2,}\b
+lw:token
 ```
 
-Supported forms include `dump all|good|bad FILE`,
-`dump all|good|bad queries FILE`, and `dump all|good|bad results FILE`.
-`good` and `bad` select successful and failed executions respectively.
+Search is case-insensitive by default. `r` and `l` cannot be combined.
 
-## ChemQL package management
+## Terminal integration
 
-ChemQL includes commands for creating, building, installing, and managing
-reusable ChemQL packages. Run package-management commands in your system
-terminal, not inside the interactive ChemQL prompt.
+-   `Ctrl+T` opens a shell in a terminal pane/window.
+-   `Ctrl+R` saves the current buffer if it has unsaved changes, then
+    runs the file with `chemql -f`.
+-   On Windows, CodecQL uses a new console, or a Windows Terminal split
+    pane when running inside Windows Terminal.
+-   On Unix-like systems, CodecQL uses a pseudo-terminal for the
+    integrated terminal.
 
-### Create and build a package
+------------------------------------------------------------------------
 
-Create a starter project:
+# CodecQL configuration
 
-```bash
-chemql init MyPackage # the name of the package is optional, if the name is empty it will just use the current folders name
-cd MyPackage
-```
+CodecQL has two separate JSON configuration files:
 
-`chemql init` creates a `cqlpackage.json` manifest, `MyPackage.cql` entry
-point, and `README.md`. It does not create a package-local `build.py`.
+-   `colors.json` controls the editor's ANSI color palette.
+-   `highlighting.json` controls which tokens are highlighted for each
+    file extension and which style is assigned to each rule.
 
-Build the package from the project directory:
+They serve different purposes. Changing a color in `colors.json` changes
+the appearance of a named style throughout the editor. Changing
+`highlighting.json` changes which words are assigned to styles for a
+language.
 
-```bash
-chemql build
-```
+## `colors.json`: editor colors
 
-The builder reads `cqlpackage.json` or `cqlpackage.toml` and writes an archive
-to `dist/`, named `PACKAGE-VERSION.tar.gz`. The archive contains a top-level
-`PACKAGE-VERSION/` directory and is intended for uploading to a ChemQL package
-registry. Build excludes common generated directories such as virtual
-environments, caches, `node_modules`, `dist`, and `build`.
+`colors.json` is read from the directory containing the CodecQL source
+module. It has two top-level objects: `syntax` and `ui`.
 
-You can upload these .tar.gz files to https://chemqlreg.pythonanywhere.com/
+Every color entry must be an object containing an integer `ansi256`
+value from `0` through `255`. The optional `channel` is either
+`foreground` (the default) or `background`.
 
-### Install and manage packages
+Example:
 
-The package commands are:
-
-| Command | Purpose |
-|---|---|
-| `chemql search QUERY` | Search the configured package registry |
-| `chemql info NAME` | Display registry metadata for a package |
-| `chemql install NAME` | Install the latest available version |
-| `chemql install NAME --version 1.2.0` | Install a specific version |
-| `chemql upgrade NAME` | Upgrade an installed package |
-| `chemql upgrade NAME --version 1.2.0` | Upgrade to a specific version |
-| `chemql list` | List packages recorded as installed |
-| `chemql uninstall NAME` | Remove an installed package |
-
-By default, packages are installed under `~/.chemql/packages/` and the
-installed-package record is stored in `~/.chemql/installed.json`.
-
-Configure the installation paths with environment variables (optional):
-
-- `CHEMQL_PACKAGE_DIR`: package installation directory.
-- `CHEMQL_INSTALLED_FILE`: installed-package state file.
-
-For example, after installing a package named `GUI`, use it from ChemQL:
-
-```chemql
-load GUI
-```
-
-ChemQL uses the package manifest's `main` field to find the installed
-package's entry point.
-
-### Package manifest help
-
-The manifest can point `help` at a Markdown file:
-
-```json
+``` json
 {
-    "name": "GUI",
-    "version": "1.0.0",
-    "description": "A GUI for ChemQL",
-    "main": "GUI.cql",
-    "help": "README.md",
-    "help-individual": {
-        "addButton": "Adds a button to the GUI."
+    "syntax": {
+        "comment":  { "ansi256": 244 },
+        "string":   { "ansi256": 114 },
+        "number":   { "ansi256": 179 },
+        "formula":  { "ansi256": 117 },
+        "operator": { "ansi256": 213 },
+        "delimiter": { "ansi256": 250 },
+        "command":  { "ansi256": 81 },
+        "keyword":  { "ansi256": 141 },
+        "constant": { "ansi256": 215 },
+        "type":     { "ansi256": 150 },
+        "source":   { "ansi256": 110 },
+        "condition": { "ansi256": 180 },
+        "property": { "ansi256": 116 },
+        "builtin":  { "ansi256": 222 }
+    },
+    "ui": {
+        "line_numbers": {
+            "ansi256": 244
+        },
+        "status_background": {
+            "ansi256": 24,
+            "channel": "background"
+        },
+        "status_foreground": {
+            "ansi256": 255
+        }
     }
 }
 ```
 
-Use `help{GUI}` to display the package description, the help content, and
-the individual help entries. If `help` names a `.md` file, ChemQL reads it
-relative to the manifest and renders it with Rich. Otherwise, the `help`
-value is displayed as literal text. Individual entries can be requested
-with `help{GUI::addButton}`. You do not even need to load it, you can simply run it
+The values above mirror the fallback palette in the editor source. If
+`colors.json` is missing, CodecQL uses that fallback palette. If the
+file exists but is malformed or missing a required top-level group,
+loading the theme raises a configuration error.
 
-Package installation and registry operations require a reachable registry.
-The default registry URL is local to the machine; set `CHEMQL_REGISTRY_URL`
-when using a remote or hosted registry.
+### Syntax color categories
 
-## Python API
+The editor's syntax theme uses these categories:
 
-``` python
-from chemql import execute_query_text, execute_query
+  Category      Used for
+  ------------- ---------------------------------------------------
+  `comment`     Comments
+  `string`      Quoted strings
+  `number`      Numeric literals
+  `formula`     Chemical formula-like tokens
+  `operator`    Operators
+  `delimiter`   Brackets and punctuation delimiters
+  `command`     ChemQL commands
+  `keyword`     Language/control keywords
+  `constant`    Values such as `true`, `false`, and `none`
+  `type`        Type/declaration names and manifest table headers
+  `source`      ChemQL data sources
+  `condition`   Chemistry conditions and units
+  `property`    Chemistry fields and manifest keys
+  `builtin`     Python built-in names recognized by the editor
 
-result = execute_query_text('search elements symbol = "O"')
-print(result)
+The UI categories are:
+
+  Category              Used for
+  --------------------- -----------------------
+  `line_numbers`        Line-number gutter
+  `status_background`   Status bar background
+  `status_foreground`   Status bar text
+
+### ANSI 256-color values
+
+`ansi256` is a terminal color index, not an RGB hex value. It accepts
+integers from `0` to `255`.
+
+Common ranges in the standard 256-color palette:
+
+-   `0–15`: standard and bright terminal colors.
+-   `16–231`: 6×6×6 RGB color cube.
+-   `232–255`: grayscale ramp.
+
+The actual appearance depends on the terminal's color palette and
+settings.
+
+To set a background color, add `"channel": "background"`:
+
+``` json
+"status_background": {
+    "ansi256": 24,
+    "channel": "background"
+}
 ```
 
-`execute_query_text()` accepts a query string and returns its formatted
-execution result. `execute_query()` is a lower-level entry point;
-accepted inputs and return values depend on the query path.
+Foreground is assumed when `channel` is omitted.
 
-The package also exposes helpers including `search`, `union`,
-`intersection`, `find_molecule`, `find_reaction`, `search_reactions`,
-and `balance_stoichiometry`. For example:
+## `highlighting.json`: language profiles
 
-``` python
-from chemql import find_molecule, find_reaction
+`highlighting.json` maps file extensions to ordered lists of
+highlighting rules.
 
-water = find_molecule("Water")
-reaction = find_reaction("Haber process", external=False)
+CodecQL starts with a built-in `.cql` profile. It then loads the main
+configuration and the current directory's local configuration, if
+present. A custom profile for an existing extension replaces that
+extension's previous profile; a new extension adds a profile.
+
+A minimal configuration:
+
+``` json
+{
+    ".py": [
+        {
+            "name": "python-keywords",
+            "type": "keywords",
+            "values": ["def", "class", "return", "if", "elif", "else", "for", "while", "import", "from", "as", "try", "except", "finally", "with", "pass", "break", "continue"],
+            "style": "keyword"
+        },
+        {
+            "name": "python-builtins",
+            "type": "keywords",
+            "values": ["print", "len", "range", "enumerate", "zip", "map", "filter", "sum", "min", "max", "str", "int", "float", "list", "dict", "set", "tuple"],
+            "style": "builtin"
+        }
+    ],
+    ".js": [
+        {
+            "name": "javascript-keywords",
+            "type": "keywords",
+            "values": ["const", "let", "var", "function", "return", "if", "else", "for", "while", "class", "new", "import", "export", "from", "async", "await"],
+            "style": "keyword"
+        }
+    ]
+}
 ```
 
-`find_reaction(value, external=False)` restricts reaction lookup to the
-local dataset; its default lookup can use online fallback sources. Check
-the installed module for the precise public API of your release.
+### Profile structure
 
-## Data sources and network access
+The top-level value must be a JSON object. Each key is a file extension
+and each value is an array of rules.
 
-### Bundled data
+``` json
+{
+    ".extension": [
+        {
+            "name": "rule-name",
+            "type": "keywords",
+            "values": ["word1", "word2"],
+            "style": "keyword"
+        }
+    ]
+}
+```
 
-Bundled local data is the primary source for normal queries and keeps
-core searching available offline. The package uses files for element /
-periodic-table records, molecule records and properties, reaction
-records and conditions, molecule bonds, and bond-energy data. Coverage
-depends on the data shipped with the release.
+Extension normalization: - A leading dot is added if omitted. -
+Extensions are converted to lowercase. - Empty extensions and values
+containing path separators are rejected. - The profile is selected from
+the file's final extension. For example, `script.py` uses `.py`.
 
-### External molecule services
+Each rule must be an object with: - `name`: non-empty string identifying
+the rule. - `type`: supported rule type (`keywords` or `regex`). -
+`style`: non-empty style expression.
 
-If a molecule is not found locally, `findmol` can attempt an external
-lookup. The code includes PubChem integration and additional lookup
-paths. External requests require network access and may fail because of
-timeouts, outages, rate limits, changed API responses, or missing
-credentials for a particular provider.
+A keyword rule additionally requires: - `values`: a non-empty array of
+non-empty strings.
 
-### External reaction services
+Keyword matching is case-insensitive. Rule order matters: the first
+matching keyword rule supplies the style for that word.
 
-If `findre` cannot find a local reaction, it can try Chempirical and
-Rhea. These services are fallback sources, not replacements for
-`Reactions.json`. In contrast, `search reactions ...` and
-`search_reactions()` search local records only.
+### Rule types
 
-Remote records may differ from local records in fields, participant
-formats, equations, and annotations. Some operations may not be possible
-if a remote source does not provide all the required structured
-information. A failed lookup does not prove that a substance or reaction
-does not exist.
+#### `keywords`
 
-Preserve source attribution and check upstream dataset licences and
-reuse terms when redistributing data.
+Use this rule to assign a style to a list of exact words:
 
-## Troubleshooting
+``` json
+{
+    "name": "control-flow",
+    "type": "keywords",
+    "values": ["if", "else", "while", "for", "return"],
+    "style": "keyword"
+}
+```
 
-### `chemql` is not recognised
+The current implementation applies keyword rules during identifier
+highlighting. Matching is case-insensitive.
 
-Check that the package was installed in the active environment:
+#### `regex`
+
+Regex rules are accepted and validated by the profile loader. A regex
+rule must include a non-empty `pattern`; `case_sensitive` is optional
+and defaults to `true`.
+
+``` json
+{
+    "name": "special-identifiers",
+    "type": "regex",
+    "pattern": "\\b(?:TODO|FIXME|NOTE)\\b",
+    "case_sensitive": true,
+    "style": "#FFB000 bold"
+}
+```
+
+**Implementation note:** the current editor integration applies
+`keywords` rules through `get_keyword_style`. Although `regex` rules are
+parsed and validated by `highlighting.py`, they are not yet applied by
+the current token-highlighting path. Treat regex highlighting as a
+reserved/configuration-ready feature until regex application is wired
+into the renderer.
+
+### Style syntax
+
+A rule's `style` is a space-separated list of style components.
+Components can be combined.
+
+#### Named theme styles
+
+These names refer to entries in `colors.json` under `syntax`:
+
+``` text
+keyword
+command
+operator
+string
+comment
+number
+constant
+type
+source
+condition
+property
+builtin
+```
+
+Example:
+
+``` json
+"style": "keyword"
+```
+
+#### Formatting modifiers
+
+The editor recognizes these modifiers:
+
+  Modifier      Effect
+  ------------- -------------------------------
+  `bold`        Bold text
+  `dim`         Dim text
+  `italic`      Italic text
+  `underline`   Underlined text
+  `reverse`     Reverse foreground/background
+  `strike`      Strikethrough text
+
+Example:
+
+``` json
+"style": "keyword bold underline"
+```
+
+#### Custom foreground colors
+
+Use a six-digit hexadecimal RGB color prefixed with `#`:
+
+``` json
+"style": "#FF00FF"
+```
+
+#### Custom background colors
+
+Use `bg:` followed by a six-digit hexadecimal RGB color:
+
+``` json
+"style": "bg:#202020"
+```
+
+#### Combining components
+
+You can combine a named style, formatting modifiers, and custom
+foreground/background colors:
+
+``` json
+"style": "#FF00FF underline bold italic"
+```
+
+``` json
+"style": "keyword bold"
+```
+
+``` json
+"style": "#E0B0FF bg:#202020 bold"
+```
+
+Hexadecimal colors use true-color ANSI escape sequences. Your terminal
+must support ANSI styling and preferably 24-bit true color for the full
+effect.
+
+### Example: create a profile for Python
+
+Create or edit `highlighting.json` in your project directory:
+
+``` json
+{
+    ".py": [
+        {
+            "name": "python-keywords",
+            "type": "keywords",
+            "values": [
+                "def", "class", "return", "if", "elif", "else",
+                "for", "while", "in", "break", "continue",
+                "import", "from", "as", "try", "except",
+                "finally", "with", "raise", "yield", "lambda"
+            ],
+            "style": "keyword bold"
+        },
+        {
+            "name": "python-constants",
+            "type": "keywords",
+            "values": ["True", "False", "None"],
+            "style": "#FFB86C bold"
+        },
+        {
+            "name": "python-builtins",
+            "type": "keywords",
+            "values": ["print", "len", "range", "enumerate", "zip", "sum", "min", "max"],
+            "style": "builtin"
+        }
+    ]
+}
+```
+
+Then open a Python file from that directory:
 
 ``` bash
-python -m pip show chemql-python
-python -m pip install --upgrade chemql-python
+codecql example.py
 ```
 
-### No matches are returned
+The local `.py` profile is loaded and used for matching identifier
+tokens.
 
--   Use `list all` to verify source and field names.
--   Start with a simple query and add conditions one at a time.
--   Remember that `search reactions` is local-only; use `findre` if you
-    want its external fallback.
--   Check spelling, formula notation, and wildcard patterns.
+### Example: add a language without changing ChemQL's built-in profile
 
-### Online lookup fails
+You can define several extensions in the same JSON file:
 
-Check network access and retry later. Remote services may be temporarily
-unavailable. Use local data when you need predictable offline behaviour.
+``` json
+{
+    ".py": [
+        {
+            "name": "python-keywords",
+            "type": "keywords",
+            "values": ["def", "class", "return", "if", "else", "for", "while"],
+            "style": "keyword"
+        }
+    ],
+    ".rs": [
+        {
+            "name": "rust-keywords",
+            "type": "keywords",
+            "values": ["fn", "let", "mut", "pub", "struct", "enum", "impl", "trait", "use", "mod", "match", "if", "else", "loop", "while", "for", "return"],
+            "style": "#D19A66 bold"
+        }
+    ],
+    ".js": [
+        {
+            "name": "javascript-keywords",
+            "type": "keywords",
+            "values": ["const", "let", "var", "function", "return", "class", "new", "async", "await"],
+            "style": "keyword"
+        }
+    ]
+}
+```
 
-### A reaction lacks fields you expected
+This adds profiles for `.py`, `.rs`, and `.js`. It does not remove the
+built-in `.cql` profile unless you explicitly provide a `.cql` profile
+in a loaded configuration.
 
-Inspect `source`, `id`, `equation`, `reactants`, and `products`. Local
-and external records can have different metadata and participant
-coverage.
+### Configuration lookup and precedence
 
-### Python block syntax errors
+The editor loads highlighting profiles in this order:
 
-Check Python indentation, close `[if]`, `[for]`, and `[while]` blocks
-with `[endblock]`, and close `[[[` blocks with `]]]` on a line by
-itself. Reduce the block to a small reproducible example if necessary.
+1.  The built-in profiles in `highlighting.py` (currently includes
+    `.cql`).
+2.  `highlighting.json` beside the CodecQL source module (the main
+    configuration).
+3.  `highlighting.json` in the current working directory (the local
+    configuration).
 
-### Shell commands behave differently
+Later profiles replace earlier profiles for the same extension.
+Therefore:
 
-ChemQL invokes the host shell. PowerShell, Command Prompt, Bash, and
-other shells have different syntax and quoting rules. Test a failing
-command in your normal terminal to isolate shell-specific behaviour.
+-   The main configuration can provide defaults shared by projects.
+-   A local configuration can override those defaults for the current
+    project.
+-   Profiles for unrelated extensions are retained.
+-   If the main and local paths point to the same file, it is loaded
+    only once.
+-   If neither file exists, the built-in profiles remain available.
 
-### ANSI escape codes appear in output
+**Important:** the local configuration is merged by extension; it does
+not merge individual rules into an existing extension profile. If a
+local `.py` profile is present, it replaces the main `.py` profile as a
+whole.
 
-Try `chemql --no-ansi`, or use `-o FILE` to write command output to a
-plain-text file where supported.
+The main configuration path is relative to the installed CodecQL module.
+The local configuration path is relative to the directory from which
+CodecQL is launched.
 
-## Security
+### Editing configuration from CodecQL
 
-ChemQL's Python blocks and shell commands execute real code with the
-permissions of the running process; they are not a sandbox.
+Open the main configuration:
 
--   Run only scripts and commands you trust.
--   Shell commands can read, modify, or delete files and launch
-    programs.
--   Network lookup terms are sent to the relevant external service.
--   Do not place passwords, tokens, or other secrets in scripts,
-    exported histories, or public bug reports.
--   Verify important chemical calculations and claims against
-    authoritative references.
+``` bash
+codecql --main-highlighting
+```
 
-## Development and contributing
+Open the local configuration:
 
-ChemQL is actively evolving. Areas for future improvement may include
-broader parser and multiline tests, additional validation of struct
-methods and operator overloading, more robust participant normalization
-across remote databases, clearer handling of ambiguous online results,
-improved data provenance, and wider compatibility testing across
-Windows, Linux, macOS, and WSL. These are possible development
-directions, not a promise that every item is already implemented.
+``` bash
+codecql --local-highlighting
+```
 
-Bug reports and contributions are welcome. When reporting a problem,
-include:
+If the selected file does not exist, CodecQL creates it as:
 
-1.  ChemQL version (`chemql --version`).
-2.  Operating system and Python version.
-3.  A minimal reproducible query or script.
-4.  Actual output and expected output.
-5.  Whether the issue occurs with local data only or requires an
-    external lookup.
+``` json
+{}
+```
 
-Do not include passwords, API tokens, or unrelated private information
-in issue reports.
+Edit the JSON, save with `Ctrl+S`, then restart CodecQL or reopen the
+file being edited so the editor reloads the profile configuration.
 
-## License and attribution
+Do not combine `--main-highlighting` and `--local-highlighting`.
 
-[MIT License](https://github.com/rakibulofficial1017/ChemQL/blob/main/LICENSE)
+## Built-in ChemQL highlighting
 
-Created by [Mohammad Rakibul Islam](https://github.com/rakibulofficial1017).
-Source code: [rakibulofficial1017/ChemQL](https://github.com/rakibulofficial1017/ChemQL).
+The built-in `.cql` profile groups words into these rules:
+
+  -----------------------------------------------------------------------
+  Rule name               Style                   Examples
+  ----------------------- ----------------------- -----------------------
+  `commands`              `command`               `search`, `source`,
+                                                  `findmol`, `react`,
+                                                  `balance`, `help`,
+                                                  `load`
+
+  `control-keywords`      `keyword`               `if`, `else`, `for`,
+                                                  `while`, `struct`,
+                                                  `record`, `enum`,
+                                                  `namespace`
+
+  `word-operators`        `operator`              `and`, `or`, `has`,
+                                                  `like`, `sort`,
+                                                  `limit`, `union`
+
+  `sources`               `source`                `elements`,
+                                                  `molecules`,
+                                                  `reactions`
+
+  `conditions`            `condition`             `temperature`,
+                                                  `pressure`, `catalyst`,
+                                                  `atm`, `bar`, `kpa`
+
+  `properties`            `property`              `name`, `symbol`,
+                                                  `atomic_mass`,
+                                                  `formula`, `reactants`,
+                                                  `products`
+  -----------------------------------------------------------------------
+
+The editor also recognizes lexical token categories such as comments,
+strings, numbers, chemical formula-like tokens, operators, and
+delimiters. JSON and TOML package manifests named `cqlpackage.json` and
+`cqlpackage.toml` receive dedicated manifest highlighting.
 
 ------------------------------------------------------------------------
 
-For the command reference that matches your installed build, type `help`
-inside ChemQL. Use `list all` to inspect fields available in your
-bundled datasets.
+# Troubleshooting
+
+### A file opens without custom highlighting
+
+Check that: 1. The file has the extension used as the profile key, such
+as `.py`. 2. The JSON file is named exactly `highlighting.json`. 3. The
+local file is in the current working directory from which CodecQL was
+launched. 4. The extension key includes the intended extension. 5. The
+rule uses `"type": "keywords"` and has a non-empty `values` array. 6.
+The token is recognized as an identifier by the editor's tokenizer.
+
+Unknown extensions remain unhighlighted by language-specific keyword
+profiles, though the editor's general lexical token styling still
+applies.
+
+### My local profile is not overriding the main profile
+
+Profiles are replaced per extension, not merged rule by rule. Make sure
+the local profile includes the complete rule list you want for that
+extension.
+
+### The editor rejects my highlighting JSON
+
+Check standard JSON syntax: - Use double quotes around keys and string
+values. - Do not leave trailing commas. - Use `true` and `false` for
+booleans, not quoted strings. - Make sure each extension maps to an
+array of rules. - Make sure each rule has a non-empty `name`, supported
+`type`, and non-empty `style`.
+
+For regex rules, `pattern` must be a valid Python regular expression.
+`case_sensitive` must be a JSON boolean.
+
+### My custom style is rejected
+
+Use only recognized style components: - A named theme style listed in
+[Style syntax](#style-syntax). - One of `bold`, `dim`, `italic`,
+`underline`, `reverse`, or `strike`. - A foreground color such as
+`#FF00FF`. - A background color such as `bg:#202020`.
+
+Separate components with spaces.
+
+### Colors look different in my terminal
+
+ANSI 256-color and true-color output are interpreted by the terminal.
+Different terminal palettes, themes, and color capabilities can make the
+same color index or RGB value look different.
+
+### `Ctrl+R` does not run my file
+
+`Ctrl+R` invokes `chemql -f` with the current file's absolute path.
+Ensure ChemQL is installed and its `chemql` command is available in the
+environment inherited by CodecQL. The editor saves a modified buffer
+before running it.
+
+------------------------------------------------------------------------
+
+## Project components
+
+  -----------------------------------------------------------------------
+  File/component                      Responsibility
+  ----------------------------------- -----------------------------------
+  ChemQL package (`__init__.py`)      Language runtime, interactive
+                                      prompt, chemistry functionality,
+                                      built-ins, package management
+
+  `codecql.py`                        Terminal editor, file operations,
+                                      key handling, terminal integration,
+                                      token rendering
+
+  `highlighting.py`                   Highlighting profile definitions,
+                                      JSON loading, extension
+                                      normalization, and rule validation
+
+  `colors.json`                       ANSI 256-color theme for syntax and
+                                      editor UI
+
+  `highlighting.json`                 Optional user-defined language
+                                      profiles
+  -----------------------------------------------------------------------
+
+ChemQL and CodecQL are related but separate components: ChemQL provides
+the language/runtime, while CodecQL provides the editing environment.

@@ -68,7 +68,7 @@ __all__ = [
     "__version__"
 ]
 
-__version__ = "1.6.2"
+__version__ = "1.6.4"
 
 # Persistent preprocessor/function state for the current ChemQL session.
 DEFINITIONS = {}
@@ -78,6 +78,7 @@ EXECUTION_HISTORY = []
 _DEFINITION_NAME = r"[A-Za-z_][A-Za-z0-9_]*"
 _NO_RETURN = object()
 NO_ANSI = True
+SUPPRESS_WARNINGS = False
 
 def _expand_definitions(line):
     """Replace @NAME literally, including inside strings, using current definitions."""
@@ -870,7 +871,17 @@ def _call_function(name, arguments):
             signal_match = re.fullmatch(r"signal\s+(.+)", line, re.IGNORECASE)
             if signal_match:
                 raise ChemQLSignal(evaluate_python(signal_match.group(1)))
+            warn_match = re.fullmatch(r"warn\s+(.+)", line, re.IGNORECASE)
+            if warn_match:
+                warning = evaluate_python(warn_match.group(1))
+                python_globals["warnings"] = warning
 
+                if not SUPPRESS_WARNINGS:
+                    message = f"Warning: {warning}"
+                    print(message if NO_ANSI else f"\033[33m{message}\033[0m")
+
+                i += 1
+                continue
             # Multiline Python block.
             if line == "[[[":
                 block = []
@@ -1094,24 +1105,51 @@ def _expand_function_calls(text):
             if match:
                 name = match.group(1)
                 resolved_name = _resolve_package_qualified_name(name)
+
+                # Resolve unqualified function calls against the active namespace.
+                # This allows namespace functions to call themselves and other
+                # functions in the same namespace without repeating the prefix.
+                if "::" not in resolved_name and _CURRENT_NAMESPACE is not None:
+                    local_name = f"{_CURRENT_NAMESPACE._chemql_name}::{resolved_name}"
+
+                    if local_name in FUNCTIONS:
+                        resolved_name = local_name
                 # Enforce explicit package loading BEFORE checking FUNCTIONS.
                 # Otherwise a function registered while internally initializing
                 # a package bypasses the qualified-access restriction below.
                 if "::" in resolved_name:
                     package_name = resolved_name.rsplit("::", 1)[0]
                     root_package = package_name.split("::", 1)[0]
+
                     explicitly_loaded_packages = globals().get(
                         "CHEMQL_EXPLICITLY_LOADED_PACKAGES", set()
                     )
+                    loaded_package_sources = globals().get(
+                        "CHEMQL_PACKAGE_SOURCE_LOADED", set()
+                    )
+
+                    is_package_namespace = (
+                        package_name in loaded_package_sources
+                        or root_package in loaded_package_sources
+                    )
+
+                    inside_own_namespace = (
+                        _CURRENT_NAMESPACE is not None
+                        and _CURRENT_NAMESPACE._chemql_name == package_name
+                    )
+
                     if (
-                        package_name not in explicitly_loaded_packages
+                        is_package_namespace
+                        and not inside_own_namespace
+                        and package_name not in explicitly_loaded_packages
                         and root_package not in explicitly_loaded_packages
                     ):
                         raise ChemQLError(
                             f"Unknown function `{name}`"
                             if NO_ANSI else
-                            f"Unknown function \\033[1m{name}\\033[22m"
+                            f"Unknown function \033[1m{name}\033[22m"
                         )
+                
                 opening = i + match.end() - 1
                 end = find_matching(text, opening, "{", "}")
                 args = _split_function_arguments(text[opening + 1:end])
@@ -1235,6 +1273,7 @@ while ($true) {
         $commandText = [System.Text.Encoding]::UTF8.GetString(
             [System.Convert]::FromBase64String($encodedCommand)
         )
+        [Console]::Out.Flush()
         if ([string]::IsNullOrWhiteSpace($commandText)) {
             [Console]::Out.WriteLine('ChemQL received an empty PowerShell command.')
         }
@@ -1244,8 +1283,10 @@ while ($true) {
             # output explicitly for each request; otherwise PowerShell's default
             # formatting subsystem can defer table output until the next request,
             # making commands such as Get-Location appear blank or duplicated.
-            $formattedOutput = Invoke-Expression -Command $commandText | Out-String -Width 4096
-            if (-not [string]::IsNullOrEmpty($formattedOutput)) {
+            $result = Invoke-Expression -Command $commandText
+
+            if ($null -ne $result) {
+                $formattedOutput = $result | Out-String -Width 120
                 [Console]::Out.Write($formattedOutput)
             }
         }
@@ -1295,10 +1336,10 @@ while ($true) {
         def read_output():
             try:
                 while True:
-                    character = process.stdout.read(1)  # type: ignore
-                    if not character:
+                    line = process.stdout.readline()  # type: ignore
+                    if not line:
                         break
-                    output_queue.put(character)
+                    output_queue.put(line)
             except (OSError, ValueError):
                 pass
             finally:
@@ -1576,15 +1617,16 @@ def _run_shell_command_windows(command):
                     stdin_is_tty = False
 
             try:
-                character = output_queue.get(timeout=0.04)
+                chunk = output_queue.get(timeout=0.04)
             except queue.Empty:
                 if shell.poll() is not None:
                     return (None, collected, False)
                 continue
-            if character is None:
+
+            if chunk is None:
                 return (None, collected, False)
 
-            collected += character
+            collected += chunk
             marker_pos = collected.find(marker)
             if marker_pos >= 0:
                 stream_until(marker_pos)
@@ -1622,7 +1664,7 @@ def _run_shell_command_windows(command):
     except (BrokenPipeError, OSError, ValueError) as exc:
         close_shell()
         return f"Shell error: {exc}"
-
+ 
 def run_shell_command(command):
     global _shell_output_streamed
 
@@ -2733,7 +2775,7 @@ class Reaction:
                 for i in self.conditions:
                     self.equation += f"\t{i}: {self.conditions[i]}\n"
     def __str__(self):
-        return self.equation
+        return self.equation.replace("1 ", "")
     def __repr__(self):
         return self.name
 
@@ -3176,7 +3218,7 @@ def balance_stoichiometry(reactants, products, reversible=None):
 def _execute_balance_command(text):
     text = text.split("//", 1)[0].rstrip()
     match = re.fullmatch(
-        r"\s*balance\s+(.+?)\s*(<->|->)\s*(.+?)\s*",
+        r"\s*balance\s+((?:\S+?\s*)(?:\+\s*\S+?)*)\s*(<->|->)\s*(\S+)\s*",
         text,
         re.IGNORECASE,
     )
@@ -3637,7 +3679,13 @@ reaction_state = {
 }
 
 # Python variables persist for the whole session.
-python_globals = {"__builtins__": __builtins__, "math": math, "error": None}
+python_globals = {
+    "__builtins__": __builtins__,
+    "math": math,
+    "error": None,
+    "warnings": None,
+    "_": None,
+}
 STRUCTS = {}
 RECORDS = {}
 ENUMS = {}
@@ -4014,17 +4062,22 @@ def evaluate_python(code):
         tree = ast.parse(rewritten, mode="eval")
     except SyntaxError:
         module = ast.parse(rewritten, mode="exec")
+
         for node in ast.walk(module):
             if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
-                if isinstance(node.ctx, ast.Store) and node.id.isidentifier() and not node.id.startswith("__chemql_"):
+                if node.id.isidentifier() and not node.id.startswith("__chemql_"):
                     CHEMQL_VARIABLES.add(node.id)
+
         return _run_python_in_active_namespace(
             compile(module, "<embedded-python>", "exec"), "exec"
         )
 
-    return _run_python_in_active_namespace(
+    result = _run_python_in_active_namespace(
         compile(tree, "<embedded-python>", "eval"), "eval"
     )
+
+    python_globals["_"] = result
+    return result
 
 
 def is_python_block_header(text):
@@ -4423,7 +4476,7 @@ def process_inline(text):
             return literal_value
 
     # Native dynamically typed variables: `let name = expression`.
-    let_match = re.fullmatch(r"let\s+([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*=\s*(.+)", stripped, re.DOTALL)
+    let_match = re.fullmatch(r"let\s+((?:[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)(?:::[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)?)\s*=\s*(.+)", stripped, re.DOTALL)
     if let_match:
         name, expression = let_match.groups()
         value = evaluate_python(expression)
@@ -4457,7 +4510,7 @@ def process_inline(text):
 
     # A bare native variable is an expression that prints its value in the REPL.
     if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", stripped) and stripped in CHEMQL_VARIABLES:
-        return python_globals.get(stripped)
+        return evaluate_python(stripped)
 
     # Attribute reads on ChemQL variables (e.g. `apple.price`).
     if re.fullmatch(r"[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)+", stripped):
@@ -4516,10 +4569,10 @@ def process_inline(text):
     # square brackets (for example `q+w`). Try Python expression parsing before
     # the query parser whenever the line references a known ChemQL variable.
     # This handles compact operators as well as spaced expressions.
-    known_expression_names = (CHEMQL_VARIABLES | {
+    known_expression_names = CHEMQL_VARIABLES | {"_"} | {
         name for name in python_globals
         if isinstance(name, str) and name.isidentifier() and not name.startswith("__")
-    })
+    }
     references_variable = any(
         re.search(r"\b" + re.escape(name) + r"\b", stripped)
         for name in known_expression_names
@@ -5393,6 +5446,17 @@ def process_lines(lines):
         signal_match = re.fullmatch(r"signal\s+(.+)", stripped, re.IGNORECASE)
         if signal_match:
             raise ChemQLSignal(evaluate_python(signal_match.group(1)))
+        warn_match = re.fullmatch(r"warn\s+(.+)", stripped, re.IGNORECASE)
+        if warn_match:
+            warning = evaluate_python(warn_match.group(1))
+            python_globals["warnings"] = warning
+
+            if not SUPPRESS_WARNINGS:
+                message = f"Warning: {warning}"
+                print(message if NO_ANSI else f"\033[33m{message}\033[0m")
+
+            i += 1
+            continue
 
         # Definitions are processed in source order and affect only later lines.
         define_match = re.fullmatch(r"define\s+(" + _DEFINITION_NAME + r")\s+(.+)", stripped)
@@ -5697,9 +5761,9 @@ def process_lines(lines):
             i = end + 1
             continue
 
-        if line == "[break]":
+        if line == "[break]" or line == "break":
             raise ChemQLBreak()
-        if line == "[continue]":
+        if line == "[continue]" or line == "continue" or line == "skip":
             raise ChemQLContinue()
         if line == "view":
             view_periodic_table()
@@ -6014,11 +6078,10 @@ def execute(arguments, query_text=None, positions=None):
         if status != 0 and not message:
             message = f"Installation of {package_name} failed."
         return message or f"Installed {package_name}."
-
     if arguments[0].lower() == "balance":
         try:
             return _execute_balance_command(
-                query_text if query_text is not None else shlex.join(arguments)
+                query_text.replace("< - >", "<->").replace("- >", "->").replace("<= >", "<->").replace("=  >", "->") if query_text is not None else shlex.join(arguments).replace("'<' - '>'", "<->").replace("- '>'", "->").replace("'<=' '>'", "<->").replace("= '>'", "->")
             )
         except ValueError as exc:
             return format_error(str(exc), query_text)
@@ -6516,7 +6579,8 @@ HELP = (
     "  \x1b[95mrisk ... endrisk             \x1b[0m \x1b[90m│\x1b[0m Run a protected block\n"
     "  \x1b[95mfix                          \x1b[0m \x1b[90m│\x1b[0m Handle an error from the risk block\n"
     "  \x1b[95mcleanup                      \x1b[0m \x1b[90m│\x1b[0m Run cleanup whether successful or not\n"
-    "  \x1b[95msignal \"message\"             \x1b[0m \x1b[90m│\x1b[0m Raise a ChemQL signal\n"
+    "  \x1b[95msignal \"message\"             \x1b[0m \x1b[90m│\x1b[0m Raise a ChemQL signal, latest signal is stored in error\n"
+    "  \x1b[95mwarn \"message\"              \x1b[0m \x1b[90m│\x1b[0m Raise a warning, latest warning is stored in warnings\n"
     "  \x1b[95merror                        \x1b[0m \x1b[90m│\x1b[0m Inspect the error type in a fix block\n"
     "    \x1b[95mrisk\x1b[0m\n"
     "        \x1b[95msignal \"Something went wrong\"\x1b[0m\n"
@@ -7269,6 +7333,8 @@ def _download_package(name, version=None, force_replace=False):
         release_info = _api_object(_http_json(f"{endpoint}/latest"))
     else:
         release_info = _api_object(_http_json(f"{endpoint}/{urllib.parse.quote(version, safe='')}"))
+    if release_info.get("safe") != 1:
+        raise RuntimeError("Package was too unsafe to download")
     actual_version = str(release_info.get("version") or release_info.get("version_number") or version or "")
     if not actual_version or not re.fullmatch(r"[A-Za-z0-9.+_-]+", actual_version):
         raise RuntimeError("Registry response did not include a valid package version.")
@@ -7357,6 +7423,8 @@ def _package_command(args):
             return _download_package(args.name, args.version)
         if args.subcommand == "upgrade":
             return _download_package(args.name, args.version, force_replace=True)
+        if args.subcommand == "upload":
+            return _upload_project()
         if args.subcommand == "search":
             data = _http_json(f"{_registry_url()}/api/v1/search?q={urllib.parse.quote(args.query)}")
             results = data.get("results", data.get("packages", [])) if isinstance(data, dict) else data
@@ -7403,6 +7471,95 @@ def _package_command(args):
         return 1
     return 2
 
+def _upload_project(directory="."):
+    root = Path(directory).expanduser().resolve()
+    manifest_path = root / "cqlpackage.json"
+
+    if not manifest_path.is_file():
+        raise RuntimeError(
+            f"No cqlpackage.json found in {root}"
+        )
+
+    with manifest_path.open("r", encoding="utf-8") as stream:
+        package = json.load(stream)
+
+    if not isinstance(package, dict):
+        raise RuntimeError("Invalid package manifest.")
+
+    name = package.get("name")
+    version = str(package.get("version", "")).strip()
+
+    if not isinstance(name, str) or not _safe_package_name(name):
+        raise RuntimeError("Invalid package name.")
+
+    if not version or not re.fullmatch(r"[A-Za-z0-9.+_-]+", version):
+        raise RuntimeError("Invalid package version.")
+
+    archive_path = root / "dist" / f"{name}-{version}.tar.gz"
+
+    if not archive_path.is_file():
+        raise RuntimeError(
+            f"Package archive not found: {archive_path}\n"
+            "Run `chemql build` first."
+        )
+
+    payload = archive_path.read_bytes()
+
+    if len(payload) > 10 * 1024 * 1024:
+        raise RuntimeError(
+            "Package archive exceeds the registry's 10 MB upload limit."
+        )
+
+    boundary = "----ChemQL" + os.urandom(16).hex()
+
+    body = (
+        f"--{boundary}\r\n"
+        f'Content-Disposition: form-data; name="file"; '
+        f'filename="{archive_path.name}"\r\n'
+        f"Content-Type: application/gzip\r\n\r\n"
+    ).encode("utf-8")
+
+    body += payload
+    body += f"\r\n--{boundary}--\r\n".encode("utf-8")
+
+    endpoint = f"{_registry_url()}/api/v1/upload"
+
+    request = urllib.request.Request(
+        endpoint,
+        data=body,
+        headers={
+            "Content-Type": f"multipart/form-data; boundary={boundary}",
+            "Accept": "application/json",
+            "User-Agent": f"ChemQL/{__version__}",
+        },
+        method="POST",
+    )
+
+    try:
+        with urllib.request.urlopen(request, timeout=60) as response:
+            result = json.loads(response.read(1_000_001))
+    except urllib.error.HTTPError as exc:
+        try:
+            result = json.loads(exc.read(1_000_001))
+            message = result.get("error", exc.reason)
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            message = exc.reason
+
+        raise RuntimeError(
+            f"Upload failed (HTTP {exc.code}): {message}"
+        ) from exc
+    except urllib.error.URLError as exc:
+        raise RuntimeError(
+            f"Could not connect to ChemQL registry: {exc.reason}"
+        ) from exc
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+        raise RuntimeError(
+            "Registry returned an invalid response."
+        ) from exc
+
+    print(f"Published {name} v{version}!")
+    print(result.get("message", "Upload successful."))
+    return 0
 
 def _build_project(directory="."):
     """Build a ChemQL package without requiring a package-local build.py."""
@@ -7539,6 +7696,7 @@ def main(ANSI: bool = True):
     subparsers = parser.add_subparsers(dest="subcommand")
 
     p_install = subparsers.add_parser("install", help="Install a package from the ChemQL registry")
+    subparsers.add_parser("upload", help="Upload the current ChemQL package to the registry")
     p_install.add_argument("name")
     p_install.add_argument("--version", default=None)
 
@@ -7579,6 +7737,11 @@ def main(ANSI: bool = True):
         "--no-ansi",
         action="store_true",
         help="Strip ANSI escape sequences from output.",
+    )
+    parser.add_argument(
+        "--suppress-warnings",
+        action="store_true",
+        help="Suppress warning messages.",
     )
 
     parser.add_argument(
@@ -7625,8 +7788,10 @@ def main(ANSI: bool = True):
         )
         sys.exit(upgrade_package(version_target, args.force))
 
-    global NO_ANSI
+    global NO_ANSI, SUPPRESS_WARNINGS
+
     NO_ANSI = not ANSI or args.no_ansi or bool(args.output)
+    SUPPRESS_WARNINGS = args.suppress_warnings
 
     if args.output and args.command is None and args.file is None:
         parser.error("-o/--output requires -c/--command or -f/--file")

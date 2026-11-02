@@ -9,8 +9,9 @@ import sys
 import shutil
 import subprocess
 import time
+from .highlighting import HighlightProfiles
 
-VERSION = "0.0.10"
+VERSION = "0.0.11"
 
 
 def _write_system_clipboard(text):
@@ -320,7 +321,7 @@ AUTO_INDENT = re.compile(
 )
 
 
-def _token_style(kind, value):
+def _token_style(kind, value, profiles=None, filename=None):
     if kind == "comment":
         return HIGHLIGHT_STYLES["comment"]
     if kind == "string":
@@ -334,6 +335,11 @@ def _token_style(kind, value):
     if kind == "delimiter":
         return HIGHLIGHT_STYLES["command"] if value == "?" else HIGHLIGHT_STYLES["delimiter"]
     word = value.casefold()
+    if profiles and filename:
+        configured_style = profiles.get_keyword_style(filename, word)
+
+        if configured_style:
+            return parse_highlight_style(configured_style)
     if word in {"true", "false", "none"}:
         category = "constant"
     elif word in {"enum", "struct", "record"}:
@@ -367,6 +373,34 @@ MANIFEST_TOKEN_RE = re.compile(
     r"|(?P<delimiter>[\[\]{}:,.])",
     re.IGNORECASE,
 )
+def load_highlighting_profiles():
+    profiles = HighlightProfiles()
+
+    main_config = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "highlighting.json",
+    )
+
+    local_config = os.path.join(
+        os.getcwd(),
+        "highlighting.json",
+    )
+
+    loaded_paths = set()
+
+    for path in (main_config, local_config):
+        path = os.path.abspath(path)
+
+        # Avoid loading the same file twice.
+        if path in loaded_paths:
+            continue
+
+        loaded_paths.add(path)
+
+        if os.path.isfile(path):
+            profiles.load(path)
+
+    return profiles
 
 def _apply_manifest_syntax_highlighting(text, filename):
     """Highlight JSON/TOML package manifests with the editor's existing theme."""
@@ -421,8 +455,68 @@ def _apply_manifest_syntax_highlighting(text, filename):
     parts.append(text[last_end:])
     return "".join(parts)
 
+def parse_highlight_style(style):
+    parts = style.split()
+    codes = []
 
-def apply_syntax_highlighting(text, filename=None):
+    named_styles = {
+        "keyword": HIGHLIGHT_STYLES["keyword"],
+        "command": HIGHLIGHT_STYLES["command"],
+        "operator": HIGHLIGHT_STYLES["operator"],
+        "string": HIGHLIGHT_STYLES["string"],
+        "comment": HIGHLIGHT_STYLES["comment"],
+        "number": HIGHLIGHT_STYLES["number"],
+        "constant": HIGHLIGHT_STYLES["constant"],
+        "type": HIGHLIGHT_STYLES["type"],
+        "source": HIGHLIGHT_STYLES["source"],
+        "condition": HIGHLIGHT_STYLES["condition"],
+        "property": HIGHLIGHT_STYLES["property"],
+        "builtin": HIGHLIGHT_STYLES["builtin"],
+    }
+
+    formatting = {
+        "bold": "1",
+        "dim": "2",
+        "italic": "3",
+        "underline": "4",
+        "reverse": "7",
+        "strike": "9",
+    }
+
+    for part in parts:
+        part = part.casefold()
+
+        if part in named_styles:
+            # Existing theme styles are already ANSI escape sequences.
+            codes.append(named_styles[part])
+
+        elif part in formatting:
+            codes.append(f"\033[{formatting[part]}m")
+
+        elif re.fullmatch(r"#[0-9a-f]{6}", part):
+            r, g, b = (
+                int(part[i:i + 2], 16)
+                for i in (1, 3, 5)
+            )
+            codes.append(f"\033[38;2;{r};{g};{b}m")
+
+        elif part.startswith("bg:#") and re.fullmatch(
+            r"bg:#[0-9a-f]{6}", part
+        ):
+            color = part[3:]
+            r, g, b = (
+                int(color[i:i + 2], 16)
+                for i in (1, 3, 5)
+            )
+            codes.append(f"\033[48;2;{r};{g};{b}m")
+
+        else:
+            raise ValueError(f"Unknown highlight style component: {part}")
+
+    return "".join(codes)
+
+
+def apply_syntax_highlighting(text, filename=None, profiles=None):
     if filename:
         manifest_highlighting = _apply_manifest_syntax_highlighting(text, filename)
         if manifest_highlighting is not None:
@@ -433,7 +527,7 @@ def apply_syntax_highlighting(text, filename=None):
         parts.append(text[last_end:match.start()])
         kind = match.lastgroup
         token = match.group()
-        style = _token_style(kind, token) if kind else ""
+        style = _token_style(kind, token, profiles, filename) if kind else ""
         if kind == "identifier" and re.search(
             r"\b(?:enum|struct|record|namespace)\s+$", text[:match.start()], re.IGNORECASE
         ):
@@ -475,6 +569,7 @@ class Editor:
                 content = f.read().splitlines()
                 self.lines = content if content else [""]
         self.saved_lines = tuple(self.lines)
+        self.highlight_profiles = load_highlighting_profiles()
 
     def run(self):
         sys.stdout.write("\x1b[?1049h\x1b[?2004h")
@@ -564,7 +659,7 @@ class Editor:
                 current = (match_start, match_end) == self.current_search_match
                 overlays.append((start, end, "\x1b[7m" if current else "\x1b[43m", 1))
         if not overlays:
-            return apply_syntax_highlighting(visible_text, self.filename)
+            return apply_syntax_highlighting(visible_text, self.filename, self.highlight_profiles)
 
         boundaries = {line_start, line_end}
         for start, end, _, _ in overlays:
@@ -589,7 +684,11 @@ class Editor:
                 style = max(active, key=lambda overlay: overlay[3])[2]
                 parts.extend((style, segment, RESET))
             else:
-                parts.append(apply_syntax_highlighting(segment, self.filename))
+                parts.append(
+    apply_syntax_highlighting(
+        segment, self.filename, self.highlight_profiles
+    )
+)
         return "".join(parts)
 
     def _keep_cursor_visible(self, height, width, visual_cursor_x):
@@ -1317,10 +1416,43 @@ def main(argv: list[str] | None = None) -> None:
     )
     parser.add_argument("-V", "--version", action="version", version=f"codecql {VERSION}")
     parser.add_argument("file", nargs="?", help="ChemQL file to edit")
+    parser.add_argument(
+        "--main-highlighting",
+        action="store_true",
+        help="Open CodecQL's main highlighting configuration",
+    )
+
+    parser.add_argument(
+        "--local-highlighting",
+        action="store_true",
+        help="Open the current directory's highlighting configuration",
+    )
     arguments = parser.parse_args(argv)
-    if not arguments.file:
+    if arguments.main_highlighting and arguments.local_highlighting:
+        parser.error("Choose only one highlighting configuration")
+
+    if arguments.main_highlighting:
+        filename = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "highlighting.json",
+        )
+
+    elif arguments.local_highlighting:
+        filename = os.path.join(os.getcwd(), "highlighting.json")
+
+    else:
+        filename = arguments.file
+
+    if not filename:
         parser.error("the following arguments are required: file")
-    Editor(arguments.file).run()
+
+    if arguments.main_highlighting or arguments.local_highlighting:
+        if not os.path.exists(filename):
+            with open(filename, "w", encoding="utf-8") as f:
+                json.dump({}, f, indent=4)
+                f.write("\n")
+
+    Editor(filename).run()
 
 if __name__ == "__main__":
     main()

@@ -6,6 +6,7 @@ src/chemql/__main__.py
 src/chemql/build.py
 src/chemql/codecql.py
 src/chemql/colors.json
+src/chemql/highlighting.py
 src/chemql/data/BondEnergies.json
 src/chemql/data/MoleculeBonds.json
 src/chemql/data/Molecules.json
