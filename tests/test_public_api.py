@@ -19,6 +19,21 @@ def test_adjacent_function_calls_compose_as_an_expression():
     assert chemql.process_inline("int{1}+int{1}") == 2
 
 
+def test_function_positional_parameters_interpolate_in_strings(monkeypatch):
+    monkeypatch.delitem(chemql.FUNCTIONS, "greet", raising=False)
+    monkeypatch.delitem(chemql.python_globals, "greet", raising=False)
+
+    chemql.process_lines(
+        [
+            "func greet",
+            r'    return f"Hello \1"',
+            "endfunc",
+        ]
+    )
+
+    assert chemql.process_inline('greet{"John"}') == "Hello John"
+
+
 def test_imported_python_class_constructor_supports_direct_attribute_access(monkeypatch):
     class Config:
         def __init__(self):

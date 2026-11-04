@@ -1,5 +1,14 @@
 {
-    ".cql": [],
-    ".py": [],
-    ".js": []
+    ".cql": {
+        "run-command": "chemql -f $absoluteName",
+        "rules": []
+    },
+    ".py": {
+        "run-command": "python -u $absoluteName",
+        "rules": []
+    },
+    ".rs": {
+        "run-command": "cargo run",
+        "rules": []
+    }
 }

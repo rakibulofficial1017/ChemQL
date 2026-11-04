@@ -15,7 +15,7 @@ BUILTIN_PROFILES = {
                 "findel", "findmol", "findre", "set", "add", "remove",
                 "react", "balance", "conditions", "view", "help", "dump",
                 "version", "let", "unset", "variables", "func", "define",
-                "load", "import", "signal", "fix", "cleanup"
+                "load", "import", "signal", "fix", "cleanup", "arguments"
             ],
             "style": "command"
         },
@@ -164,14 +164,15 @@ def validate_rule(rule, extension, index):
     return normalized
 
 
-def validate_profiles(config):
-    """Validate all extension profiles and return normalized profiles."""
+def validate_config(config):
+    """Validate extension profiles and optional run commands."""
     if not isinstance(config, dict):
         raise HighlightConfigError("The configuration must be a JSON object")
 
     profiles = {}
+    run_commands = {}
 
-    for extension, rules in config.items():
+    for extension, profile_config in config.items():
         normalized_extension = normalize_extension(extension)
 
         if normalized_extension in profiles:
@@ -179,9 +180,27 @@ def validate_profiles(config):
                 f"Duplicate extension: {normalized_extension}"
             )
 
+        # Backwards compatibility: the original format was a list of rules.
+        if isinstance(profile_config, list):
+            rules = profile_config
+            run_command = None
+        elif isinstance(profile_config, dict):
+            unknown = set(profile_config) - {"rules", "run-command"}
+            if unknown:
+                names = ", ".join(sorted(map(str, unknown)))
+                raise HighlightConfigError(
+                    f"{normalized_extension}: unsupported profile field(s): {names}"
+                )
+            rules = profile_config.get("rules", [])
+            run_command = profile_config.get("run-command")
+        else:
+            raise HighlightConfigError(
+                f"{normalized_extension}: expected a list or profile object"
+            )
+
         if not isinstance(rules, list):
             raise HighlightConfigError(
-                f"{normalized_extension}: expected a list of rules"
+                f"{normalized_extension}: 'rules' must be a list"
             )
 
         profiles[normalized_extension] = [
@@ -189,6 +208,19 @@ def validate_profiles(config):
             for index, rule in enumerate(rules)
         ]
 
+        if run_command is not None:
+            if not isinstance(run_command, str) or not run_command.strip():
+                raise HighlightConfigError(
+                    f"{normalized_extension}: 'run-command' must be a non-empty string"
+                )
+            run_commands[normalized_extension] = run_command.strip()
+
+    return profiles, run_commands
+
+
+def validate_profiles(config):
+    """Validate profiles, returning only their highlighting rules."""
+    profiles, _ = validate_config(config)
     return profiles
 
 
@@ -197,7 +229,7 @@ class HighlightProfiles:
 
     def __init__(self, config_path=None):
         self.config_path = config_path
-        self.profiles = validate_profiles(BUILTIN_PROFILES)
+        self.profiles, self.run_commands = validate_config(BUILTIN_PROFILES)
 
         if config_path:
             self.load(config_path)
@@ -221,9 +253,13 @@ class HighlightProfiles:
                 f"Could not read {path}: {exc}"
             ) from exc
 
-        loaded_profiles = validate_profiles(config)
+        loaded_profiles, loaded_commands = validate_config(config)
 
         self.profiles.update(loaded_profiles)
+        # A later profile replaces the earlier extension profile as a whole.
+        for extension in loaded_profiles:
+            self.run_commands.pop(extension, None)
+        self.run_commands.update(loaded_commands)
         self.config_path = path
 
         return self.profiles
@@ -239,8 +275,10 @@ class HighlightProfiles:
 
         validated = validate_profiles({extension: rules})
         self.profiles[extension] = validated[extension]
+        self.run_commands.pop(extension, None)
 
         return self.profiles[extension]
+
     def get_keyword_style(self, filename, word):
         """Return the configured style category for a keyword."""
         profile = self.get(filename, [])
@@ -253,3 +291,8 @@ class HighlightProfiles:
                     return rule["style"]
 
         return None
+
+    def get_run_command(self, filename):
+        """Return the configured run-command for a filename, if any."""
+        extension = os.path.splitext(filename)[1].lower()
+        return self.run_commands.get(extension)

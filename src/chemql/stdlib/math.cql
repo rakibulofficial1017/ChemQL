@@ -3,6 +3,8 @@
 public let PI = 3.141592653589793
 public let E = 2.718281828459045
 public let TAU = 6.283185307179586
+public let INF = float("inf")
+public let NAN = float("nan")
 public func sqrt
     return _chemql_math.sqrt(arguments[0])
 endfunc

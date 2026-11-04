@@ -11,7 +11,7 @@ import subprocess
 import time
 from .highlighting import HighlightProfiles
 
-VERSION = "0.0.11"
+VERSION = "0.0.12"
 
 
 def _write_system_clipboard(text):
@@ -271,11 +271,11 @@ COMMANDS = {
     "findmol", "findre", "set", "add", "remove", "react", "balance",
     "conditions", "view", "help", "dump", "version", "let", "unset",
     "variables", "func", "define", "load", "import", "signal", "fix",
-    "cleanup",
+    "cleanup", "arguments"
 }
 CONTROL_KEYWORDS = {
     "if", "elif", "else", "endif", "for", "while", "in", "endfor",
-    "endwhile", "break", "continue", "endblock", "from", "as", "public",
+    "endwhile", "break", "continue", "skip", "endblock", "from", "as", "public",
     "private", "required", "struct", "record", "enum", "endstruct", "static",
     "endrecord", "endenum", "namespace", "endnamespace",
 }
@@ -322,45 +322,75 @@ AUTO_INDENT = re.compile(
 
 
 def _token_style(kind, value, profiles=None, filename=None):
+    extension = os.path.splitext(filename or "")[1].casefold()
+    is_chemql = extension == ".cql"
+    is_python = extension == ".py"
+
+    # These lexical categories are shared by all file types.
     if kind == "comment":
         return HIGHLIGHT_STYLES["comment"]
     if kind == "string":
         return HIGHLIGHT_STYLES["string"]
     if kind == "number":
         return HIGHLIGHT_STYLES["number"]
-    if kind == "formula" and (any(char.isdigit() for char in value) or len(re.findall(r"[A-Z]", value)) > 1):
+    if kind == "formula" and is_chemql and (
+        any(char.isdigit() for char in value)
+        or len(re.findall(r"[A-Z]", value)) > 1
+    ):
         return HIGHLIGHT_STYLES["formula"]
     if kind == "operator":
         return HIGHLIGHT_STYLES["operator"]
     if kind == "delimiter":
-        return HIGHLIGHT_STYLES["command"] if value == "?" else HIGHLIGHT_STYLES["delimiter"]
+        if value == "?" and is_chemql:
+            return HIGHLIGHT_STYLES["command"]
+        return HIGHLIGHT_STYLES["delimiter"]
+
+    if kind != "identifier":
+        return ""
+
     word = value.casefold()
+
+    # User-defined profiles remain extension-specific and can add highlighting
+    # for languages other than ChemQL.
     if profiles and filename:
         configured_style = profiles.get_keyword_style(filename, word)
-
         if configured_style:
             return parse_highlight_style(configured_style)
-    if word in {"true", "false", "none"}:
-        category = "constant"
-    elif word in {"enum", "struct", "record"}:
-        category = "type"
-    elif word in COMMANDS or word == "?":
-        category = "command"
-    elif word in CONTROL_KEYWORDS or keyword.iskeyword(word):
-        category = "keyword"
-    elif word in WORD_OPERATORS:
-        category = "operator"
-    elif word in SOURCES:
-        category = "source"
-    elif word in CONDITIONS:
-        category = "condition"
-    elif word in PROPERTIES:
-        category = "property"
-    elif word in PYTHON_BUILTINS:
-        category = "builtin"
-    else:
-        return ""
-    return HIGHLIGHT_STYLES[category]
+
+    if is_chemql:
+        if word in {"true", "false", "none"}:
+            category = "constant"
+        elif word in {"enum", "struct", "record"}:
+            category = "type"
+        elif word in COMMANDS or word == "?":
+            category = "command"
+        elif word in CONTROL_KEYWORDS:
+            category = "keyword"
+        elif word in WORD_OPERATORS:
+            category = "operator"
+        elif word in SOURCES:
+            category = "source"
+        elif word in CONDITIONS:
+            category = "condition"
+        elif word in PROPERTIES:
+            category = "property"
+        elif word in PYTHON_BUILTINS:
+            category = "builtin"
+        else:
+            return ""
+        return HIGHLIGHT_STYLES[category]
+
+    # Python files get Python's own keywords and built-ins, never ChemQL's.
+    if is_python:
+        if value in {"True", "False", "None"}:
+            return HIGHLIGHT_STYLES["constant"]
+        if keyword.iskeyword(value):
+            return HIGHLIGHT_STYLES["keyword"]
+        if value in PYTHON_BUILTINS:
+            return HIGHLIGHT_STYLES["builtin"]
+
+    # Plain-text and unknown extensions receive lexical styling only.
+    return ""
 
 
 MANIFEST_TOKEN_RE = re.compile(
@@ -528,8 +558,14 @@ def apply_syntax_highlighting(text, filename=None, profiles=None):
         kind = match.lastgroup
         token = match.group()
         style = _token_style(kind, token, profiles, filename) if kind else ""
-        if kind == "identifier" and re.search(
-            r"\b(?:enum|struct|record|namespace)\s+$", text[:match.start()], re.IGNORECASE
+        if (
+            kind == "identifier"
+            and os.path.splitext(filename or "")[1].casefold() == ".cql"
+            and re.search(
+                r"\b(?:enum|struct|record|namespace)\s+$",
+                text[:match.start()],
+                re.IGNORECASE,
+            )
         ):
             style = HIGHLIGHT_STYLES["type"]
         if style:
@@ -809,20 +845,33 @@ class Editor:
         return False
 
     def _run_split_terminal(self, run_chemql=False):
-        """Open a shell; Ctrl+R also runs ChemQL on this file's absolute path."""
+        """Open a shell; Ctrl+R runs the configured command for this file."""
         command = None
         if run_chemql:
+            if not self.filename:
+                self.message = "Save the file before running it"
+                return
+
             # Run the current buffer rather than stale on-disk contents.
             if self.dirty:
                 self.save_file()
                 if self.dirty:
                     return
+
             absolute_path = os.path.abspath(self.filename)
+            configured_command = self.highlight_profiles.get_run_command(
+                self.filename
+            ) if hasattr(self, "highlight_profiles") else None
+
+            # Preserve CodecQL's original default when no extension-specific
+            # command is configured.
+            command_template = configured_command or "chemql -f $absoluteName"
             if os.name == "nt":
-                command = "chemql -f " + subprocess.list2cmdline([absolute_path])
+                quoted_path = subprocess.list2cmdline([absolute_path])
             else:
                 import shlex
-                command = "chemql -f " + shlex.quote(absolute_path)
+                quoted_path = shlex.quote(absolute_path)
+            command = command_template.replace("$absoluteName", quoted_path)
 
         if os.name == "nt":
             shell = os.environ.get("COMSPEC", "cmd.exe")
@@ -832,7 +881,7 @@ class Editor:
                 try:
                     args = [
                         wt, "-w", "0", "split-pane", "-V",
-                        "--size", "0.35", "--title", "ChemQL Terminal",
+                        "--size", "0.35", "--title", "CodecQL Terminal",
                         shell, "/K",
                     ]
                     if command:
@@ -842,7 +891,7 @@ class Editor:
                     self.message = f"Could not open Windows Terminal pane: {error}"
                 else:
                     self.message = (
-                        "ChemQL running in Windows Terminal pane" if command else
+                        "Configured command running in Windows Terminal pane" if command else
                         "Terminal opened in a Windows Terminal pane; resize it with "
                         "Alt+Shift+Plus/Minus or drag the divider. Exit the shell to close it."
                     )
@@ -859,7 +908,7 @@ class Editor:
             except OSError as error:
                 self.message = f"Could not open terminal: {error}"
             else:
-                self.message = "ChemQL running in a separate console" if command else "Terminal opened in a separate console window"
+                self.message = "Configured command running in a separate console" if command else "Terminal opened in a separate console window"
             return
 
         stdin_fd = sys.stdin.fileno()

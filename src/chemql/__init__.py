@@ -19,6 +19,7 @@ from pathlib import Path
 from prompt_toolkit import PromptSession
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.keys import Keys
+from prompt_toolkit.document import Document
 from prompt_toolkit.lexers import Lexer
 from prompt_toolkit.styles import Style
 from prompt_toolkit.completion import Completer, Completion
@@ -68,7 +69,7 @@ __all__ = [
     "__version__"
 ]
 
-__version__ = "1.6.4"
+__version__ = "1.6.5"
 
 # Persistent preprocessor/function state for the current ChemQL session.
 DEFINITIONS = {}
@@ -409,7 +410,7 @@ _BUILTIN_HELP = {
 }
 
 _HELP_TOPICS = {
-    "syntax": ("ChemQL Syntax", ["Function calls use braces: `name{arg1, arg2}`.", "Quote text containing spaces: `upper{\"hello world\"}`.", "Separate arguments with commas, not spaces.", "Python statements/expressions can be embedded in `[ ... ]`.", "Multiline Python uses `[[[ ... ]]]`; embedded queries use `{{ ... }}`.", "Enums use `enum Name`, member declarations, and `endenum`; omitted values are generated automatically.", "Structs and records may use `from Base`; structs inherit from structs, records, or Python classes, while records inherit only from records."]),
+    "syntax": ("ChemQL Syntax", ["Function calls use braces: `name{arg1, arg2}`.", "Quote text containing spaces: `upper{\"hello world\"}`.", "Separate arguments with commas, not spaces.", "Python statements/expressions can be embedded in `[ ... ]`.", "Multiline Python uses `[[[ ... ]]]`; embedded queries use `{{ ... }}`.", "Enums use `enum Name`, member declarations, and `endenum`; omitted values are generated automatically.", "Structs and records may use `from Base`; structs inherit from structs, records, or Python classes, while records inherit only from records.", "Definitions are defined like `define MAX 9` and used like `@MAX * 2`, which returns 18", "Macros are defined like define Macro{} with the body text under it and ended by `enddefine` and called like @Macro{}"]),
     "errors": ("ChemQL Error Signals", ["SyntaxError — the input could not be parsed as valid syntax.", "TooFewArguments — a function received fewer arguments than required.", "TooManyArguments — a function received more arguments than allowed.", "InvalidArgumentType — an argument has an unsupported type.", "InvalidArgumentValue — an argument's value is invalid.", "FileReadError — reading a file failed.", "FileWriteError — writing a file failed.", "NameError — a name or function is unknown.", "PermissionError — a private namespace function was called externally."]),
     "files": ("File Functions", ["read_text{path, encoding?}", "read_lines{path, encoding?}", "read_csv{path, delimiter?, encoding?, header?}", "read_json{path, encoding?}", "write_text{path, content, encoding?}", "write_csv{path, rows, delimiter?, encoding?}", "write_json{path, value, encoding?, indent?}", "file_exists{path}", "list_files{directory?, pattern?}"]),
     "chemistry": ("Chemistry Functions", ["molar_mass{formula}", "count_atoms{formula, element_symbol}", "empirical_formula{formula}", "element{symbol, field?}"]),
@@ -777,16 +778,77 @@ def _call_function(name, arguments):
         parameter_names.append(parameter_name)
 
     def substitute_parameters(source):
-        """Replace \\1, \\2, etc. with safe names bound to the actual values."""
-        return re.sub(
-            r"\\(\d+)",
-            lambda match: (
-                parameter_names[int(match.group(1)) - 1]
-                if 0 < int(match.group(1)) <= len(parameter_names)
-                else match.group(0)
-            ),
-            source,
-        )
+        """Replace positional parameters while preserving string semantics."""
+        result = []
+        quote = None
+        f_string = False
+        escaped = False
+        index = 0
+
+        while index < len(source):
+            character = source[index]
+
+            if quote is None:
+                if character in ("'", '"'):
+                    delimiter = character
+                    if source[index:index + 3] == character * 3:
+                        delimiter = character * 3
+                    quote = delimiter
+                    f_string = (
+                        index > 0
+                        and source[index - 1] in "fF"
+                        and (
+                            index < 2
+                            or not (source[index - 2].isalnum() or source[index - 2] == "_")
+                        )
+                    )
+                    result.append(character)
+                    if len(delimiter) == 3:
+                        result.extend(character for _ in range(2))
+                        index += 3
+                    else:
+                        index += 1
+                    continue
+                result.append(character)
+                index += 1
+                continue
+
+            if escaped:
+                result.append(character)
+                escaped = False
+                index += 1
+                continue
+
+            if character == "\\":
+                match = re.match(r"\\(\d+)", source[index:])
+                if match:
+                    argument_index = int(match.group(1))
+                    if 0 < argument_index <= len(parameter_names):
+                        parameter_name = parameter_names[argument_index - 1]
+                        if f_string:
+                            result.append("{" + parameter_name + "}")
+                        else:
+                            result.append(
+                                repr(str(values[argument_index - 1]))[1:-1]
+                            )
+                        index += len(match.group(0))
+                        continue
+                result.append(character)
+                escaped = True
+                index += 1
+                continue
+
+            if source.startswith(quote, index):
+                result.extend(quote)
+                index += len(quote)
+                quote = None
+                f_string = False
+                continue
+
+            result.append(character)
+            index += 1
+
+        return "".join(result)
 
     def normalize_let_line(source):
         """Translate let name = expression into a Python assignment."""
@@ -6677,16 +6739,16 @@ class ChemqlLexer(Lexer):
         "search", "source", "list", "clear", "exit", "findel", "findmol",
         "findre", "set", "add", "remove", "react", "balance", "conditions",
         "view", "help", "dump", "version", "return", "union", "intersection",
-        "let", "unset", "variables", "macros", "definitions", "arguments",
+        "let", "unset", "variables", "macros", "definitions",
         "define", "func", "struct", "record", "enum", "risk", "fix", "cleanup",
         "signal", "import", "remove", "load"
     }
     OPERATORS = {
         "and", "or", "has", "like", "like!", "likep", "sort", "limit",
-        "count", "asc", "desc", "in", "not", "is",
+        "count", "asc", "desc", "in", "not", "is", "arguments"
     }
     CONTROL_WORDS = {
-        "if", "elif", "else", "for", "while", "break", "continue", "endblock",
+        "if", "elif", "else", "for", "while", "break", "continue", "skip", "endblock",
         "endfor", "endwhile", "endif", "endrisk", "endstruct", "endrecord", "endenum",
         "endfunc", "enddefine", "func", "define", "struct", "record", "risk", "static",
         "fix", "cleanup", "signal", "import", "as", "return", "public", "private",
@@ -6778,7 +6840,16 @@ class ChemqlLexer(Lexer):
                 if line.startswith("{{", i):
                     j = line.find("}}", i + 2)
                     j = len(line) if j < 0 else j + 2
-                    tokens.append(("class:interpolation", line[i:j]))
+                    interpolation = line[i:j]
+                    tokens.append(("class:interpolation", interpolation[:2]))
+                    body = interpolation[2:-2] if interpolation.endswith("}}") else interpolation[2:]
+                    for style, value in self.lex_document(Document(body))(0):
+                        tokens.append((
+                            f"{style} class:interpolation" if style else "class:interpolation",
+                            value,
+                        ))
+                    if interpolation.endswith("}}"):
+                        tokens.append(("class:interpolation", "}}"))
                     i = j
                     continue
                 if ch in "'\"":
@@ -6997,7 +7068,7 @@ chemql_style = Style.from_dict({
     "function": "ansiyellow bold",
     "macro": "ansimagenta bold",
     "definition": "ansibrightmagenta",
-    "interpolation": "ansibrightcyan italic",
+    "interpolation": "italic",
 })
 
 

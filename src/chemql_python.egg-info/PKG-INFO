@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: chemql-python
-Version: 1.6.4
+Version: 1.6.5
 Summary: A chemistry-focused query language and REPL
 Author-email: Mohammad Rakibul Islam <rakibulofficial1017@gmail.com>
 Requires-Python: >=3.10
@@ -22,15 +22,20 @@ CodecQL is the terminal text editor distributed with ChemQL. It edits
 source files, provides syntax highlighting, and supports configurable
 highlighting profiles for multiple file extensions.
 
-> **Version represented by this documentation:** ChemQL `1.6.4`; CodecQL
-> `0.0.11`.
+> **Version represented by this documentation:** ChemQL `1.6.5`; CodecQL
+> `0.0.12`.
 >
 > This README documents the implementation represented by the
 > accompanying source files. Some advanced syntax is intentionally
 > described at a high level; use the built-in `help` system for the
 > authoritative in-app reference.
 
-------------------------------------------------------------------------
+ChemQL is designed for chemistry-aware exploration without giving up the
+reach of Python. You can query packaged datasets, calculate formula
+properties, balance reactions, work with structured values, load a small
+standard library, and drop into Python when the language itself is not the
+right tool. CodecQL is the companion terminal editor with ChemQL-aware
+highlighting, search, undo/redo, and an integrated run terminal.
 
 ## Contents
 
@@ -72,9 +77,7 @@ command.
 
 The ChemQL runtime imports `prompt_toolkit` for the interactive prompt.
 The editor uses Python's standard library and ANSI terminal escape
-sequences. On Windows it attempts to initialize ANSI support with
-`colorama`, and falls back to enabling virtual-terminal processing when
-`colorama` is unavailable.
+sequences. 
 
 Install ChemQL using the distribution method provided by the project. If
 installing from a local source checkout, install the project from its
@@ -233,9 +236,7 @@ unset answer
 Definitions are expanded using an `@NAME` reference:
 
 ``` text
-define MAX {
-    100
-}
+define MAX 100
 ```
 
 Use the definition as:
@@ -248,11 +249,19 @@ Definitions are maintained in the current ChemQL session. The
 preprocessor performs one literal substitution pass; replacement text is
 not recursively expanded.
 
+Macros are expanded using an `@NAME{arguments if any}` reference:
+```
+define double{}
+\1 * 2          // this \1 means the first argument
+enddefine
+```
+
 Macros use a block form and are invoked by name according to the macro
 syntax supported by the interpreter. Use `help{syntax}` and the in-app
 completion/help facilities for the exact forms supported by your
 installed version.
 
+Current definitions can be viewed via `definitions` and `macros` for macros.
 ### Embedded Python
 
 A single-line Python statement or expression can be placed inside square
@@ -291,7 +300,8 @@ See `help{syntax}` and the query examples shipped with the project.
 ### Control flow
 
 ChemQL supports block-oriented control-flow constructs including `if`,
-`elif`, `else`, `for`, and `while`. Closing markers are explicit:
+`elif`, `else`, `for`, and `while`. Indentation in chemql is optional. 
+Closing markers are explicit:
 
 ``` text
 if condition
@@ -313,7 +323,7 @@ while condition
 endwhile
 ```
 
-`break` and `continue` are also recognized control keywords.
+`break` and `continue`/`skip` are also recognized control keywords.
 
 ### Functions
 
@@ -327,7 +337,13 @@ A minimal illustrative shape:
 
 ``` text
 func greet
-    return "Hello"
+    return "Hello, \1"
+endfunc
+
+// the equivalent of the above code using the global variable arguments is
+
+func greet
+    return "Hello " + arguments[0]
 endfunc
 ```
 
@@ -350,7 +366,7 @@ Declarations are closed with their corresponding terminators, such as
 
 Example declaration shape:
 
-``` text
+```
 struct Point
     x
     y
@@ -358,7 +374,22 @@ endstruct
 ```
 
 Enum members can receive automatically generated values when values are
-omitted.
+omitted unless it is required via the `required` keyword or a trailing exclamation mark.
+
+Example:
+
+```
+struct Fruit
+    name
+    required price
+    weight!
+    color = "Red" // default values
+endstruct
+
+Fruit{price=1.23} // Error, required weight
+Fruit{price=1.23, weight=2.3} // name is None and color is "Red"
+```
+
 
 ### Namespaces
 
@@ -482,6 +513,9 @@ namespaces:
   `datetime`           Dates, times, timestamps, and date arithmetic
   `json`               JSON serialization, parsing, and type inspection
   `random`             Pseudorandom values and sequence sampling
+  `decimal`             Base-10 decimal arithmetic and quantization
+  `fractions`           Exact rational arithmetic
+  `pathlib`              Safe path inspection and UTF-8 text operations
 
 Ask ChemQL for a package's documented members:
 
@@ -490,11 +524,28 @@ help{stdlib}
 help{math}
 help{math::statistics}
 help{text}
+help{decimal}
+help{fractions::create}
 ```
 
 A function can be documented individually when its help entry is
 registered:
 
+```
+
+Standard-library packages are loaded explicitly. Loading a package exposes
+its public members under the package namespace; unloaded namespaces should
+not be treated as globally available. For example:
+
+``` text
+load decimal
+decimal::add{"0.1", "0.2"}       // 0.3 exactly
+
+load fractions
+fractions::add{"1/3", "1/6"}     // 1/2
+
+load pathlib
+pathlib::write_text{"results.txt", "ChemQL"}
 ``` text
 help{math::sqrt}
 ```
@@ -532,6 +583,79 @@ Inspect or set conditions with the relevant interactive commands and use
 The available data sources and query fields are defined by the ChemQL
 package/data files. Use the interactive prompt's completion and
 `help{chemistry}` for the current details.
+
+### Packaged datasets and provenance
+
+The runtime ships data under [`src/chemql/data/`](src/chemql/data/):
+
+| File | Used for |
+| --- | --- |
+| `PeriodicTableJSON.json` | Element metadata, periodic-table lookups, and `search elements` |
+| `Molecules.json` | Molecule names, formulas, identifiers, and physical properties |
+| `Reactions.json` | Curated reaction records used by `findre`, `search reactions`, and `react` |
+| `MoleculeBonds.json` | Molecular connectivity and bond information |
+| `BondEnergies.json` | Bond-energy data for reaction/energy analysis |
+
+Molecule properties use reference conditions documented in
+[`src/chemql/data/README.md`](src/chemql/data/README.md). Missing or
+uncertain source values remain `null`; they are not inferred merely to make
+a record look complete. Reaction records may have unknown direction,
+conditions, or phases. Rhea-derived records retain their source links and
+the applicable third-party license text is included in
+`data/THIRD_PARTY_LICENSES/`.
+
+### Query examples
+
+The query language supports source selection, filtering, projection,
+ordering, and limiting. Exact field availability depends on the selected
+source:
+
+``` text
+search elements
+search elements name like "*oxygen*" sort atomic_number asc
+search molecules formula like "*H2O*" limit 10
+search reactions reaction_type like "*synthesis*" return id name equation
+findel O
+findmol "water"
+findre RHEA:10000
+```
+
+Common query operators include `like`, `like!`, `likep`, `has`, `sort`,
+`limit`, `count`, `first`, `last`, `union`, and `intersection`. Use
+`source`, `return`, and `view` to inspect or shape results. The command
+completion and `help{syntax}` are safer than guessing a field name when
+working with a new dataset.
+
+### Reaction conditions and balancing
+
+Reaction state is session-local. Configure it before matching or reacting:
+
+``` text
+set temperature 723K
+set pressure 20265000Pa
+set catalysts iron
+conditions
+react N2 3H2
+```
+
+Temperature accepts Kelvin, Celsius, and Fahrenheit values (`K`, `C`, `F`)
+plus the aliases `standard` and `room`. Pressure accepts Pa, bar, and
+common aliases such as `atm`, `kPa`, `MPa`, `hPa`, `torr`, `mmHg`, and `psi`
+plus `standard` and `room`. Catalysts can be replaced with `set`, appended
+with `add catalyst`, or removed with `remove catalyst`.
+
+Balance equations directly:
+
+``` text
+balance H2 + O2 -> H2O
+balance Ca(OH)2 + H3PO4 -> Ca3(PO4)2 + H2O
+balance H2 + O2 <-> H2O
+```
+
+The balancer returns minimal integer coefficients and preserves reaction
+direction. `->` creates a directed reaction, `<->` creates a reversible
+reaction, and an unknown direction remains an undirected equation. Comments
+after a balance expression can annotate direction intent.
 
 ## Package management
 
@@ -586,7 +710,7 @@ The package manager also supports upgrading ChemQL itself:
 
 ``` bash
 chemql --upgrade
-chemql --upgrade 1.6.4
+chemql --upgrade 1.6.5
 ```
 
 Use `--force` only when you understand that it bypasses normal
@@ -602,6 +726,55 @@ functions.
 Use square-bracket blocks for Python statements and expressions. Use
 `[[[ ... ]]]` for multiline Python. This is the intended boundary
 between ChemQL's command/query syntax and general Python code.
+
+### Calling ChemQL from Python
+
+The package exposes a small, stable query-oriented API:
+
+```python
+import chemql
+
+water = chemql.find_molecule("H2O")
+reaction = chemql.balance_stoichiometry(["H2", "O2"], ["H2O"])
+result = chemql.execute_query_text('molar_mass{"H2O"}')
+```
+
+The public exports include:
+
+| Export | Purpose |
+| --- | --- |
+| `execute_query(query)` | Execute a tokenized query/command |
+| `execute_query_text(text)` | Execute ChemQL source text |
+| `search(source)` | Query a packaged data source |
+| `find_molecule(value)` | Find a molecule in the bundled local dataset |
+| `find_reaction(value)` | Find a reaction by identifier or searchable value |
+| `search_reactions(**criteria)` | Search reaction records by fields |
+| `balance_stoichiometry(reactants, products, reversible=None)` | Balance a reaction and return a `Reaction` |
+| `Element`, `Molecule`, `Reaction` | Chemistry result types |
+| `ReturnTable`, `Unknown` | Query result/support types |
+| `ChemQLError` and built-in error classes | Explicit runtime failures |
+
+`chemql.__version__` contains the installed runtime version. Query results
+may be a scalar, list, dictionary-like record, chemistry object, `None`, or
+an `Unknown` value depending on the operation. Errors are raised rather
+than silently converted into successful-looking results.
+
+### External molecule lookup
+
+The Python `find_molecule` API reads the bundled local dataset. The
+interactive `findmol` command adds an external fallback path, including
+PubChem and NIST-backed lookups, when network access is available. External
+lookups are best-effort: a missing network service or unknown compound
+returns no match, not a fabricated molecule. Applications that require
+reproducibility should prefer records present in `src/chemql/data/` and
+handle a missing result explicitly.
+
+### Importing ChemQL packages from Python
+
+ChemQL package source is intended to be loaded by the ChemQL runtime. For
+Python applications, keep the query boundary explicit and use
+`execute_query_text` or a separately tested wrapper instead of relying on
+private interpreter state.
 
 ## Help and errors
 
@@ -631,6 +804,95 @@ Other errors can include `SyntaxError`, `NameError`, and
 `PermissionError`.
 
 ------------------------------------------------------------------------
+
+## Development
+
+ChemQL requires Python 3.10 or newer. From this directory, a typical
+development setup is:
+
+``` bash
+python -m venv .venv
+# Linux/macOS:
+source .venv/bin/activate
+# Windows PowerShell:
+# .venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -e ".[test]"
+```
+
+Run the package's test suite with:
+
+``` bash
+python -m pytest
+```
+
+The tests cover the public query API, formula and reaction handling,
+external molecule fallback behavior, structured types and inheritance,
+standard-library packages, CLI behavior, and CodecQL editing interactions.
+When changing packaged data or syntax, run the full suite rather than only
+an isolated test because interpreter state and data-loading behavior are
+shared across several tests.
+
+Build distribution artifacts with:
+
+``` bash
+python -m pip install build
+python -m build
+```
+
+The generated wheel and source archive are written to `dist/`. Do not
+manually edit generated metadata under `src/chemql_python.egg-info/`.
+
+### Source-checkout launcher
+
+When dependencies are installed but the project is not installed, the
+[`scripts/chemql`](scripts/chemql) launcher runs the package directly from
+`src/`:
+
+``` bash
+./scripts/chemql --version
+./scripts/chemql -f examples/script.cql
+```
+
+On Windows, use an installed console script or invoke `python -m chemql`
+with `PYTHONPATH=src`.
+
+## Design and operational notes
+
+- ChemQL function calls use braces (`name{...}`), while embedded Python
+  uses square brackets. This keeps the language boundary explicit.
+- Definitions, functions, macros, variables, loaded packages, reaction
+  conditions, and execution history are session state. Start a fresh
+  process when a clean environment is important.
+- File built-ins use current process permissions and default to UTF-8.
+- External molecule lookup requires network access and should not be used
+  as the sole source for a reproducible scientific workflow.
+- ANSI output can be disabled with `--no-ansi`, which is useful for logs
+  and automated comparisons.
+- Package install, upload, and upgrade commands can modify the local
+  environment. Prefer an isolated virtual environment.
+
+## Compatibility and support boundaries
+
+ChemQL is tested against Python `>=3.10` and depends on
+`prompt_toolkit>=3.0` and `rich>=13.7`. CodecQL uses terminal capabilities
+for raw key input, ANSI styling, and optional system clipboard integration.
+Clipboard support is opportunistic; the editor retains an internal
+clipboard when no platform utility is available.
+
+The highlighting loader validates regex profiles, but the current renderer
+applies keyword profiles through its identifier-highlighting path. Treat
+regex profile validation as supported configuration behavior, not as a
+guarantee that every regex rule is rendered in every token context.
+
+## License and data attribution
+
+The project code is distributed under the [MIT License](LICENSE).
+Chemistry datasets can have their own provenance and licensing terms.
+Review [`src/chemql/data/README.md`](src/chemql/data/README.md) and the
+license files in
+[`src/chemql/data/THIRD_PARTY_LICENSES/`](src/chemql/data/THIRD_PARTY_LICENSES/)
+before redistributing packaged data.
 
 # CodecQL
 

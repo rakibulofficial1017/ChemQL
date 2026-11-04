@@ -159,6 +159,21 @@ def test_condition_terms_are_highlighted():
     assert ("class:command", "conditions") in tokens
 
 
+def test_interpolation_reuses_chemql_styles_and_adds_italics():
+    get_line = chemql.ChemqlLexer().lex_document(
+        Document("{{ search elements name like \"oxygen\" }}")
+    )
+    tokens = get_line(0)
+
+    assert ("class:interpolation", "{{") in tokens
+    assert ("class:command class:interpolation", "search") in tokens
+    assert ("class:source class:interpolation", "elements") in tokens
+    assert ("class:key class:interpolation", "name") in tokens
+    assert ("class:operator class:interpolation", "like") in tokens
+    assert ("class:string class:interpolation", '"oxygen"') in tokens
+    assert ("class:interpolation", "}}") in tokens
+
+
 def test_condition_commands_are_completed_contextually():
     completer = chemql.ChemqlCompleter()
 
