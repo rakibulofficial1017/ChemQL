@@ -11,7 +11,7 @@ import subprocess
 import time
 from .highlighting import HighlightProfiles
 
-VERSION = "0.0.12"
+VERSION = "0.1.0"
 
 
 def _write_system_clipboard(text):
@@ -75,6 +75,10 @@ def _decode_escape_sequence(sequence):
                 key = "insert"
             elif key_code == "3":
                 key = "delete"
+            elif key_code == "5":
+                key = "page_up"
+            elif key_code == "6":
+                key = "page_down"
             elif key_code == "27" and len(params) > 2 and params[2] == "127":
                 key = "backspace"
             else:
@@ -131,6 +135,7 @@ if os.name == 'nt':
         0x48: "arrow_up", 0x50: "arrow_down",
         0x4B: "arrow_left", 0x4D: "arrow_right",
         0x47: "arrow_home", 0x4F: "arrow_end",
+        0x49: "page_up", 0x51: "page_down",
         0x53: "delete", 0x93: "ctrl+delete", 0x73: "ctrl+arrow_left",
         0x74: "ctrl+arrow_right", 0x8D: "ctrl+arrow_up",
         0x91: "ctrl+arrow_down", 0x9B: "alt+arrow_left",
@@ -558,16 +563,12 @@ def apply_syntax_highlighting(text, filename=None, profiles=None):
         kind = match.lastgroup
         token = match.group()
         style = _token_style(kind, token, profiles, filename) if kind else ""
-        if (
-            kind == "identifier"
-            and os.path.splitext(filename or "")[1].casefold() == ".cql"
-            and re.search(
-                r"\b(?:enum|struct|record|namespace)\s+$",
-                text[:match.start()],
-                re.IGNORECASE,
-            )
-        ):
-            style = HIGHLIGHT_STYLES["type"]
+        if kind == "identifier" and os.path.splitext(filename or "")[1].casefold() == ".cql":
+            prefix = text[:match.start()]
+            if re.search(r"\b(?:enum|struct|record|namespace)\s+$", prefix, re.IGNORECASE):
+                style = HIGHLIGHT_STYLES["type"]
+            elif re.search(r"\bfunc\s+$", prefix, re.IGNORECASE):
+                style = HIGHLIGHT_STYLES["builtin"]
         if style:
             parts.extend((style, token, RESET))
         else:
@@ -599,6 +600,9 @@ class Editor:
         self.message = f"Opened {filename}" if filename else "New file"
         self.undo_stack = []
         self.redo_stack = []
+        self.diagnostic_panel = None
+        self._tab_states = None
+        self._active_tab = 0
 
         if filename and os.path.exists(filename):
             with open(filename, 'r', encoding='utf-8') as f:
@@ -606,12 +610,125 @@ class Editor:
                 self.lines = content if content else [""]
         self.saved_lines = tuple(self.lines)
         self.highlight_profiles = load_highlighting_profiles()
+        self._tab_states = [self._capture_tab_state()]
+
+    _TAB_STATE_EXCLUDE = {"_tab_states", "_active_tab"}
+
+    def _capture_tab_state(self):
+        return {key: value for key, value in self.__dict__.items()
+                if key not in self._TAB_STATE_EXCLUDE}
+
+    def _store_active_tab(self):
+        self._tab_states[self._active_tab] = self._capture_tab_state()
+
+    def _switch_tab(self, index):
+        self._store_active_tab()
+        self._active_tab = index % len(self._tab_states)
+        manager = self._tab_states
+        active = self._tab_states[self._active_tab]
+        self.__dict__.update(active)
+        self._tab_states = manager
+        self.message = f"Tab {self._active_tab + 1}/{len(manager)}"
+
+    def _new_tab(self):
+        self._store_active_tab()
+        state = self._capture_tab_state()
+        state.update({
+            "filename": None, "lines": [""], "cursor_x": 0, "cursor_y": 0,
+            "selection_anchor": None, "search_active": False, "search_query": "",
+            "search_regex": None, "search_error": "", "search_matches": [],
+            "current_search_match": None, "scroll_x": 0, "scroll_y": 0,
+            "dirty": False, "quit_requested": False, "message": "New tab",
+            "undo_stack": [], "redo_stack": [], "saved_lines": ("",),
+            "diagnostic_panel": None,
+        })
+        self._tab_states.append(state)
+        self._active_tab = len(self._tab_states) - 1
+        self.__dict__.update(state)
+        self.message = f"New tab · {self._active_tab + 1}/{len(self._tab_states)}"
+
+    def _open_tab(self):
+        self._new_tab()
+        try:
+            path = input("Open file in new tab: ").strip()
+        except (EOFError, KeyboardInterrupt):
+            path = ""
+        if not path:
+            self.message = "Open cancelled · blank tab created"
+            return
+        try:
+            with open(path, "r", encoding="utf-8") as stream:
+                content = stream.read().splitlines()
+        except (OSError, UnicodeError) as error:
+            self.message = f"Could not open {path}: {error}"
+            return
+        self.filename = path
+        self.lines = content or [""]
+        self.cursor_x = self.cursor_y = 0
+        self.saved_lines = tuple(self.lines)
+        self.dirty = False
+        self.message = f"Opened {path}"
+
+    def _diagnostics(self, kind):
+        """Return lightweight, line-aware editor diagnostics."""
+        found = []
+        pairs = {"(": ")", "[": "]", "{": "}"}
+        stack = []
+        quote = None
+        escaped = False
+
+        for number, line in enumerate(self.lines, 1):
+            if kind == "warning":
+                if re.search(r"\b(?:TODO|FIXME|XXX)\b", line, re.I):
+                    found.append((number, "Warning", "TODO/FIXME marker"))
+                if re.match(r"^\s*warn\s+", line, re.I):
+                    found.append((number, "Warning", "Explicit ChemQL warning"))
+                if len(line) > 120:
+                    found.append((number, "Warning", "Line exceeds 120 characters"))
+            elif re.search(r"(?<![\w.])\d+(?:\.\d+)?\s*/\s*0(?:\.0+)?(?![\w.])", line):
+                found.append((number, "Error", "Division by zero"))
+
+            # Scan delimiters while ignoring quoted strings and comments.
+            for column, char in enumerate(line):
+                if quote:
+                    if escaped:
+                        escaped = False
+                    elif char == "\\":
+                        escaped = True
+                    elif char == quote:
+                        quote = None
+                    continue
+                if char in ("'", '"'):
+                    quote = char
+                elif char in "#" or line[column:column + 2] == "//":
+                    break
+                elif kind == "error" and char in pairs:
+                    stack.append((char, number, column))
+                elif kind == "error" and char in pairs.values():
+                    if not stack or pairs[stack[-1][0]] != char:
+                        found.append((number, "Error", f"Unmatched {char}"))
+                    else:
+                        stack.pop()
+
+            if kind == "error" and quote:
+                # Only report an unclosed quote at the end of a line; escaped
+                # quote handling above prevents false positives for normal strings.
+                if not escaped:
+                    found.append((number, "Error", "Possibly unterminated string"))
+                quote = None
+                escaped = False
+
+        if kind == "error":
+            for opener, number, _column in stack:
+                found.append((number, "Error", f"Unclosed {opener}"))
+        return found
 
     def run(self):
         sys.stdout.write("\x1b[?1049h\x1b[?2004h")
         sys.stdout.flush()
         try:
             while True:
+                self._store_active_tab()
                 self.draw_screen()
                 key = get_key()
                 if self.handle_key(key):
@@ -630,8 +747,10 @@ class Editor:
         cols = max(cols, 20)
         rows = max(rows, 4)
         gutter_width = len(str(max(len(self.lines), self.cursor_y + 1))) + 2
-        terminal_height = min(max(0, terminal_height), rows - 2)
-        viewport_height = rows - terminal_height - 2
+        panel_items = self._diagnostics(self.diagnostic_panel) if self.diagnostic_panel else []
+        panel_height = min(5, len(panel_items) + 1) if self.diagnostic_panel else 0
+        terminal_height = min(max(0, terminal_height), rows - 2 - panel_height)
+        viewport_height = rows - terminal_height - panel_height - 2
         viewport_width = max(1, cols - gutter_width)
         visual_cursor_x = len(self.lines[self.cursor_y][:self.cursor_x].expandtabs(4))
         self._keep_cursor_visible(viewport_height, viewport_width, visual_cursor_x)
@@ -644,14 +763,22 @@ class Editor:
                 visible_text = self.lines[line_y].expandtabs(4)[
                     self.scroll_x:self.scroll_x + viewport_width
                 ]
+                ghost = ""
+                if line_y == self.cursor_y and self.cursor_x == len(self.lines[line_y]):
+                    suffix = self._get_suggestion_suffix()
+                    ghost_column = visual_cursor_x - self.scroll_x
+                    available = max(0, viewport_width - ghost_column)
+                    if suffix and available:
+                        ghost = "\x1b[90m" + suffix[:available] + RESET
                 output.extend((
                     DIM, MUTED, line_number, RESET,
-                    self._highlight_line(visible_text, line_y), "\x1b[K\r\n",
+                    self._highlight_line(visible_text, line_y), ghost, "\x1b[K\r\n",
                 ))
             else:
                 output.extend((DIM, MUTED, " " * (gutter_width - 1), "~", RESET, "\x1b[K\r\n"))
 
-        title = f" ChemQL  {os.path.basename(self.filename) if self.filename else 'untitled'}"
+        tab_count = len(self._tab_states or [None])
+        title = f" CodecQL [{self._active_tab + 1}/{tab_count}]  {os.path.basename(self.filename) if self.filename else 'untitled'}"
         status = f"Ln {self.cursor_y + 1}, Col {self.cursor_x + 1}  |  {len(self.lines)} lines"
         if self.dirty:
             status += "  |  Unsaved"
@@ -664,10 +791,19 @@ class Editor:
             if self.search_active
             else self.message or (
                 "Ctrl+S Save  Ctrl+Z Undo  Ctrl+Y Redo  Ctrl+Q Quit  "
-                "Ctrl+F Search  Ctrl+T Terminal  Ctrl+R Run ChemQL  Ctrl+Backspace/Delete Word"
+                "Ctrl+F Search  Ctrl+W Warnings  Ctrl+E Errors  Ctrl+N New  Ctrl+O Open  Ctrl+L/P Switch Tabs"
             )
         )
         output.extend((DIM, footer[:cols].ljust(cols), RESET))
+        if self.diagnostic_panel:
+            heading = " Warnings " if self.diagnostic_panel == "warning" else " Errors "
+            output.extend((STATUS_BG, STATUS_FG, heading.ljust(cols), RESET, "\r\n"))
+            for number, level, message in panel_items[:max(0, panel_height - 1)]:
+                line = f" {level} · line {number}: {message}"[:cols].ljust(cols)
+                # Diagnostics are listed here without underlining; the actual
+                # source line is underlined in the editor viewport.
+                color = "\x1b[33m" if level == "Warning" else "\x1b[31;1m"
+                output.extend((color, line, RESET, "\r\n"))
         if self.search_active:
             cursor_row = rows
             cursor_col = min(cols, len("Search: ") + len(self.search_query) + 1)
@@ -695,7 +831,8 @@ class Editor:
                 current = (match_start, match_end) == self.current_search_match
                 overlays.append((start, end, "\x1b[7m" if current else "\x1b[43m", 1))
         if not overlays:
-            return apply_syntax_highlighting(visible_text, self.filename, self.highlight_profiles)
+            rendered = apply_syntax_highlighting(visible_text, self.filename, self.highlight_profiles)
+            return self._apply_diagnostic_underline(rendered, line_y)
 
         boundaries = {line_start, line_end}
         for start, end, _, _ in overlays:
@@ -725,7 +862,44 @@ class Editor:
         segment, self.filename, self.highlight_profiles
     )
 )
-        return "".join(parts)
+        return self._apply_diagnostic_underline("".join(parts), line_y)
+
+    def _apply_diagnostic_underline(self, rendered, line_y):
+        """Underline source lines that contain editor diagnostics."""
+        line_number = line_y + 1
+        error_lines = {item[0] for item in self._diagnostics("error")}
+        warning_lines = {item[0] for item in self._diagnostics("warning")}
+
+        # Errors take precedence if a line has both diagnostics. SGR 4:3 is
+        # the standardized wavy underline; SGR 58 sets its colour independently
+        # of the syntax-highlighted foreground colour.
+        if line_number in error_lines:
+            underline = "\x1b[4:3;58:2::255:64:64m"  # red wavy underline
+        elif line_number in warning_lines:
+            underline = "\x1b[4:3;58:2::255:210:0m"  # yellow wavy underline
+        else:
+            return rendered
+
+        # Syntax highlighting emits SGR resets between tokens. Reapply the
+        # underline after each reset so it remains active across the whole line.
+        return underline + rendered.replace(RESET, RESET + underline) + RESET
+
+    def _get_suggestion_suffix(self):
+        """Return the untyped part of the current inline suggestion, if any."""
+        if self.selection_anchor is not None and self._selection_offsets() is not None:
+            return ""
+        if self.cursor_y >= len(self.lines):
+            return ""
+        line = self.lines[self.cursor_y]
+        if self.cursor_x != len(line):
+            return ""
+        try:
+            return self.highlight_profiles.get_suggestion_suffix(
+                self.filename or "", line, self.cursor_x,
+                previous_lines=self.lines[:self.cursor_y],
+            )
+        except (AttributeError, re.error):
+            return ""
 
     def _keep_cursor_visible(self, height, width, visual_cursor_x):
         if self.cursor_y < self.scroll_y:
@@ -740,6 +914,30 @@ class Editor:
     def handle_key(self, key):
         if self.search_active:
             return self._handle_search_key(key)
+        if key in ("\x17", "ctrl+w"):
+            self.diagnostic_panel = "warning"
+            self.message = "Warnings · Esc closes this panel"
+            return False
+        if key in ("\x05", "ctrl+e"):
+            self.diagnostic_panel = "error"
+            self.message = "Errors · Esc closes this panel"
+            return False
+        if self.diagnostic_panel and key in ("\x1b", "escape"):
+            self.diagnostic_panel = None
+            self.message = "Diagnostics closed"
+            return False
+        if key in ("ctrl+n", "\x0e"):
+            self._new_tab()
+            return False
+        if key in ("ctrl+o", "\x0f"):
+            self._open_tab()
+            return False
+        if key in ("ctrl+tab", "ctrl+page_down", "\x0c", "ctrl+l"):
+            self._switch_tab(self._active_tab + 1)
+            return False
+        if key in ("ctrl+shift+tab", "ctrl+page_up", "\x10", "ctrl+p"):
+            self._switch_tab(self._active_tab - 1)
+            return False
         if key in ("\x14", "ctrl+t"):
             self._run_split_terminal()
             return False
@@ -831,7 +1029,8 @@ class Editor:
         elif key in ("\r", "\n"):
             self._insert_newline()
         elif key == "\t":
-            self._insert_text("\t")
+            suggestion = self._get_suggestion_suffix()
+            self._insert_text(suggestion if suggestion else "\t")
         elif key and key.isprintable() and (len(key) == 1 or "+" not in key):
             # Single printable characters (including '+') are text; multi-part
             # names such as "alt+delete" are symbolic key events.
@@ -1346,6 +1545,20 @@ class Editor:
         self._record_history()
         self._remove_selection()
         text = text.replace("\r\n", "\n").replace("\r", "\n")
+        if text in {"=", ">", "<", "-", "!", "~"} and self.cursor_x:
+            line = self.lines[self.cursor_y]
+            left = line[:self.cursor_x]
+            replacements = {
+                ">=": "≥", "<=": "≤", "!=": "≠", "->": "→",
+                "<-": "←", "=>": "⇒", "~=": "≈",
+            }
+            for source, target in sorted(replacements.items(), key=lambda item: -len(item[0])):
+                prefix = source[:-1]
+                if prefix and left.endswith(prefix):
+                    left = left[:-len(prefix)]
+                    self.lines[self.cursor_y] = left + line[self.cursor_x:]
+                    text = target
+                    break
         current_line = self.lines[self.cursor_y]
         left_side = current_line[:self.cursor_x]
         right_side = current_line[self.cursor_x:]
@@ -1446,8 +1659,14 @@ class Editor:
 
     def save_file(self):
         if not self.filename:
-            self.message = "Error: No file specified. Run with an argument name!"
-            return
+            try:
+                filename = input("Save tab as: ").strip()
+            except (EOFError, KeyboardInterrupt):
+                filename = ""
+            if not filename:
+                self.message = "Save cancelled"
+                return
+            self.filename = filename
         try:
             with open(self.filename, 'w', encoding='utf-8') as f:
                 f.write("\n".join(self.lines))

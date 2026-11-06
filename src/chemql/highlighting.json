@@ -1,7 +1,943 @@
 {
     ".cql": {
         "run-command": "chemql -f $absoluteName",
-        "rules": []
+        "rules": [],
+        "suggestions": [
+            {
+                "name": "element-fields",
+                "pattern": "(?!)",
+                "min-prefix": 0,
+                "suggestions": [
+                    "name",
+                    "symbol",
+                    "number",
+                    "atomic_mass",
+                    "category",
+                    "phase",
+                    "period",
+                    "group",
+                    "block",
+                    "density",
+                    "melt",
+                    "boil",
+                    "molar_heat",
+                    "appearance",
+                    "electron_configuration",
+                    "electron_configuration_semantic",
+                    "electronegativity_pauling",
+                    "electron_affinity",
+                    "ionization_energies",
+                    "shells",
+                    "discovered_by",
+                    "named_by",
+                    "summary",
+                    "source",
+                    "image",
+                    "bohr_model_image",
+                    "bohr_model_3d",
+                    "spectral_img",
+                    "xpos",
+                    "ypos",
+                    "wxpos",
+                    "wypos"
+                ]
+            },
+            {
+                "name": "molecule-fields",
+                "pattern": "(?!)",
+                "min-prefix": 0,
+                "suggestions": [
+                    "name",
+                    "formula",
+                    "molecular_weight",
+                    "elements",
+                    "iupac_name",
+                    "smiles",
+                    "cid",
+                    "state",
+                    "melting_point",
+                    "boiling_point",
+                    "density",
+                    "bonds",
+                    "total_bond_energy"
+                ]
+            },
+            {
+                "name": "reaction-fields",
+                "pattern": "(?!)",
+                "min-prefix": 0,
+                "suggestions": [
+                    "name",
+                    "id",
+                    "equation",
+                    "reaction_type",
+                    "reversible",
+                    "reactants",
+                    "products",
+                    "conditions",
+                    "notes",
+                    "source"
+                ]
+            },
+            {
+                "name": "all-fields",
+                "pattern": "(?!)",
+                "min-prefix": 0,
+                "suggestions": [
+                    "name",
+                    "symbol",
+                    "number",
+                    "atomic_mass",
+                    "category",
+                    "phase",
+                    "period",
+                    "group",
+                    "block",
+                    "density",
+                    "melt",
+                    "boil",
+                    "molar_heat",
+                    "appearance",
+                    "electron_configuration",
+                    "electron_configuration_semantic",
+                    "electronegativity_pauling",
+                    "electron_affinity",
+                    "ionization_energies",
+                    "shells",
+                    "discovered_by",
+                    "named_by",
+                    "summary",
+                    "source",
+                    "image",
+                    "bohr_model_image",
+                    "bohr_model_3d",
+                    "spectral_img",
+                    "xpos",
+                    "ypos",
+                    "wxpos",
+                    "wypos",
+                    "formula",
+                    "molecular_weight",
+                    "elements",
+                    "iupac_name",
+                    "smiles",
+                    "cid",
+                    "state",
+                    "melting_point",
+                    "boiling_point",
+                    "bonds",
+                    "total_bond_energy",
+                    "id",
+                    "equation",
+                    "reaction_type",
+                    "reversible",
+                    "reactants",
+                    "products",
+                    "conditions",
+                    "notes"
+                ]
+            },
+            {
+                "name": "numeric-fields",
+                "pattern": "(?!)",
+                "min-prefix": 0,
+                "suggestions": [
+                    "atomic_mass",
+                    "boil",
+                    "density",
+                    "melt",
+                    "molar_heat",
+                    "number",
+                    "period",
+                    "group",
+                    "xpos",
+                    "ypos",
+                    "wxpos",
+                    "wypos",
+                    "electron_affinity",
+                    "electronegativity_pauling",
+                    "molecular_weight",
+                    "cid",
+                    "melting_point",
+                    "boiling_point",
+                    "total_bond_energy"
+                ]
+            },
+            {
+                "name": "collection-fields",
+                "pattern": "(?!)",
+                "min-prefix": 0,
+                "suggestions": [
+                    "shells",
+                    "ionization_energies",
+                    "elements",
+                    "bonds",
+                    "reactants",
+                    "products",
+                    "conditions"
+                ]
+            },
+            {
+                "name": "boolean-fields",
+                "pattern": "(?!)",
+                "min-prefix": 0,
+                "suggestions": [
+                    "reversible"
+                ]
+            },
+            {
+                "name": "operators",
+                "pattern": "(?!)",
+                "min-prefix": 0,
+                "suggestions": [
+                    "=",
+                    "!=",
+                    ">",
+                    "<",
+                    ">=",
+                    "<=",
+                    "like",
+                    "like!",
+                    "likep",
+                    "has"
+                ]
+            },
+            {
+                "name": "builtin-functions",
+                "pattern": "(?!)",
+                "min-prefix": 0,
+                "suggestions": [
+                    "molar_mass",
+                    "count_atoms",
+                    "empirical_formula",
+                    "element",
+                    "abs",
+                    "round",
+                    "min",
+                    "max",
+                    "sum",
+                    "len",
+                    "type",
+                    "str",
+                    "int",
+                    "float",
+                    "bool",
+                    "upper",
+                    "lower",
+                    "contains",
+                    "replace",
+                    "split",
+                    "join",
+                    "first",
+                    "last",
+                    "unique",
+                    "sort",
+                    "reversed",
+                    "read_text",
+                    "read_lines",
+                    "read_json",
+                    "read_csv",
+                    "write_text",
+                    "write_csv",
+                    "write_json",
+                    "file_exists",
+                    "list_files",
+                    "help"
+                ]
+            },
+            {
+                "name": "stdlib-modules",
+                "pattern": "(?!)",
+                "min-prefix": 0,
+                "suggestions": [
+                    "math",
+                    "math::statistics",
+                    "text",
+                    "collections",
+                    "datetime",
+                    "json",
+                    "random",
+                    "decimal",
+                    "fractions",
+                    "pathlib"
+                ]
+            },
+            {
+                "name": "first-word",
+                "pattern": "(?:^|;)\\s*$",
+                "min-prefix": 1,
+                "suggestions": [
+                    "search",
+                    "source",
+                    "set",
+                    "let",
+                    "list",
+                    "load",
+                    "findel",
+                    "findmol",
+                    "findre",
+                    "balance",
+                    "react",
+                    "conditions",
+                    "add",
+                    "remove",
+                    "help",
+                    "dump",
+                    "view",
+                    "version",
+                    "clear",
+                    "exit",
+                    "variables",
+                    "unset",
+                    "definitions",
+                    "macros",
+                    "define",
+                    "func",
+                    "static",
+                    "public",
+                    "private",
+                    "struct",
+                    "record",
+                    "enum",
+                    "namespace",
+                    "if",
+                    "elif",
+                    "else",
+                    "for",
+                    "while",
+                    "break",
+                    "continue",
+                    "skip",
+                    "risk",
+                    "fix",
+                    "cleanup",
+                    "signal",
+                    "warn",
+                    "return",
+                    "install",
+                    "endif",
+                    "endfor",
+                    "endwhile",
+                    "endfunc",
+                    "endstruct",
+                    "endrecord",
+                    "endenum",
+                    "endrisk",
+                    "enddefine",
+                    "endnamespace"
+                ]
+            },
+            {
+                "name": "inline-cql",
+                "pattern": "\\{\\{\\s*$",
+                "min-prefix": 0,
+                "suggestions": [
+                    "search",
+                    "findel",
+                    "findmol",
+                    "findre",
+                    "react",
+                    "balance",
+                    "$first-word$"
+                ]
+            },
+            {
+                "name": "second-word",
+                "pattern": "(?:^|;|\\{\\{)\\s*search\\s+$",
+                "min-prefix": 0,
+                "suggestions": [
+                    "elements",
+                    "molecules",
+                    "reactions",
+                    "first",
+                    "last",
+                    "all",
+                    "$active-source-fields$"
+                ]
+            },
+            {
+                "name": "search-after-mode",
+                "pattern": "(?:^|;|\\{\\{)\\s*search\\s+(?:first|last|all)\\s+$",
+                "min-prefix": 0,
+                "suggestions": [
+                    "elements",
+                    "molecules",
+                    "reactions",
+                    "$active-source-fields$"
+                ]
+            },
+            {
+                "name": "search-elements-start",
+                "pattern": "(?:^|;|\\{\\{)\\s*search\\s+(?:(?:first|last|all)\\s+)?elements\\s+$",
+                "min-prefix": 0,
+                "suggestions": [
+                    "$element-fields$",
+                    "not",
+                    "sort",
+                    "limit",
+                    "count"
+                ]
+            },
+            {
+                "name": "search-molecules-start",
+                "pattern": "(?:^|;|\\{\\{)\\s*search\\s+(?:(?:first|last|all)\\s+)?molecules\\s+$",
+                "min-prefix": 0,
+                "suggestions": [
+                    "$molecule-fields$",
+                    "not",
+                    "sort",
+                    "limit",
+                    "count"
+                ]
+            },
+            {
+                "name": "search-reactions-start",
+                "pattern": "(?:^|;|\\{\\{)\\s*search\\s+(?:(?:first|last|all)\\s+)?reactions\\s+$",
+                "min-prefix": 0,
+                "suggestions": [
+                    "$reaction-fields$",
+                    "not",
+                    "sort",
+                    "limit",
+                    "count"
+                ]
+            },
+            {
+                "name": "search-source-not",
+                "pattern": "(?:^|;|\\{\\{)\\s*search\\s+(?:(?:first|last|all)\\s+)?(?:elements|molecules|reactions)\\s+not\\s+$",
+                "min-prefix": 0,
+                "suggestions": [
+                    "$active-source-fields$"
+                ]
+            },
+            {
+                "name": "search-return",
+                "pattern": "\\bsearch\\b[^;]*\\sreturn\\s+(?:[A-Za-z_][\\w-]*\\s+)*$",
+                "min-prefix": 0,
+                "suggestions": [
+                    "$active-source-fields$"
+                ]
+            },
+            {
+                "name": "search-sort-field",
+                "pattern": "\\bsearch\\b[^;]*\\ssort\\s+$",
+                "min-prefix": 0,
+                "suggestions": [
+                    "$active-source-fields$"
+                ]
+            },
+            {
+                "name": "search-sort-direction",
+                "pattern": "\\bsearch\\b[^;]*\\ssort\\s+(?:$all-fields$)\\s+$",
+                "min-prefix": 0,
+                "suggestions": [
+                    "asc",
+                    "desc",
+                    "limit",
+                    "count",
+                    "return"
+                ]
+            },
+            {
+                "name": "search-after-sort",
+                "pattern": "\\bsearch\\b[^;]*\\ssort\\s+(?:$all-fields$)\\s+(?:asc|desc)\\s+$",
+                "min-prefix": 0,
+                "suggestions": [
+                    "limit",
+                    "count",
+                    "return",
+                    "sort"
+                ]
+            },
+            {
+                "name": "search-limit-value",
+                "pattern": "\\bsearch\\b[^;]*\\slimit\\s+$",
+                "min-prefix": 0,
+                "suggestions": [
+                    "10",
+                    "5",
+                    "1",
+                    "100"
+                ]
+            },
+            {
+                "name": "search-after-limit",
+                "pattern": "\\bsearch\\b[^;]*\\slimit\\s+\\d+\\s+$",
+                "min-prefix": 0,
+                "suggestions": [
+                    "sort",
+                    "count",
+                    "return"
+                ]
+            },
+            {
+                "name": "search-set-operation",
+                "pattern": "\\bsearch\\b[^;]*\\s(?:union|intersection)\\s+$",
+                "min-prefix": 0,
+                "suggestions": [
+                    "search elements",
+                    "search molecules",
+                    "search reactions"
+                ]
+            },
+            {
+                "name": "value-phase",
+                "pattern": "\\bsearch\\b[^;]*\\sphase\\s+(?:not\\s+)?(?:$operators$)\\s+$",
+                "min-prefix": 0,
+                "suggestions": [
+                    "\"Gas\"",
+                    "\"Liquid\"",
+                    "\"Solid\""
+                ]
+            },
+            {
+                "name": "value-block",
+                "pattern": "\\bsearch\\b[^;]*\\sblock\\s+(?:not\\s+)?(?:$operators$)\\s+$",
+                "min-prefix": 0,
+                "suggestions": [
+                    "s",
+                    "p",
+                    "d",
+                    "f"
+                ]
+            },
+            {
+                "name": "value-category",
+                "pattern": "\\bsearch\\b[^;]*\\scategory\\s+(?:not\\s+)?(?:$operators$)\\s+$",
+                "min-prefix": 0,
+                "suggestions": [
+                    "\"noble gas\"",
+                    "\"alkali metal\"",
+                    "\"alkaline earth metal\"",
+                    "\"transition metal\"",
+                    "\"post-transition metal\"",
+                    "\"metalloid\"",
+                    "\"diatomic nonmetal\"",
+                    "\"polyatomic nonmetal\"",
+                    "\"lanthanide\"",
+                    "\"actinide\""
+                ]
+            },
+            {
+                "name": "value-state",
+                "pattern": "\\bsearch\\b[^;]*\\sstate\\s+(?:not\\s+)?(?:$operators$)\\s+$",
+                "min-prefix": 0,
+                "suggestions": [
+                    "solid",
+                    "liquid",
+                    "gas"
+                ]
+            },
+            {
+                "name": "value-reversible",
+                "pattern": "\\bsearch\\b[^;]*\\sreversible\\s+(?:not\\s+)?(?:$operators$)\\s+$",
+                "min-prefix": 0,
+                "suggestions": [
+                    "true",
+                    "false"
+                ]
+            },
+            {
+                "name": "search-after-value",
+                "pattern": "\\bsearch\\b[^;]*\\s(?:$all-fields$)\\s+(?:not\\s+)?(?:$operators$)\\s+(?:\\\"[^\\\"]*\\\"|'[^']*'|\\S+)\\s+$",
+                "min-prefix": 0,
+                "suggestions": [
+                    "and",
+                    "or",
+                    "sort",
+                    "limit",
+                    "count",
+                    "return",
+                    "union",
+                    "intersection"
+                ]
+            },
+            {
+                "name": "search-after-key-not",
+                "pattern": "\\bsearch\\b[^;]*\\s(?:$all-fields$)\\s+not\\s+$",
+                "min-prefix": 0,
+                "suggestions": [
+                    "like",
+                    "has",
+                    "=",
+                    "!=",
+                    ">",
+                    "<",
+                    ">=",
+                    "<=",
+                    "like!",
+                    "likep"
+                ]
+            },
+            {
+                "name": "search-after-collection-key",
+                "pattern": "\\bsearch\\b[^;]*\\s(?:$collection-fields$)\\s+$",
+                "min-prefix": 0,
+                "suggestions": [
+                    "has",
+                    "not"
+                ]
+            },
+            {
+                "name": "search-after-boolean-key",
+                "pattern": "\\bsearch\\b[^;]*\\s(?:$boolean-fields$)\\s+$",
+                "min-prefix": 0,
+                "suggestions": [
+                    "=",
+                    "!="
+                ]
+            },
+            {
+                "name": "search-after-numeric-key",
+                "pattern": "\\bsearch\\b[^;]*\\s(?:$numeric-fields$)\\s+$",
+                "min-prefix": 0,
+                "suggestions": [
+                    ">",
+                    "<",
+                    "=",
+                    ">=",
+                    "<=",
+                    "!=",
+                    "not"
+                ]
+            },
+            {
+                "name": "search-after-text-key",
+                "pattern": "\\bsearch\\b[^;]*\\s(?:$all-fields$)\\s+$",
+                "min-prefix": 0,
+                "suggestions": [
+                    "like",
+                    "=",
+                    "has",
+                    "!=",
+                    "like!",
+                    "likep",
+                    "not"
+                ]
+            },
+            {
+                "name": "search-after-connective",
+                "pattern": "\\bsearch\\b[^;]*(?:\\s(?:and|or|not)\\s+|\\(\\s+)$",
+                "min-prefix": 0,
+                "suggestions": [
+                    "$active-source-fields$",
+                    "not"
+                ]
+            },
+            {
+                "name": "findel-return-fields",
+                "pattern": "(?:^|;|\\{\\{)\\s*findel\\s+(?:\\\"[^\\\"]*\\\"|'[^']*'|\\S+)\\s+return\\s+(?:[A-Za-z_][\\w-]*\\s+)*$",
+                "min-prefix": 0,
+                "suggestions": [
+                    "$element-fields$"
+                ]
+            },
+            {
+                "name": "findel-return",
+                "pattern": "(?:^|;|\\{\\{)\\s*findel\\s+(?:\\\"[^\\\"]*\\\"|'[^']*'|\\S+)\\s+$",
+                "min-prefix": 0,
+                "suggestions": [
+                    "return"
+                ]
+            },
+            {
+                "name": "findmol-return-fields",
+                "pattern": "(?:^|;|\\{\\{)\\s*findmol\\s+(?:\\\"[^\\\"]*\\\"|'[^']*'|\\S+)\\s+return\\s+(?:[A-Za-z_][\\w-]*\\s+)*$",
+                "min-prefix": 0,
+                "suggestions": [
+                    "$molecule-fields$"
+                ]
+            },
+            {
+                "name": "findmol-return",
+                "pattern": "(?:^|;|\\{\\{)\\s*findmol\\s+(?:\\\"[^\\\"]*\\\"|'[^']*'|\\S+)\\s+$",
+                "min-prefix": 0,
+                "suggestions": [
+                    "return"
+                ]
+            },
+            {
+                "name": "findre-return-fields",
+                "pattern": "(?:^|;|\\{\\{)\\s*findre\\s+(?:\\\"[^\\\"]*\\\"|'[^']*'|\\S+)\\s+return\\s+(?:[A-Za-z_][\\w-]*\\s+)*$",
+                "min-prefix": 0,
+                "suggestions": [
+                    "$reaction-fields$"
+                ]
+            },
+            {
+                "name": "findre-return",
+                "pattern": "(?:^|;|\\{\\{)\\s*findre\\s+(?:\\\"[^\\\"]*\\\"|'[^']*'|\\S+)\\s+$",
+                "min-prefix": 0,
+                "suggestions": [
+                    "return"
+                ]
+            },
+            {
+                "name": "balance-after-product",
+                "pattern": "(?:^|;|\\{\\{)\\s*balance\\s+.*(?:->|<->)\\s+(?:(?:(?!(?:\\+|->|<->)\\s)\\S+)\\s+\\+\\s+)*(?:(?!(?:\\+|->|<->)\\s)\\S+)\\s+$",
+                "min-prefix": 0,
+                "suggestions": [
+                    "+"
+                ]
+            },
+            {
+                "name": "balance-after-reactant",
+                "pattern": "(?:^|;|\\{\\{)\\s*balance\\s+(?:(?:(?!(?:\\+|->|<->)\\s)\\S+)\\s+\\+\\s+)*(?:(?!(?:\\+|->|<->)\\s)\\S+)\\s+$",
+                "min-prefix": 0,
+                "suggestions": [
+                    "+",
+                    "->",
+                    "<->"
+                ]
+            },
+            {
+                "name": "set-setting",
+                "pattern": "(?:^|;|\\{\\{)\\s*set\\s+$",
+                "min-prefix": 0,
+                "suggestions": [
+                    "temperature",
+                    "pressure",
+                    "catalysts"
+                ]
+            },
+            {
+                "name": "set-temperature",
+                "pattern": "(?:^|;|\\{\\{)\\s*set\\s+temperature\\s+$",
+                "min-prefix": 0,
+                "suggestions": [
+                    "standard",
+                    "room",
+                    "25C",
+                    "100C",
+                    "298.15K",
+                    "373.15K",
+                    "77F"
+                ]
+            },
+            {
+                "name": "set-pressure",
+                "pattern": "(?:^|;|\\{\\{)\\s*set\\s+pressure\\s+$",
+                "min-prefix": 0,
+                "suggestions": [
+                    "standard",
+                    "room",
+                    "1atm",
+                    "1bar",
+                    "101325Pa",
+                    "760torr",
+                    "14.7psi"
+                ]
+            },
+            {
+                "name": "set-catalysts",
+                "pattern": "(?:^|;|\\{\\{)\\s*set\\s+catalysts\\s+(?:\\S+\\s+)*$",
+                "min-prefix": 1,
+                "suggestions": [
+                    "Iron",
+                    "Platinum",
+                    "Nickel",
+                    "Palladium",
+                    "Zinc",
+                    "Copper"
+                ]
+            },
+            {
+                "name": "add-word",
+                "pattern": "(?:^|;|\\{\\{)\\s*add\\s+$",
+                "min-prefix": 0,
+                "suggestions": [
+                    "catalyst"
+                ]
+            },
+            {
+                "name": "remove-word",
+                "pattern": "(?:^|;|\\{\\{)\\s*remove\\s+$",
+                "min-prefix": 0,
+                "suggestions": [
+                    "catalyst",
+                    "definition"
+                ]
+            },
+            {
+                "name": "catalyst-name",
+                "pattern": "(?:^|;|\\{\\{)\\s*(?:add|remove)\\s+catalyst\\s+$",
+                "min-prefix": 1,
+                "suggestions": [
+                    "\"Iron\"",
+                    "\"Platinum\"",
+                    "\"Nickel\"",
+                    "\"Palladium\"",
+                    "\"Zinc\"",
+                    "\"Copper\""
+                ]
+            },
+            {
+                "name": "source-name",
+                "pattern": "(?:^|;|\\{\\{)\\s*source\\s+$",
+                "min-prefix": 0,
+                "suggestions": [
+                    "elements",
+                    "molecules",
+                    "reactions"
+                ]
+            },
+            {
+                "name": "list-argument",
+                "pattern": "(?:^|;|\\{\\{)\\s*list\\s+$",
+                "min-prefix": 0,
+                "suggestions": [
+                    "all"
+                ]
+            },
+            {
+                "name": "dump-mode",
+                "pattern": "(?:^|;|\\{\\{)\\s*dump\\s+$",
+                "min-prefix": 0,
+                "suggestions": [
+                    "all",
+                    "good",
+                    "bad",
+                    "queries",
+                    "results"
+                ]
+            },
+            {
+                "name": "dump-kind",
+                "pattern": "(?:^|;|\\{\\{)\\s*dump\\s+(?:all|good|bad)\\s+$",
+                "min-prefix": 0,
+                "suggestions": [
+                    "queries",
+                    "results"
+                ]
+            },
+            {
+                "name": "help-topic",
+                "pattern": "(?:^|;|\\{\\{)\\s*(?:help|\\?)\\s+$",
+                "min-prefix": 0,
+                "suggestions": [
+                    "syntax",
+                    "errors",
+                    "files",
+                    "chemistry",
+                    "stdlib",
+                    "$builtin-functions$",
+                    "$stdlib-modules$"
+                ]
+            },
+            {
+                "name": "install-option",
+                "pattern": "(?:^|;|\\{\\{)\\s*install\\s+\\S+\\s+$",
+                "min-prefix": 0,
+                "suggestions": [
+                    "--version"
+                ]
+            },
+            {
+                "name": "load-from-as",
+                "pattern": "(?:^|;|\\{\\{)\\s*load\\s+\\S+\\s+from\\s+\\S+\\s+$",
+                "min-prefix": 0,
+                "suggestions": [
+                    "as"
+                ]
+            },
+            {
+                "name": "load-from",
+                "pattern": "(?:^|;|\\{\\{)\\s*load\\s+\\S+\\s+from\\s+$",
+                "min-prefix": 0,
+                "suggestions": [
+                    "$stdlib-modules$"
+                ]
+            },
+            {
+                "name": "load-after-name",
+                "pattern": "(?:^|;|\\{\\{)\\s*load\\s+\\S+\\s+$",
+                "min-prefix": 0,
+                "suggestions": [
+                    "as",
+                    "from"
+                ]
+            },
+            {
+                "name": "load-module",
+                "pattern": "(?:^|;|\\{\\{)\\s*load\\s+$",
+                "min-prefix": 0,
+                "suggestions": [
+                    "$stdlib-modules$"
+                ]
+            },
+            {
+                "name": "let-equals",
+                "pattern": "(?:^|;|\\{\\{)\\s*let\\s+\\S+\\s+$",
+                "min-prefix": 0,
+                "suggestions": [
+                    "="
+                ]
+            },
+            {
+                "name": "let-value",
+                "pattern": "(?:^|;|\\{\\{)\\s*let\\s+\\S+\\s+=\\s+$",
+                "min-prefix": 1,
+                "suggestions": [
+                    "{{ search elements",
+                    "{{ search molecules",
+                    "{{ search reactions",
+                    "{{ findmol",
+                    "True",
+                    "False",
+                    "None",
+                    "$builtin-functions$"
+                ]
+            },
+            {
+                "name": "visibility-declaration",
+                "pattern": "(?:^|;|\\{\\{)\\s*(?:public|private)\\s+$",
+                "min-prefix": 0,
+                "suggestions": [
+                    "func",
+                    "struct",
+                    "record",
+                    "enum",
+                    "namespace",
+                    "let",
+                    "static"
+                ]
+            },
+            {
+                "name": "static-func",
+                "pattern": "(?:^|;|\\{\\{)\\s*(?:(?:public|private)\\s+)?static\\s+$",
+                "min-prefix": 0,
+                "suggestions": [
+                    "func"
+                ]
+            },
+            {
+                "name": "inherits-from",
+                "pattern": "(?:^|;|\\{\\{)\\s*(?:(?:public|private)\\s+)?(?:struct|record)\\s+\\S+\\s+$",
+                "min-prefix": 0,
+                "suggestions": [
+                    "from"
+                ]
+            },
+            {
+                "name": "for-in",
+                "pattern": "(?:^|;|\\{\\{)\\s*for\\s+\\S+\\s+$",
+                "min-prefix": 0,
+                "suggestions": [
+                    "in"
+                ]
+            },
+            {
+                "name": "for-iterable",
+                "pattern": "(?:^|;|\\{\\{)\\s*for\\s+\\S+\\s+in\\s+$",
+                "min-prefix": 0,
+                "suggestions": [
+                    "range(",
+                    "{{ search elements",
+                    "{{ search molecules",
+                    "{{ search reactions"
+                ]
+            }
+        ]
     },
     ".py": {
         "run-command": "python -u $absoluteName",

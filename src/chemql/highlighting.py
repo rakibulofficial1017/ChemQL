@@ -1,4 +1,3 @@
-
 import json
 import os
 import re
@@ -76,6 +75,7 @@ BUILTIN_PROFILES = {
         }
     ]
 }
+
 
 class HighlightConfigError(ValueError):
     """Raised when a syntax-highlighting configuration is invalid."""
@@ -164,13 +164,105 @@ def validate_rule(rule, extension, index):
     return normalized
 
 
-def validate_config(config):
-    """Validate extension profiles and optional run commands."""
+def _validate_suggestion_rules(rules, extension):
+    """Validate context-aware completion rules."""
+    if not isinstance(rules, list):
+        raise HighlightConfigError(f"{extension}: 'suggestions' must be a list")
+
+    validated = []
+    names = set()
+    for index, rule in enumerate(rules):
+        location = f"{extension}, suggestion rule {index}"
+        if not isinstance(rule, dict):
+            raise HighlightConfigError(f"{location}: expected an object")
+
+        name = rule.get("name")
+        pattern = rule.get("pattern")
+        values = rule.get("suggestions")
+        min_prefix = rule.get("min-prefix", 0)
+
+        if not isinstance(name, str) or not name.strip():
+            raise HighlightConfigError(f"{location}: 'name' must be a non-empty string")
+        name = name.strip()
+        if name in names:
+            raise HighlightConfigError(f"{location}: duplicate suggestion rule name {name!r}")
+        if not isinstance(pattern, str) or not pattern:
+            raise HighlightConfigError(f"{location}: 'pattern' must be a non-empty string")
+        if not isinstance(values, list) or not values:
+            raise HighlightConfigError(f"{location}: 'suggestions' must be a non-empty list")
+        if not isinstance(min_prefix, int) or isinstance(min_prefix, bool) or min_prefix < 0:
+            raise HighlightConfigError(f"{location}: 'min-prefix' must be a non-negative integer")
+        if not all(isinstance(value, str) and value for value in values):
+            raise HighlightConfigError(f"{location}: every suggestion must be a non-empty string")
+
+        # References must point to an earlier rule, preventing cycles.
+        references = re.findall(r"\$([A-Za-z_][A-Za-z0-9_-]*)\$", pattern)
+        references += [
+            reference
+            for value in values
+            for reference in re.findall(r"\$([A-Za-z_][A-Za-z0-9_-]*)\$", value)
+        ]
+        reserved_references = {"active-source-fields", "query-start-options", "query-operators"}
+        unknown = sorted(set(references) - names - reserved_references)
+        if unknown:
+            raise HighlightConfigError(
+                f"{location}: unknown or forward suggestion reference(s): "
+                + ", ".join(unknown)
+            )
+
+        normalized = dict(rule)
+        normalized["name"] = name
+        normalized["suggestions"] = list(values)
+        normalized["min-prefix"] = min_prefix
+        validated.append(normalized)
+        names.add(name)
+
+    # Check that every pattern is a valid regex after reference expansion.
+    by_name = {}
+    for rule in validated:
+        pattern = _expand_suggestion_references(rule["pattern"], by_name, regex=True)
+        try:
+            re.compile(pattern, re.IGNORECASE)
+        except re.error as exc:
+            raise HighlightConfigError(
+                f"{extension}, suggestion rule {rule['name']!r}: invalid regular expression: {exc}"
+            ) from exc
+        by_name[rule["name"]] = rule
+
+    return validated
+
+
+def _expand_suggestion_references(value, previous_rules, regex=False, dynamic=None):
+    """Expand earlier rule references and runtime context placeholders."""
+    dynamic = dynamic or {}
+
+    def replace(match):
+        name = match.group(1)
+        rule = previous_rules.get(name)
+        if rule is not None:
+            values = rule["suggestions"]
+        elif name in dynamic:
+            values = dynamic[name]
+        else:
+            return match.group(0)
+        if regex:
+            return "(?:" + "|".join(re.escape(item) for item in values) + ")"
+        return "\0".join(values)
+
+    return re.sub(r"\$([A-Za-z_][A-Za-z0-9_-]*)\$", replace, value)
+
+
+def validate_config(config, *, include_suggestions=False):
+    """Validate extension profiles, highlighting rules, suggestions and run commands.
+
+    The original two-value return is preserved unless include_suggestions=True.
+    """
     if not isinstance(config, dict):
         raise HighlightConfigError("The configuration must be a JSON object")
 
     profiles = {}
     run_commands = {}
+    suggestion_profiles = {}
 
     for extension, profile_config in config.items():
         normalized_extension = normalize_extension(extension)
@@ -184,8 +276,9 @@ def validate_config(config):
         if isinstance(profile_config, list):
             rules = profile_config
             run_command = None
+            suggestions = []
         elif isinstance(profile_config, dict):
-            unknown = set(profile_config) - {"rules", "run-command"}
+            unknown = set(profile_config) - {"rules", "run-command", "suggestions"}
             if unknown:
                 names = ", ".join(sorted(map(str, unknown)))
                 raise HighlightConfigError(
@@ -193,6 +286,7 @@ def validate_config(config):
                 )
             rules = profile_config.get("rules", [])
             run_command = profile_config.get("run-command")
+            suggestions = profile_config.get("suggestions", [])
         else:
             raise HighlightConfigError(
                 f"{normalized_extension}: expected a list or profile object"
@@ -207,6 +301,9 @@ def validate_config(config):
             validate_rule(rule, normalized_extension, index)
             for index, rule in enumerate(rules)
         ]
+        suggestion_profiles[normalized_extension] = _validate_suggestion_rules(
+            suggestions, normalized_extension
+        )
 
         if run_command is not None:
             if not isinstance(run_command, str) or not run_command.strip():
@@ -215,6 +312,8 @@ def validate_config(config):
                 )
             run_commands[normalized_extension] = run_command.strip()
 
+    if include_suggestions:
+        return profiles, run_commands, suggestion_profiles
     return profiles, run_commands
 
 
@@ -225,11 +324,13 @@ def validate_profiles(config):
 
 
 class HighlightProfiles:
-    """Loads and provides syntax-highlighting profiles."""
+    """Loads and provides syntax-highlighting and inline-completion profiles."""
 
     def __init__(self, config_path=None):
         self.config_path = config_path
-        self.profiles, self.run_commands = validate_config(BUILTIN_PROFILES)
+        self.profiles, self.run_commands, self.suggestion_profiles = validate_config(
+            BUILTIN_PROFILES, include_suggestions=True
+        )
 
         if config_path:
             self.load(config_path)
@@ -253,30 +354,33 @@ class HighlightProfiles:
                 f"Could not read {path}: {exc}"
             ) from exc
 
-        loaded_profiles, loaded_commands = validate_config(config)
+        loaded_profiles, loaded_commands, loaded_suggestions = validate_config(
+            config, include_suggestions=True
+        )
 
         self.profiles.update(loaded_profiles)
         # A later profile replaces the earlier extension profile as a whole.
         for extension in loaded_profiles:
             self.run_commands.pop(extension, None)
+            self.suggestion_profiles.pop(extension, None)
         self.run_commands.update(loaded_commands)
+        self.suggestion_profiles.update(loaded_suggestions)
         self.config_path = path
 
         return self.profiles
 
     def get(self, filename, default=None):
-        """Get the profile associated with a filename."""
+        """Get the highlighting rules associated with a filename."""
         extension = os.path.splitext(filename)[1].lower()
         return self.profiles.get(extension, default)
 
     def register(self, extension, rules):
-        """Register or replace a profile programmatically."""
+        """Register or replace a highlighting profile programmatically."""
         extension = normalize_extension(extension)
-
         validated = validate_profiles({extension: rules})
         self.profiles[extension] = validated[extension]
         self.run_commands.pop(extension, None)
-
+        self.suggestion_profiles.pop(extension, None)
         return self.profiles[extension]
 
     def get_keyword_style(self, filename, word):
@@ -296,3 +400,103 @@ class HighlightProfiles:
         """Return the configured run-command for a filename, if any."""
         extension = os.path.splitext(filename)[1].lower()
         return self.run_commands.get(extension)
+
+    def get_suggestion_suffix(self, filename, line, cursor, previous_lines=None):
+        """Return the completion suffix for the first matching context rule.
+
+        Context rules match text before the current token. The active ChemQL
+        source is inferred from the latest preceding ``source`` command, with
+        an explicit source in the current search taking precedence.
+        """
+        extension = os.path.splitext(filename)[1].lower()
+        rules = self.suggestion_profiles.get(extension, [])
+        if not rules:
+            return ""
+
+        before_cursor = line[:cursor]
+        token_match = re.search(r"(\S*)$", before_cursor)
+        prefix = token_match.group(1) if token_match else ""
+        context = before_cursor[:len(before_cursor) - len(prefix)]
+
+        source_fields = {
+            "elements": [
+                "name", "symbol", "number", "atomic_mass", "appearance", "category",
+                "phase", "density", "melt", "boil", "molar_heat", "period", "group",
+                "block", "shells", "electron_configuration", "electron_configuration_semantic",
+                "electron_affinity", "electronegativity_pauling", "ionization_energies",
+                "discovered_by", "named_by", "summary", "source", "image",
+                "bohr_model_image", "bohr_model_3d", "spectral_img", "xpos", "ypos",
+                "wxpos", "wypos", "cpk_hex", "cpk-hex"
+            ],
+            "molecules": [
+                "name", "formula", "elements", "molecular_weight", "iupac_name", "smiles",
+                "cid", "melting_point", "boiling_point", "density", "state", "bonds",
+                "total_bond_energy"
+            ],
+            "reactions": [
+                "id", "name", "equation", "reaction_type", "reversible", "reactants",
+                "products", "conditions", "notes", "source"
+            ],
+        }
+        active_source = None
+        history = list(previous_lines or []) + [line[:cursor]]
+        for index, historical_line in enumerate(history):
+            # Ignore ordinary line comments when looking for source selection.
+            statement = historical_line.split("//", 1)[0]
+            for match in re.finditer(
+                r"(?:^|;)\s*source\s+(elements|molecules|reactions)\b",
+                statement,
+                re.IGNORECASE,
+            ):
+                active_source = match.group(1).casefold()
+
+            # An explicit source in the statement currently being edited
+            # controls this query, without changing the persistent selection.
+            if index == len(history) - 1:
+                current_statement = statement.rsplit(";", 1)[-1]
+                explicit = re.match(
+                    r"\s*search\s+(?:(?:first|last|all)\s+)?(elements|molecules|reactions)\b",
+                    current_statement,
+                    re.IGNORECASE,
+                )
+                if explicit:
+                    active_source = explicit.group(1).casefold()
+
+        dynamic = {
+            "active-source-fields": source_fields.get(active_source, []),
+            "query-start-options": (
+                source_fields[active_source]
+                if active_source else ["elements", "molecules", "reactions"]
+            ),
+            "query-operators": [
+                "=", "!=", ">", "<", ">=", "<=", "like", "like!", "likep", "has",
+                "and", "or", "sort", "limit", "count", "return", "first", "last"
+            ],
+        }
+
+        previous = {}
+        for rule in rules:
+            if len(prefix) < rule.get("min-prefix", 0):
+                previous[rule["name"]] = rule
+                continue
+
+            pattern = _expand_suggestion_references(rule["pattern"], previous, regex=True)
+            try:
+                matched = re.search(pattern, context, re.IGNORECASE) is not None
+            except re.error:
+                matched = False
+
+            if matched:
+                candidates = []
+                for value in rule["suggestions"]:
+                    expanded = _expand_suggestion_references(value, previous, regex=False, dynamic=dynamic)
+                    candidates.extend(expanded.split("\0"))
+
+                for candidate in candidates:
+                    if candidate.casefold().startswith(prefix.casefold()) and len(candidate) > len(prefix):
+                        return candidate[len(prefix):]
+                return ""
+
+            previous[rule["name"]] = rule
+
+        return ""

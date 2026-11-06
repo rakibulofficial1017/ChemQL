@@ -29,6 +29,7 @@ import shlex
 import shutil
 import tarfile
 import tempfile
+from typing import Any
 import subprocess
 import sys
 import select
@@ -38,7 +39,6 @@ import uuid
 import urllib.parse
 import urllib.request
 import urllib.error
-
 
 __all__ = [
     "ChemQLError",
@@ -69,7 +69,7 @@ __all__ = [
     "__version__"
 ]
 
-__version__ = "1.6.5"
+__version__ = "1.6.6"
 
 # Persistent preprocessor/function state for the current ChemQL session.
 DEFINITIONS = {}
@@ -80,6 +80,7 @@ _DEFINITION_NAME = r"[A-Za-z_][A-Za-z0-9_]*"
 _NO_RETURN = object()
 NO_ANSI = True
 SUPPRESS_WARNINGS = False
+_IN_REPL = False
 
 def _expand_definitions(line):
     """Replace @NAME literally, including inside strings, using current definitions."""
@@ -526,7 +527,7 @@ def _read_package_manifest_file(manifest_path):
             import tomllib
         except ImportError:
             try:
-                import tomli as tomllib
+                import tomli as tomllib # type: ignore
             except ImportError as exc:
                 raise RuntimeError("TOML package manifests require Python 3.11+ or the 'tomli' package.") from exc
         with manifest_path.open("rb") as stream:
@@ -623,7 +624,7 @@ def _package_help_text(topic):
         # are displayed literally as the package's help text.
         help_path = Path(help_value).expanduser()
         if help_path.suffix.casefold() == ".md" and not help_path.is_absolute():
-            candidate = manifest_path.parent / help_path
+            candidate = manifest_path.parent / help_path # type: ignore
             if candidate.is_file():
                 try:
                     help_content = candidate.read_text(encoding="utf-8")
@@ -789,6 +790,20 @@ def _call_function(name, arguments):
             character = source[index]
 
             if quote is None:
+                # Positional parameters are valid in ordinary expressions too,
+                # not only inside quoted strings. Replace them with temporary
+                # variable names so their original Python types are preserved.
+                if character == "\\":
+                    match = re.match(r"\\(\d+)", source[index:])
+                    if match:
+                        argument_index = int(match.group(1))
+                        if 0 < argument_index <= len(parameter_names):
+                            result.append(parameter_names[argument_index - 1])
+                            index += len(match.group(0))
+                            continue
+                    result.append(character)
+                    index += 1
+                    continue
                 if character in ("'", '"'):
                     delimiter = character
                     if source[index:index + 3] == character * 3:
@@ -1172,7 +1187,7 @@ def _expand_function_calls(text):
                 # This allows namespace functions to call themselves and other
                 # functions in the same namespace without repeating the prefix.
                 if "::" not in resolved_name and _CURRENT_NAMESPACE is not None:
-                    local_name = f"{_CURRENT_NAMESPACE._chemql_name}::{resolved_name}"
+                    local_name = f"{_CURRENT_NAMESPACE._chemql_name}::{resolved_name}" # type: ignore
 
                     if local_name in FUNCTIONS:
                         resolved_name = local_name
@@ -1197,7 +1212,7 @@ def _expand_function_calls(text):
 
                     inside_own_namespace = (
                         _CURRENT_NAMESPACE is not None
-                        and _CURRENT_NAMESPACE._chemql_name == package_name
+                        and _CURRENT_NAMESPACE._chemql_name == package_name # pyright: ignore[reportAttributeAccessIssue]
                     )
 
                     if (
@@ -1233,6 +1248,73 @@ def _expand_function_calls(text):
                     imported_callable = python_globals[resolved_name]
                     values = [evaluate_python(arg) for arg in args]
                     value = imported_callable(*values)
+                elif (
+                    "::" not in resolved_name
+                    and _CURRENT_NAMESPACE is not None
+                    and isinstance(
+                        _CURRENT_NAMESPACE.__dict__.get(resolved_name,
+                            _CURRENT_NAMESPACE._chemql_private.get(resolved_name)),
+                        type,
+                    )
+                ):
+                    # Types declared in the active namespace can be used by
+                    # their short name inside that namespace, without exposing
+                    # private types as global Python names.
+                    namespace_type = _CURRENT_NAMESPACE.__dict__.get(
+                        resolved_name,
+                        _CURRENT_NAMESPACE._chemql_private.get(resolved_name),
+                    )
+                    temporary_name = "__chemql_namespace_type_" + uuid.uuid4().hex
+                    python_globals[temporary_name] = namespace_type
+                    replacement = f"{temporary_name}({text[opening + 1:end]})"
+                    text = text[:i] + replacement + text[end + 1:]
+                    changed = True
+                    break
+                elif "::" in resolved_name and resolved_name.rsplit("::", 1)[0] in NAMESPACES:
+                    # User namespaces expose public types as qualified
+                    # constructors. Private types remain available only from
+                    # code executing in their declaring namespace.
+                    namespace_name, member_name = resolved_name.rsplit("::", 1)
+                    namespace = NAMESPACES[namespace_name]
+                    is_internal = (
+                        _CURRENT_NAMESPACE is not None
+                        and _CURRENT_NAMESPACE._chemql_name == namespace_name
+                    )
+                    namespace_type = namespace.__dict__.get(
+                        member_name,
+                        namespace._chemql_private.get(member_name),
+                    )
+                    if not isinstance(namespace_type, type):
+                        raise ChemQLError(
+                            f"Unknown function `{name}`" if NO_ANSI else
+                            f"Unknown function \033[1m{name}\033[22m"
+                        )
+                    if member_name not in namespace._chemql_public and not is_internal:
+                        raise PermissionError(
+                            f"Type `{name}` is private" if NO_ANSI else
+                            f"Type \033[1m{name}\033[22m is private"
+                        )
+                    package_sources = globals().get("CHEMQL_PACKAGE_SOURCE_LOADED", set())
+                    explicit_packages = globals().get("CHEMQL_EXPLICITLY_LOADED_PACKAGES", set())
+                    is_package_namespace = (
+                        namespace_name in package_sources
+                        or namespace_name.split("::", 1)[0] in package_sources
+                    )
+                    is_explicitly_loaded = (
+                        namespace_name in explicit_packages
+                        or namespace_name.split("::", 1)[0] in explicit_packages
+                    )
+                    if is_package_namespace and not is_explicitly_loaded and not is_internal:
+                        raise ChemQLError(
+                            f"Unknown function `{name}`" if NO_ANSI else
+                            f"Unknown function \033[1m{name}\033[22m"
+                        )
+                    temporary_name = "__chemql_namespace_type_" + uuid.uuid4().hex
+                    python_globals[temporary_name] = namespace_type
+                    replacement = f"{temporary_name}({text[opening + 1:end]})"
+                    text = text[:i] + replacement + text[end + 1:]
+                    changed = True
+                    break
                 elif "::" in resolved_name:
                     # A qualified call is permitted only after the user has
                     # explicitly loaded its package (possibly under an alias).
@@ -1843,7 +1925,7 @@ def format_error(message, text=None, position=None, length=1):
         raise ChemQLError(message, position, length)
 
     output = ""
-    if (text is not None) and (position is not None) and (not NO_ANSI):
+    if _IN_REPL and (text is not None) and (position is not None) and (not NO_ANSI):
         output += f"\033[1;31m{' ' * (position+4)}{'^' * max(1, length)}\n\033[0m"
     output += f"Error: {message}" if NO_ANSI else f"\033[31mError: {message}\033[0m"
 
@@ -3780,6 +3862,23 @@ class ChemQLNamespace:
             self.__dict__["_chemql_private"][name] = value
             # Private names are available to code executing in the namespace,
             # but are deliberately not exposed through namespace.member.
+    # Tells Pylance that any dynamic attribute access returns Any
+    def __getattr__(self, name: str) -> Any:
+        try:
+            return self.__dict__[name]
+        except KeyError:
+            raise AttributeError(
+                (
+                    f"Attribute `{name}` is set to private in `{self.__dict__["_chemql_name"]}`"
+                    if name in self.__dict__["_chemql_private"] else
+                    f"`{self.__dict__["_chemql_name"]}` has no attribute `{name}`"
+                ) if NO_ANSI else 
+                (
+                    f"Attribute \033[1m{name}\033[22m is set to private in \033[1m{self.__dict__["_chemql_name"]}\033[22m"
+                    if name in self.__dict__["_chemql_private"] else
+                    f"\033[1m{self.__dict__["_chemql_name"]}\033[22m has no attribute \033[1m{name}\033[22m"
+                )
+            )
 
 NAMESPACES = {}
 _CURRENT_NAMESPACE = None
@@ -4059,8 +4158,8 @@ def _run_python_in_active_namespace(compiled, mode):
         return None
 
     members = {}
-    members.update(namespace._chemql_private)
-    for member_name in namespace._chemql_public:
+    members.update(namespace._chemql_private) # type: ignore
+    for member_name in namespace._chemql_public: # type: ignore
         if member_name in namespace.__dict__:
             members[member_name] = namespace.__dict__[member_name]
 
@@ -4860,8 +4959,8 @@ def _ensure_package_namespace(package_name, allow_namespace_only=False):
             # not overwrite explicit ChemQL members, and do not capture runtime
             # internals or temporary values used by embedded-query expansion.
             existing_members = (
-                set(namespace._chemql_public)
-                | set(namespace._chemql_private)
+                set(namespace._chemql_public) # type: ignore
+                | set(namespace._chemql_private) # type: ignore
             )
             ignored_prefixes = ("__chemql_",)
             for member_name, member_value in list(python_globals.items()):
@@ -5179,8 +5278,22 @@ def process_lines(lines):
             if not members:
                 raise SyntaxError((f"Enum `{type_name}` must declare members" if NO_ANSI else f"Enum \033[1m{type_name}\033[22m must declare members"))
             generated = Enum(type_name, members, module=__name__)
-            ENUMS[type_name] = generated
-            python_globals[type_name] = generated
+
+            type_key = (
+                f"{_CURRENT_NAMESPACE._chemql_name}::{type_name}"
+                if _CURRENT_NAMESPACE is not None else type_name
+            )
+
+            ENUMS[type_key] = generated
+
+            if _CURRENT_NAMESPACE is not None:
+                _CURRENT_NAMESPACE._set_member(
+                    type_name,
+                    generated,
+                    _CURRENT_VISIBILITY == "public"
+                )
+            else:
+                python_globals[type_name] = generated
             i = end + 1
             continue
 
@@ -5209,12 +5322,22 @@ def process_lines(lines):
                     parent = evaluate_python(base_reference)
                 if kind == "record":
                     if parent not in RECORDS.values():
-                        parent = RECORDS.get(base_reference)
+                        local_base_key = (
+                            f"{_CURRENT_NAMESPACE._chemql_name}::{base_reference}"
+                            if _CURRENT_NAMESPACE is not None else base_reference
+                        )
+                        parent = RECORDS.get(local_base_key) or RECORDS.get(base_reference)
                     if parent is None:
                         raise SyntaxError((f"Record `{type_name}` can only inherit from another record" if NO_ANSI else f"Record \033[1m{type_name}\033[22m can only inherit from another record"))
                 else:
+                    local_base_key = (
+                        f"{_CURRENT_NAMESPACE._chemql_name}::{base_reference}"
+                        if _CURRENT_NAMESPACE is not None else base_reference
+                    )
                     parent = (
                         parent
+                        or STRUCTS.get(local_base_key)
+                        or RECORDS.get(local_base_key)
                         or STRUCTS.get(base_reference)
                         or RECORDS.get(base_reference)
                         or python_globals.get(base_reference)
@@ -5384,7 +5507,15 @@ def process_lines(lines):
                     parent in RECORDS.values() if parent is not None else False,
                     native_constructor_base,
                 )
-                STRUCTS[type_name] = generated
+                type_key = (
+                    f"{_CURRENT_NAMESPACE._chemql_name}::{type_name}"
+                    if _CURRENT_NAMESPACE is not None else type_name
+                )
+                STRUCTS[type_key] = generated
+                if _CURRENT_NAMESPACE is not None:
+                    _CURRENT_NAMESPACE._set_member(
+                        type_name, generated, _CURRENT_VISIBILITY == "public"
+                    )
             else:
                 from collections import namedtuple
                 first_default = next((n for n, f in enumerate(fields) if f in defaults), len(fields))
@@ -5438,8 +5569,12 @@ def process_lines(lines):
                         "__pos__": lambda self: type(self)(*(+getattr(self, f) for f in field_names)),
                         "__abs__": lambda self: type(self)(*(abs(getattr(self, f)) for f in field_names)),
                     }
+                    # Use the same argument validation for root and derived
+                    # records. The namedtuple base otherwise raises a generic
+                    # missing-positional-argument error instead of ChemQL's
+                    # field-aware missing-required-field message.
+                    attrs["__new__"] = _record_new
                     if derived:
-                        attrs["__new__"] = _record_new
                         attrs["_fields"] = tuple(field_names)
                         attrs["__match_args__"] = tuple(field_names)
                         attrs["_field_defaults"] = dict(field_defaults)
@@ -5449,7 +5584,15 @@ def process_lines(lines):
                                 attrs[field] = property(lambda self, idx=index: self[idx])
                     return type(record_name, (record_base,), attrs)
                 generated = make_record(type_name, base_record, fields, defaults, parent is not None)
-                RECORDS[type_name] = generated
+                type_key = (
+                    f"{_CURRENT_NAMESPACE._chemql_name}::{type_name}"
+                    if _CURRENT_NAMESPACE is not None else type_name
+                )
+                RECORDS[type_key] = generated
+                if _CURRENT_NAMESPACE is not None:
+                    _CURRENT_NAMESPACE._set_member(
+                        type_name, generated, _CURRENT_VISIBILITY == "public"
+                    )
             generated._chemql_fields = tuple(fields)
             generated._chemql_required = tuple(base_required + required_fields) if kind == "struct" else ()
             generated._chemql_defaults = dict(defaults)
@@ -5514,7 +5657,7 @@ def process_lines(lines):
             python_globals["warnings"] = warning
 
             if not SUPPRESS_WARNINGS:
-                message = f"Warning: {warning}"
+                message = f"Warning on line {i + 1}: {warning}"
                 print(message if NO_ANSI else f"\033[33m{message}\033[0m")
 
             i += 1
@@ -5752,9 +5895,9 @@ def process_lines(lines):
                     print(output, end="" if output.endswith("\n") else "\n")
                 _record_execution("[[[\n" + code + "\n]]]", output, True)
             except Exception as exc:
-                message = f"\033[31mError: {exc}\033[0m"
-                print(strip_ansi(message) if NO_ANSI else message, file=sys.stderr)
+                message = f"\033[31mError on line {i + 1}: {exc}\033[0m"
                 _record_execution("[[[\n" + code + "\n]]]", message, False)
+                raise RuntimeError(f"Line {i + 1}: {exc}") from exc
             i += 1
             continue
 
@@ -5790,11 +5933,9 @@ def process_lines(lines):
                     i += 1
                     continue
             except Exception as exc:
-                message = f"\033[31mError: {exc}\033[0m"
-                print(strip_ansi(message) if NO_ANSI else message, file=sys.stderr)
+                message = f"\033[31mError on line {i + 1}: {exc}\033[0m"
                 _record_execution(load_statement, message, False)
-                i += 1
-                continue
+                raise RuntimeError(f"Line {i + 1}: {exc}") from exc
 
         # Literal definitions are intentionally expanded inside strings too.
         # Directives themselves were handled above, so updates are not retroactive.
@@ -5881,9 +6022,9 @@ def process_lines(lines):
             except Exception as exc:
                 if _CHEMQL_RISK_DEPTH:
                     raise
-                message = f"\033[31mError: {exc}\033[0m"
-                print(strip_ansi(message) if NO_ANSI else message, file=sys.stderr)
+                message = f"\033[31mError on line {i + 1}: {exc}\033[0m"
                 _record_execution(command, message, False)
+                raise RuntimeError(f"Line {i + 1}: {exc}") from exc
 
         i += 1
 
@@ -6954,18 +7095,33 @@ class ChemqlCompleter(Completer):
         }
         return {
             "variables": variables,
-            "structs": set(STRUCTS),
-            "records": set(RECORDS),
-            "enums": set(ENUMS),
+            "structs": ChemqlCompleter._public_namespace_types(STRUCTS),
+            "records": ChemqlCompleter._public_namespace_types(RECORDS),
+            "enums": ChemqlCompleter._public_namespace_types(ENUMS),
             "python_types": {
                 name for name, value in python_globals.items()
                 if isinstance(name, str) and isinstance(value, type) and not issubclass(value, Enum)
             },
-            "functions": set(FUNCTIONS),
+            "functions": ChemqlCompleter._public_namespace_types(FUNCTIONS),
             "macros": set(MACROS),
             "definitions": set(DEFINITIONS),
         }
+    @staticmethod
+    def _public_namespace_types(registry):
+        visible = set()
 
+        for qualified_name in registry:
+            if "::" not in qualified_name:
+                visible.add(qualified_name)
+                continue
+
+            namespace_name, type_name = qualified_name.rsplit("::", 1)
+            namespace = NAMESPACES.get(namespace_name)
+
+            if namespace is not None and type_name in namespace._chemql_public:
+                visible.add(qualified_name)
+
+        return visible
     def get_completions(self, document, complete_event):
         text = document.text_before_cursor
         stripped = text.lstrip()
@@ -7647,7 +7803,7 @@ def _build_project(directory="."):
             import tomllib
         except ImportError:
             try:
-                import tomli as tomllib
+                import tomli as tomllib # type: ignore
             except ImportError as exc:
                 raise RuntimeError(
                     "Building from cqlpackage.toml requires Python 3.11+ or the 'tomli' package."
@@ -7873,15 +8029,20 @@ def main(ANSI: bool = True):
         else:
             code = Path(args.file).read_text(encoding="utf-8")
 
-        if args.output:
-            stdout_capture = io.StringIO()
-            stderr_capture = io.StringIO()
-            with contextlib.redirect_stdout(stdout_capture), contextlib.redirect_stderr(stderr_capture):
+        try:
+            if args.output:
+                stdout_capture = io.StringIO()
+                stderr_capture = io.StringIO()
+                with contextlib.redirect_stdout(stdout_capture), contextlib.redirect_stderr(stderr_capture):
+                    process_lines(code.splitlines())
+                output_text = stdout_capture.getvalue() + stderr_capture.getvalue()
+                Path(args.output).write_text(strip_ansi(output_text), encoding="utf-8")
+            else:
                 process_lines(code.splitlines())
-            output_text = stdout_capture.getvalue() + stderr_capture.getvalue()
-            Path(args.output).write_text(strip_ansi(output_text), encoding="utf-8")
-        else:
-            process_lines(code.splitlines())
+        except Exception as exc:
+            message = f"Error: {exc}" if str(exc).startswith("Line ") else f"Error: {type(exc).__name__}: {exc}"
+            print(message if NO_ANSI else f"\033[31m{message}\033[0m", file=sys.stderr)
+            raise SystemExit(1) from None
         return
 
     if not sys.stdin.isatty():
@@ -7894,6 +8055,8 @@ def main(ANSI: bool = True):
         run_interactive()
 
 def run_interactive():
+        global _IN_REPL
+        _IN_REPL = True
         history = []
         welcome = "Type help or ? for help"
         print(welcome if NO_ANSI else "\033[1m" + welcome + "\033[0m")
@@ -7937,7 +8100,7 @@ def run_interactive():
                 if not stripped or stripped.startswith("//"):
                     continue
 
-                if re.fullmatch(r"namespace\s+[A-Za-z_]\w*", stripped, re.IGNORECASE):
+                if re.fullmatch(r"(((public)|(private))\s+)?namespace\s+[A-Za-z_]\w*", stripped, re.IGNORECASE):
                     stack.append("namespace")
                 declaration_line = re.sub(r"^(?:public|private)\s+", "", stripped, flags=re.IGNORECASE)
                 if re.fullmatch(r"struct\s+[A-Za-z_]\w*(?:\s+from\s+(?:\[[^\]]+\]|[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*))?", declaration_line, re.IGNORECASE):
