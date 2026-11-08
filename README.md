@@ -1,663 +1,874 @@
-# ChemQL
+# ChemQL & CodecQL
 
-**The Python chemistry query language.** Query chemistry, automate calculations, and build reusable programs, from an interactive prompt, from script files, or from Python.
+> A Python-embedded query language and terminal toolchain for chemistry data — with a purpose-built editor, package manager, and standard library.
 
-| | |
-|---|---|
-| Distribution name | `chemql-python` |
-| Import / CLI name | `chemql` |
-| Current version | 1.6.6 |
-| Python | 3.12+ |
-| Editor | [CodecQL](CODECQL.md), a terminal editor for `.cql` files, bundled (`chemql edit`) |
+ChemQL is a small language for querying, computing with, and simulating chemistry data (elements, molecules, reactions), layered on a Python runtime. It ships with an interactive REPL, a terminal editor (CodecQL), a type system (structs, records, enums), namespaces, modules, a macro/preprocessor system, a package manager, and a standard library.
 
-```chemql
-search elements number > 10 and number < 20 return name symbol
-search molecules molecular_weight < 50 sort molecular_weight limit 10
-search reactions reactants has "O2" and products has "H2O"
-balance H2 + O2 -> H2O
-```
+- **Distribution name:** `chemql-python`
+- **Import / CLI name:** `chemql`
+- **Language version:** `1.6.7` (per `chemql.__version__`)
+- **Editor version:** `codecql 0.1.1`
+- **Python import / CLI name:** `chemql`
+- **Author:** Mohammad Rakibul Islam
+- **Minimum Python:** **3.12+** (verified with `vermin`)
+- **Registry:** `https://chemqlreg.pythonanywhere.com/`
+
+> ⚠️ **Safety:** ChemQL executes embedded Python (`[ ... ]`, `[[[ ... ]]]`) and real shell commands (`` ` ... ` ``, ` ``` ` blocks) with the permissions of the running process. Only run code and packages you trust.
 
 ---
 
-## Contents
-
-- [Features](#features)
-- [Installation](#installation)
-- [Quick start](#quick-start)
-- [Querying data](#querying-data)
-- [Chemistry tools](#chemistry-tools)
-- [The language](#the-language)
-- [Standard library and packages](#standard-library-and-packages)
-- [Python API](#python-api)
-- [Command-line reference](#command-line-reference)
-- [Configuration and environment](#configuration-and-environment)
-- [Data sources](#data-sources)
-- [Safety](#safety)
-- [CodecQL editor](#codecql-editor)
-
----
-
-## Features
-
-- **SQL-like queries** over three bundled datasets: periodic-table **elements**, **molecules** and **reactions**, with comparison operators, wildcard and regex matching, `and`/`or`/`not`, grouping, sorting, limiting, counting, projection and set operations.
-- **Online lookups** when the bundled data has no answer: PubChem, ChemSpider (with an API key) and NIST WebBook for molecules; Chempirical and Rhea for reactions.
-- **Equation balancing** (`balance H2 + O2 -> H2O`) with exact rational arithmetic, and **reaction lookup** under a given temperature, pressure and set of catalysts.
-- **A complete scripting language**: variables, user-defined functions, macros and definitions, `if`/`for`/`while`, structured error handling (`risk`/`fix`/`cleanup`), enums, structs, records, namespaces with public/private members.
-- **Python everywhere**: embed Python expressions in `[ ... ]`, multi-line Python in `[[[ ... ]]]`, and queries inside Python with `{{ ... }}`.
-- **Shell integration**: run system commands from backticks or fenced blocks in a persistent shell session.
-- **Built-in functions and a standard library** (`math`, `text`, `datetime`, `json`, `random`, ...).
-- **A package manager and registry**: `chemql install`, `chemql init`, `chemql build`, `chemql upload`.
-- **A Python API** (`execute_query_text`, a fluent `search(...)` builder, and plain data classes).
-- **An interactive prompt** with syntax highlighting, context-aware completion and automatic multi-line block detection.
-
----
-
-## Installation
+## Install
 
 ```bash
 pip install chemql-python
+```
+
+Verify:
+
+```bash
 chemql --version
 ```
 
-**Requirements**
-
-| Requirement | Notes |
-|---|---|
-| Python 3.12 or newer | The source uses PEP 701 f-string syntax. |
-| `prompt_toolkit` 3.x | Interactive prompt. Use a recent 3.0 release. |
-| `rich` *(optional)* | Renders Markdown help for installed packages. |
-| `colorama` *(optional, Windows)* | ANSI colour support in [CodecQL](CODECQL.md); falls back to enabling virtual-terminal mode directly. |
-
-**Upgrading**
-
-```bash
-chemql --upgrade             # latest release
-chemql --upgrade 1.6.6       # a specific version
-chemql --upgrade --force     # force a reinstall, overriding system-package protections
-```
+Python **3.12+** is required. The project's minimum version is checked with [`vermin`](https://github.com/netromdk/vermin).
 
 ---
 
 ## Quick start
 
-```bash
-chemql                                   # interactive prompt
-chemql -c 'search elements symbol = "O"' # run one command
-chemql -f script.cql                     # run a file
-chemql -f script.cql -o out.txt          # write output to a file (ANSI stripped)
-echo 'findel "He"' | chemql              # piped input is executed as a script
-```
-
-At the prompt, type `help` (or `?`) for the full reference, `help{function}` for details on a built-in, and `exit` (or Ctrl+C) to leave. Blocks such as `func ... endfunc`, `if ... endif` and `[[[ ... ]]]` are detected automatically: pressing Enter inserts a new line until the block is closed.
-
-```chemql
->>> findel "Fe" return name number
->>> let h = {{ search elements symbol = "H" }}
->>> [h.atomic_mass]
->>> balance N2 + H2 <-> NH3
-```
-
-> **Comments** use `//` for a line and `/// ... ///` for a block. **Several commands** can share a line, separated by `;`. A trailing `\` continues a command on the next line.
-
----
-
-## Querying data
-
-### Sources
-
-| Source | Contents | Fields |
-|---|---|---|
-| `elements` | The periodic table | `name symbol number atomic_mass category phase period group block density melt boil molar_heat appearance electron_configuration electron_configuration_semantic electronegativity_pauling electron_affinity ionization_energies shells discovered_by named_by summary source image bohr_model_image bohr_model_3d spectral_img xpos ypos wxpos wypos` |
-| `molecules` | Common molecules with bonding data | `name formula molecular_weight elements iupac_name smiles cid state melting_point boiling_point density bonds total_bond_energy` |
-| `reactions` | Stored reactions | `id name equation reaction_type reversible reactants products conditions notes source` |
-
-```chemql
-source molecules        // make molecules the default source
-list all                // list the fields of the current source (or the sources if none is set)
-search molecular_weight < 20
-```
-
-### Anatomy of a query
-
 ```text
-search [first|last|all] [SOURCE] CONDITIONS [sort FIELD [asc|desc]] [limit N] [count] [return FIELD ...]
+$ chemql
+Type help or ? for help
+>>> search elements name like "Hydrogen"
+H (Hydrogen)
+>>> search molecules molecular_weight < 20 sort molecular_weight
+H₂ (Hydrogen)
+>>> balance H2 + O2 -> H2O
+2 H₂ + O₂ → 2 H₂O
+>>> let water = {{ findmol "Water" }}
+>>> water.smiles
+O
+>>> findmol "caffeine" return name formula molecular_weight
 ```
 
-```chemql
-search elements symbol = "Fe" return name symbol number
-search molecules molecular_weight < 20 sort molecular_weight asc limit 5
-search reactions reversible = true return name equation source
-search first molecules name like "*acid" sort molecular_weight desc
-search elements number > 100 count
-```
-
-- With no `first`/`last`, a single match returns the object itself and several matches return a list. No match prints `No matching item`.
-- `return` projects fields **after** filtering, sorting and limiting. One field gives a list; several give a table.
-- `count` must be the last operation and cannot be combined with `first`, `last` or `return`.
-- A query may begin directly with an operation to act on the whole source: `search molecules count`.
-
-### Operators
-
-| Operator | Meaning |
-|---|---|
-| `=` `!=` `>` `<` `>=` `<=` | Comparison. Numeric and boolean values are converted from the query text (`reversible = true`). |
-| `like` | Wildcard match, **case-insensitive**, against the *entire* value. |
-| `like!` | Wildcard match, **case-sensitive**. |
-| `likep` | Regular-expression search (`re.search`) on string fields. |
-| `has` | Containment for lists and dictionaries. Molecule identifiers match exactly (`O2` does not match `CO2`); other strings match as case-insensitive substrings. |
-| `not` | Negation: `name not like "H*"`, or `not (number > 10)`. |
-| `and` `or` | Combine conditions. `and` binds tighter than `or`; use parentheses to group. |
-| `union` `intersection` | Combine whole queries, evaluated left to right. |
-
-```chemql
-search elements category = "noble gas" and (period = 2 or period = 3)
-search reactions reactants has "O2" and products has "H2O"
-search elements symbol likep "^(He|Ne|Ar)$" return name
-search molecules name like "*water*" union search molecules name like "*acid*"
-```
-
-### `like` wildcards
-
-| Wildcard | Matches |
-|---|---|
-| `*` | Any run of characters |
-| `_` | Any single character |
-| `#` | One digit |
-| `?` | One letter |
-| `%` | Zero or more digits |
-| `&` | Zero or more letters |
-| `\` | Escapes the next character |
-
-### Shortcuts
-
-```chemql
-findel "He"                              // name or symbol
-findel "Fe" return name number
-
-findmol "Water"                          // name or formula; bundled data first, then online sources
-findmol "aspirin" return formula molecular_weight
-
-findre "Haber process"                   // name, id or equation; then Chempirical and Rhea (RHEA:nnnnn ids work)
-findre "Haber" return name equation      // project fields, as with search
-```
-
-### Using variables in queries
-
-```chemql
-define MAX 9
-search elements number <= @MAX           // literal text substitution
-
-let limit_value = 20
-search elements number < [limit_value]   // Python expression evaluated inside the query
-```
-
----
-
-## Chemistry tools
-
-### Balancing equations
-
-```chemql
-balance H2 + O2 -> H2O
-balance N2 + H2 <-> NH3      // <-> marks the reaction as reversible
-```
-
-The result is a reaction with integer coefficients. When a reversibility flag is set, the equation also shows an estimated ΔH computed from the bundled bond energies. Formulas may contain nested parentheses, e.g. `Fe2(SO4)3`. Equations without a unique positive solution are rejected with an error.
-
-### Finding a stored reaction
-
-Reactions in the bundled dataset are only matched when their conditions match the current state.
-
-```chemql
-set temperature 150C         // C, F or K; or `standard` (273.15 K) / `room` (298.15 K)
-set pressure 1atm            // Pa kPa MPa hPa mbar bar atm torr mmHg psi kpsi N/m^2; or standard / room
-set catalysts iron zinc      // replace the catalyst list; `set catalysts` clears it
-add catalyst "Iron"
-remove catalyst "Zinc"
-conditions                   // show the current state
-
-react N2 3H2                 // coefficients can be written as 3H2 or 3 H2
-```
-
-A reaction matches when its reactants are exactly those given and its conditions are met: if it specifies a temperature, the current one must be within 5 K; if it specifies a pressure, within 5 %; and every catalyst it requires must be in the catalyst list. Reversible reactions can also be matched from their products. One product returns a molecule; several return a table.
-
----
-
-## The language
-
-### Variables, Python and embedded queries
-
-```chemql
-let answer = 42
-[answer * 2]                      // evaluate a Python expression
-[x = 10]                          // run a Python statement
-let h = {{ search elements symbol = "H" }}   // a query as a value
-[h.atomic_mass]
-variables                         // list variables
-unset answer
-```
-
-```chemql
-[[[
-for n in range(3):
-    print(n)
-]]]
-```
-
-Variables, Python names and query results all live in one shared session. The value of the last expression is available as `_`.
-
-### Definitions and macros
-
-```chemql
-define MAX 9                      // literal text replacement, also inside strings
-search elements number <= @MAX
-definitions                       // list definitions
-remove definition MAX
-```
-
-Definitions are expanded in source order, once, and are not retroactive. **Macros** generate source text:
-
-```chemql
-define element_by_number{}
-    search elements number = \1
-enddefine
-
-@element_by_number{8}
-macros
-```
-
-### Functions and built-ins
-
-```chemql
-func square
-    return [\1 * \1]
-endfunc
-
-square{5}                         // 25
-let total = int{1} + square{3}    // calls compose with Python expressions
-```
-
-Function calls use braces and commas: `name{arg1, arg2}`, and arguments are available in the body as `\1`, `\2`, and so on. Quote text that contains spaces. Keep comments outside function bodies. `static func` and `func Type.method` (with `this`) define static and instance methods on structs; operator methods such as `func Type.__add__` enable overloading. User-defined functions take precedence over built-ins with the same name.
-
-| Category | Built-ins |
-|---|---|
-| Numbers | `abs` `round` `min` `max` `sum` |
-| Core | `len` `type` |
-| Conversion | `str` `int` `float` `bool` |
-| Strings | `upper` `lower` `contains` `replace` `split` `join` |
-| Collections | `first` `last` `unique` `sort` `reversed` |
-| Files | `read_text` `read_lines` `write_text` `file_exists` `list_files` |
-| Data files | `read_csv` `write_csv` `read_json` `write_json` |
-| Chemistry | `element` `count_atoms` `molar_mass` `empirical_formula` |
-| Help | `help` |
-
-```chemql
-molar_mass{"H2SO4"}
-count_atoms{"H2SO4", "O"}                  // 4
-empirical_formula{"C6H12O6"}               // CH2O
-element{"Na", "atomic_mass"}
-let rows = read_csv{"data.csv"}
-write_json{"out.json", rows}
-help{read_csv}                             // detailed help for any built-in
-```
-
-### Control flow
-
-```chemql
-for i in range(5)
-    let value = i
-endfor
-
-if answer > 10
-    [print("big")]
-elif answer > 5
-    [print("medium")]
-else
-    [print("small")]
-endif
-
-[x = 0]
-while x < 3
-    [x += 1]
-endwhile
-```
-
-`break`, `continue` and `skip` control loops. The Python-style bracket form `[for ...]` ... `[endblock]` is also accepted.
-
-### Error handling
-
-```chemql
-risk
-    signal "Something went wrong"    // raise a recoverable error
-fix
-    let handled = error              // `error` holds the error type, or None after success
-cleanup
-    [print("always runs")]
-endrisk
-
-warn "careful"                       // prints a warning; the latest is stored in `warnings`
-```
-
-Inside a `risk` block, errors are raised rather than printed, so `fix` can handle them. `--suppress-warnings` silences `warn` output. Built-in functions raise `TooFewArguments`, `TooManyArguments`, `InvalidArgumentType`, `InvalidArgumentValue`, `FileReadError` and `FileWriteError`; `help{errors}` lists all error signals.
-
-### Enums, structs and records
-
-```chemql
-enum Levels
-    LOW = 50
-    MEDIUM                            // omitted values are generated automatically
-    HIGH
-endenum
-
-struct Animal
-    name!                             // required field (also written `required name`)
-    sound = "..."                     // field with a default
-endstruct
-
-struct Dog from Animal                // structs inherit from structs, records or Python classes
-    color!
-endstruct
-
-let rex = Dog{name = "Rex", color = "brown"}
-
-func Dog.describe
-    return ["Dog named " + this.name]
-endfunc
-[rex.describe()]
-
-record Point                          // immutable; supports arithmetic between records
-    x
-    y = 0                             // fields with defaults must come last
-endrecord
-let p = Point{1, 2}
-[p + p]
-```
-
-Records inherit only from records. Structs cannot inherit from enums.
-
-### Namespaces and visibility
-
-Members are **private** by default; mark them `public` to expose them.
-
-```chemql
-namespace Geometry
-    public let PI = 3.14159
-    public func area
-        return [\1 * \2]
-    endfunc
-    private let secret = 42
-endnamespace
-
-Geometry::area{3, 4}
-Geometry::PI
-```
-
-Calling a private member from outside raises `PermissionError`. Namespaces nest.
-
-### Shell commands
-
-````chemql
-`ls -la`                  // one command
+Non-interactive:
 
 ```bash
-cd /tmp
-echo "state persists between commands"
-```
-````
-
-The shell is persistent: `cd` and shell variables carry over. ChemQL uses `bash` on Linux and macOS and PowerShell on Windows. Output is streamed live, and interactive programs that read the keyboard work.
-
-### History
-
-```chemql
-dump session.txt                // queries and results
-dump good queries ok.cql        // only successful queries
-dump bad results errors.txt     // only the output of failed commands
+chemql -c 'search elements symbol = "Fe" return name symbol number'
+chemql -f script.cql
+chemql -f script.cql -o out.txt       # ANSI-stripped output to a file
+chemql --no-ansi
+chemql --suppress-warnings
 ```
 
-Syntax: `dump [all|good|bad] [queries|results] FILE`.
-
-### Other commands
-
-| Command | Purpose |
-|---|---|
-| `view` | Open the interactive periodic table in your browser |
-| `clear` | Clear the terminal |
-| `version` | Print the version |
-| `help`, `?`, `help{topic}` | Help; topics include `syntax`, `errors`, `files`, `chemistry`, `stdlib`, built-in names, modules and installed packages |
-| `exit` | Quit |
-
----
-
-## Standard library and packages
-
-### Loading modules
-
-```chemql
-load math                          // then call math::function{...}
-math::sqrt{81}                     // 9.0
-
-load math::statistics
-math::statistics::mean{2, 4, 6}    // 4
-
-load text as t                     // alias
-t::upper{"hello"}
-
-load sqrt from math                // import one public member
-```
-
-Qualified calls require an explicit `load`. Use `help{stdlib}` to list modules and `help{math::sqrt}` for individual functions.
-
-| Module | Highlights |
-|---|---|
-| `math` | `PI` `E` `TAU`, `sqrt` `cbrt` `floor` `ceil` `factorial` `gcd` `lcm` `hypot` `pow`, trigonometry, `log` `log10` `log2` `exp`, `isfinite` `isinf` `isnan` `isclose` |
-| `math::statistics` | `mean` `median` `mode` `multimode` `quantiles` `variance` `stdev` `pvariance` `pstdev` `harmonic_mean` `geometric_mean` |
-| `text` | case conversion, `strip`, `startswith`, `endswith`, `find`, `count`, `isalpha` and friends, `regex_search` `regex_findall` `regex_replace` |
-| `collections` | `unique` `flatten` `zip` `pairwise` `frequencies` `group_count` `product` `sorted` `reversed` |
-| `datetime` | `today` `now` `utcnow` `date` `time` `timestamp` `from_timestamp` `weekday` `date_add_days` `date_difference_days` |
-| `json` | `dumps` `dumps_pretty` `loads` `json_type` |
-| `random` | `seed` `random` `randint` `randrange` `choice` `sample` `shuffle` `uniform` |
-| `decimal` | `create` `add` `subtract` `multiply` `divide` `quantize` `to_string` |
-| `fractions` | `create` `add` `subtract` `multiply` `divide` `numerator` `denominator` `to_float` |
-| `pathlib` | `name` `stem` `suffix` `parent` `join` `exists` `is_file` `is_dir` `read_text` `write_text` |
-
-### Package manager
-
-```bash
-chemql search "periodic"            # search the registry
-chemql info NAME                    # registry metadata
-chemql install NAME                 # latest release
-chemql install NAME --version 1.2.0
-chemql upgrade NAME                 # re-download, replacing the installed copy
-chemql list                         # installed packages
-chemql uninstall NAME
-```
-
-Inside the interactive prompt, use `install PACKAGE [--version VERSION]`. Packages install to `~/.chemql/packages/NAME/VERSION` and are then loaded with `load NAME`. When resolving `load a::b`, ChemQL looks for `a/b.cql` in the current directory, then in installed packages (newest version first, honouring the manifest's `main` entry), then in the bundled `stdlib`. Releases that the registry has not marked as safe are refused.
-
-### Creating a package
-
-```bash
-chemql init mypkg         # scaffolds cqlpackage.json, mypkg.cql and README.md
-cd mypkg
-chemql build              # dist/mypkg-1.0.0.tar.gz
-chemql upload             # to the registry (10 MB limit)
-```
-
-`cqlpackage.json` (a `cqlpackage.toml` with the same keys is also accepted):
-
-```json
-{
-    "name": "mypkg",
-    "author": "",
-    "version": "1.0.0",
-    "description": "A ChemQL package named mypkg.",
-    "help": "README.md",
-    "main": "mypkg.cql",
-    "submodules": [],
-    "buildsystem": "chemql-build",
-    "chemql-dependencies": [],
-    "python-dependencies": [],
-    "readme": "README.md",
-    "license": "MIT",
-    "source-code": {},
-    "help-individual": {}
-}
-```
-
-```chemql
-// mypkg.cql
-public func hello
-    return "Hello from mypkg!"
-endfunc
-```
-
-```chemql
-load mypkg
-mypkg::hello{}
-help{mypkg}               // renders the manifest's `help` Markdown file
-help{mypkg::hello}        // uses the `help-individual` entry for `hello`
-```
-
-A build needs a manifest and at least one `.cql` file. Version control folders, virtual environments and `dist` are excluded from the archive.
-
----
-
-## Python API
-
-```python
-from chemql import execute_query_text
-
-oxygen = execute_query_text('search elements symbol = "O"')
-print(oxygen.name, oxygen.atomic_mass)
-```
-
-`execute_query_text(text)` returns the raw result: an `Element`, `Molecule` or `Reaction`, a list, a table (`ReturnTable`), a count or a string. Query-level mistakes (a typo in a key, a bad operator) are usually returned as a formatted `Error: ...` string rather than raised.
-
-`execute_query(text)` is a typed variant: it returns `str`, `Molecule`, `Element`, `Reaction` or `Unknown`, and wraps anything else (lists, tables, counts) in `Unknown`, whose `.value` holds the raw result.
-
-### Fluent query builder
-
-```python
-from chemql import search, union, intersection
-
-noble = search("elements").category.condition(like="noble gas").return_("name", "symbol")
-print(noble.execute())
-
-light = search("elements").atomic_mass.condition(lt=10)
-metals = search("elements").category.condition(like="*metal")
-print((light & metals).execute())        # intersection; `|` is union
-print(union(light, metals).execute())
-```
-
-`condition()` accepts exactly one keyword: `eq ne lt lte gt gte like likep has`.
-
-### Lookups and chemistry helpers
-
-```python
-from chemql import (
-    ELEMENTS, MOLECULES, REACTIONS,
-    find_molecule, find_reaction, search_reactions, balance_stoichiometry,
-)
-
-find_molecule("water")                          # bundled data only; matches name, formula or IUPAC name
-find_reaction("Haber", external=False)          # local data only; external=True also tries Chempirical and Rhea
-search_reactions(reversible=True, name="acid")  # strings are case-insensitive substrings; other values are compared exactly
-
-reaction = balance_stoichiometry("H2 + O2", "H2O")
-print(reaction)
-```
-
-`balance_stoichiometry(reactants, products, reversible=None)` accepts `"A + B"` strings or iterables of formulas and raises `ValueError` if the reaction cannot be balanced uniquely.
-
-**Exported names** (`chemql.__all__`): `Element`, `Molecule`, `Reaction`, `MOLECULES`, `REACTIONS`, `find_molecule`, `find_reaction`, `search_reactions`, `balance_stoichiometry`, `execute_query`, `execute_query_text`, `ChemQLQuery`, `search`, `union`, `intersection`, `ReturnTable`, `Unknown`, `__version__`, and the exceptions `ChemQLError`, `ChemQLBuiltinError`, `TooFewArguments`, `TooManyArguments`, `InvalidArgumentType`, `InvalidArgumentValue`, `FileReadError`, `FileWriteError`. (`ELEMENTS` is importable but not listed in `__all__`.)
-
----
-
-## Command-line reference
-
-```text
-chemql [options]
-chemql SUBCOMMAND ...
-chemql edit [codecql options] [FILE]
-```
-
-| Option | Description |
-|---|---|
-| *(none)* | Start the interactive prompt (or run piped input) |
-| `-c`, `--command CODE` | Execute one command |
-| `-f`, `--file FILE` | Execute a file |
-| `-o`, `--output FILE` | Write `-c`/`-f` output to a file, without ANSI sequences |
-| `--no-ansi` | Strip ANSI styling from output |
-| `--suppress-warnings` | Hide `warn` messages |
-| `-v`, `--version` | Print the version |
-| `--upgrade [VERSION]` | Upgrade ChemQL with pip |
-| `--force`, `--dangerously` | With `--upgrade`: force a reinstall, overriding system-package protections |
-
-| Subcommand | Description |
-|---|---|
-| `install NAME [--version V]` | Install a package from the registry |
-| `upgrade NAME [--version V]` | Re-download a package, replacing the installed copy |
-| `search QUERY` | Search the registry |
-| `info NAME` | Show registry metadata as JSON |
-| `list` | List installed packages |
-| `uninstall NAME` | Remove an installed package |
-| `init [NAME] [-d DIR]` | Scaffold a package project |
-| `build` | Build `dist/NAME-VERSION.tar.gz` from the current directory |
-| `upload` | Upload the built archive to the registry |
-| `edit [FILE]` | Open the [CodecQL](CODECQL.md) editor |
-
-Subcommands cannot be combined with `-c`, `-f` or `-o`.
-
----
-
-## Configuration and environment
-
-| Variable | Purpose | Default |
-|---|---|---|
-| `CHEMQL_PACKAGE_DIR` | Where packages are installed and searched | `~/.chemql/packages` |
-| `CHEMQL_INSTALLED_FILE` | Installed-package record | `~/.chemql/installed.json` |
-| `CHEMSPIDER_API_KEY` | Enables ChemSpider as a molecule source | *(unset)* |
-
----
-
-## Data sources
-
-ChemQL always consults its bundled data first, so offline queries over the bundled data keep working.
-
-| Data | Source |
-|---|---|
-| Elements | `data/PeriodicTableJSON.json` |
-| Molecules, bonds | `data/Molecules.json`, `data/MoleculeBonds.json` |
-| Bond energies (used for ΔH estimates) | `data/BondEnergies.json` |
-| Reactions | `data/Reactions.json` |
-| Molecules, online fallback | PubChem (PUG REST and PUG-View), ChemSpider, NIST WebBook |
-| Reactions, online fallback | Chempirical, Rhea |
-
-The package also bundles `html/periodic_table.html` (used by `view`) and a `stdlib/` directory of `.cql` modules.
-
-<!-- TODO: add attribution and licence notes for the bundled datasets and the services above. -->
-
----
-
-## Safety
-
-ChemQL runs real code with your permissions: `[ ... ]` and `[[[ ... ]]]` execute Python, backticks and fenced blocks execute shell commands, and `load` runs the source of a package. Only run scripts and install packages you trust. Online lookups need network access and send your query text to the services listed above.
-
----
-
-## CodecQL editor
-
-CodecQL is a small terminal editor built for ChemQL, with syntax highlighting, inline suggestions and one-key execution.
+Open a file in the bundled editor:
 
 ```bash
 chemql edit script.cql
 ```
 
-See [CODECQL.md](CODECQL.md) for key bindings, configuration and the suggestion-rule format.
+---
+
+## Core commands
+
+| Command | Purpose |
+|---|---|
+| `search [first\|last\|all] <source> <conditions> [ops] [return fields]` | Query a data source |
+| `source <elements\|molecules\|reactions>` | Set the default source |
+| `findel <name-or-symbol> [return …]` | Element lookup |
+| `findmol <name-or-formula> [return …]` | Molecule lookup (local → PubChem → ChemSpider → NIST) |
+| `findre <name-or-id> [return …]` | Reaction lookup (local → Rhea → Chempirical) |
+| `balance <reactants> ->\|<-> <products>` | Balance a chemical equation |
+| `react <coefficients><molecules…>` | Match a stored reaction under current conditions |
+| `set temperature\|pressure\|catalysts <value>` | Set reaction conditions |
+| `add\|remove catalyst "<name>"` | Modify the catalyst list |
+| `conditions` | Show current T / P / catalysts |
+| `let <name> = <expr>` / `unset <name>` / `variables` | Bind, remove, list variables |
+| `define NAME <value>` / `@NAME` | Object-like macro |
+| `define NAME{} … enddefine` / `@NAME{…}` | Function-like macro |
+| `definitions` / `macros` / `remove definition\|macro NAME` | Inspect / remove |
+| `func NAME … endfunc` | Define a function |
+| `static func Type.method … endfunc` | Static method |
+| `struct` / `record` / `enum` … `end*` | Define types |
+| `namespace NAME … endnamespace` | Group declarations with visibility |
+| `load <pkg> [as <alias>]` / `load <member> from <pkg> [as <alias>]` | Load packages |
+| `help [topic]` / `?` | Help |
+| `dump [all\|good\|bad] [queries\|results] FILE` | Export execution history |
+| `view` | Open the periodic-table viewer in a browser |
+| `clear` / `version` / `exit` | Misc |
 
 ---
 
-## License
+## Query syntax
 
-MIT. See [LICENSE](LICENSE)
+**Sources:** `elements`, `molecules`, `reactions`.
+
+**Operators:**
+
+| Operator | Meaning |
+|---|---|
+| `=` `!=` `>` `<` `>=` `<=` | Comparison (type-converted against the field) |
+| `like` | Case-insensitive wildcard match |
+| `like!` | Case-sensitive wildcard match |
+| `likep` | Regex match |
+| `has` | Nested containment (exact for `molecule` fields) |
+| `and` `or` `not` `( )` | Boolean logic |
+
+**`like` wildcard language** (not SQL):
+
+| Token | Matches |
+|---|---|
+| `*` | Any characters |
+| `%` | Digits only |
+| `&` | Letters only |
+| `_` | Any single character |
+| `#` | A single digit |
+| `?` | A single letter |
+| `\` | Escape |
+
+**Result operations:** `sort FIELD [asc|desc]`, `limit N`, `count`, `return FIELD …`, and set ops `union` / `intersection`.
+
+Examples:
+
+```chemql
+search elements number > 10 and number < 20 return name symbol
+search molecules molecular_weight < 50 sort molecular_weight limit 10
+search reactions reversible = true return name equation source
+search elements name like "H*"
+```
+
+---
+
+## Chemistry features
+
+### Data
+
+Bundled JSON under `chemql/data/`:
+
+| File | Purpose |
+|---|---|
+| `PeriodicTableJSON.json` | Element metadata (number, symbol, mass, category, phase, …) |
+| `Molecules.json` | Molecule records: formula, IUPAC name, SMILES, CID, mp/bp/density/state |
+| `Reactions.json` | Curated reactions, plus Rhea imports (see provenance) |
+| `MoleculeBonds.json` | Bond connectivity per molecule |
+| `BondEnergies.json` | Bond energy table used for ΔH estimates |
+
+Reference conditions are °C at 1 atm (mp/bp), g/cm³ at 25 °C (density), and `state` at 25 °C / 1 atm.
+
+### External lookups
+
+`findmol` and `findre` fall back to public APIs when local data misses:
+
+- **Molecules:** PubChem → ChemSpider (needs `CHEMSPIDER_API_KEY`) → NIST WebBook
+- **Reactions:** Rhea → Chempirical
+
+`search` itself stays **local** (offline-safe).
+
+### Balancing
+
+`balance` builds an element × species matrix and solves it with exact `Fraction` Gaussian elimination, returning smallest-integer coefficients. It fails clearly when the balance is not unique.
+
+### Reaction simulation
+
+`react` matches the supplied reactants (forward, or reverse for reversible reactions) against `REACTIONS`, gated by current conditions:
+
+- Temperature tolerance: **±5 K**
+- Pressure tolerance: **±5 %**
+- Catalysts: required set must be a **subset** of available
+
+### Chemistry built-ins
+
+| Built-in | Description |
+|---|---|
+| `element{symbol, field?}` | Periodic-table lookup |
+| `count_atoms{formula, symbol}` | Atoms of one element in a formula (handles nested parentheses) |
+| `molar_mass{formula}` | Molar mass |
+| `empirical_formula{formula}` | Reduced formula |
+
+---
+
+## Type system
+
+### Structs — mutable, methods, inheritance
+
+```chemql
+struct Fruit
+    name!
+    weight = 1.0
+endstruct
+
+struct Apple from Fruit
+    appletype
+endstruct
+
+func Fruit.talk
+    if this.weight is not None
+        return "I am a " + this.name
+    endif
+    return "I am a " + this.name
+endfunc
+```
+
+- `name!` or `required name` — required field
+- `name = value` — optional with default (`None` if omitted)
+- `required` / `!` **cannot** be combined with `=` (rejected at `endstruct`)
+- Field ordering is normalized automatically
+- Subclass field redeclaration overrides or strips the default
+- `func Type.method` — instance method (`this`); `static func` — static
+- Structs can inherit from **structs, records, or Python classes**
+
+### Records — immutable, positional, trailing defaults
+
+```chemql
+record Point
+    x
+    y
+    z = 0
+endrecord
+```
+
+- Every field is required unless it has a default
+- Defaulted fields must be **trailing** (rejected otherwise)
+- Instances are **immutable** (`can't set attribute`)
+- Elementwise operator overloading (`+ - * / // % **`, unary `-`, `abs`)
+- Records inherit **only** from records
+- No in-language methods (hybrid-Python only)
+
+### Enums — named singletons with payloads
+
+```chemql
+enum Level
+    low = 25
+    mid = 50
+    high = 75
+endenum
+```
+
+- Auto-numbering starts at `1` when `=` is omitted
+- `Level::low::value` → `25`; `Level::low::name` → `"low"`
+- Equality is **identity-based** (`Level::low == 25` is `False`)
+- Members cannot be reassigned
+- Enums inherit from enums; **no methods**
+
+### Summary
+
+| | mutable | defaults | methods | inheritance |
+|---|---|---|---|---|
+| **struct** | yes | required / optional / defaulted | yes (incl. static) | structs, records, Python classes |
+| **record** | no | trailing only | no (hybrid only) | records only |
+| **enum** | no | auto-increment | no | enums only |
+
+---
+
+## Namespaces & visibility
+
+```chemql
+namespace foo
+    public let x = 10
+    private let y = 20
+    let z = 30          // private by default
+endnamespace
+```
+
+- **Default visibility is private** for namespace members
+- `public` / `private` applies to `let`, `func`, `struct`, `record`, `enum`, `namespace`
+- Reading a private member raises an error mentioning it is set to private
+- Code inside the namespace can access its own private members
+- Missing members produce a distinct "no attribute" error
+
+---
+
+## Modules
+
+`.cql` files can be loaded as packages:
+
+```chemql
+// foo.cql
+public func isEven
+    return \1 % 2 == 0
+endfunc
+```
+
+```chemql
+// bar.cql
+load foo
+foo::isEven{3}
+
+load isEven from foo
+isEven{4}
+```
+
+- `load pkg` → `pkg::name` access; only `public` members
+- `load member from pkg [as alias]` → import one member
+- Cross-module private access raises `PermissionError`
+- Packages live in `./`, `~/.chemql/packages/<name>/<version>/`, or `chemql/stdlib/`
+- Override root with `CHEMQL_PACKAGE_DIR`
+
+---
+
+## Functions, arguments, macros
+
+```chemql
+func square
+    return \1 * \1
+endfunc
+```
+
+**Two access forms:**
+
+- `\1`, `\2`, … — 1-indexed positional placeholders, **substituted textually** (works inside strings; `\10` = tenth argument, greedy `\d+`)
+- `arguments` — a per-call `list` of positional arguments, `arguments[0]` indexed from 0, **function scope only**
+
+> ⚠️ `arguments` is not available in macro bodies — macros get `\N` only.
+
+### Definitions (object-like)
+
+```chemql
+define MAX 9
+@MAX * 9          // 81
+print("2@MAX")    // "29"
+```
+
+- `@NAME` expands textually, including inside strings
+- One name slot shared with macros; **definitions win** on collision
+- `remove definition NAME` (or `remove definition @NAME`)
+
+### Macros (function-like)
+
+```chemql
+define MAX{}
+\1 if \1 > \2 else \2
+enddefine
+
+@MAX{1, 3}        // 3
+```
+
+- Body uses `\N`; `arguments` is **not** available
+- Macros may expand other macros (multi-pass)
+- `remove macro NAME`
+
+> **Gotcha:** defining `NAME{}` while `NAME = value` exists makes the macro unreachable until `remove definition NAME`.
+
+---
+
+## Control flow
+
+```chemql
+if x > 10
+    let y = "big"
+elif x > 5
+    let y = "medium"
+else
+    let y = "small"
+endif
+
+for i in range(3)
+    print(i)
+endfor
+
+while i < 5
+    let i = i + 1
+endwhile
+```
+
+- `break` / `continue` / `skip` (alias for continue)
+- Bracketed Python-style blocks also accepted: `[for …] … [endblock]`
+
+---
+
+## Error handling
+
+```chemql
+risk
+    signal "Something went wrong"
+fix
+    let handled = error
+cleanup
+    let finished = true
+endrisk
+```
+
+- `signal "msg"` raises a recoverable ChemQL signal
+- `warn "msg"` sets `warnings` and prints (suppress with `--suppress-warnings`)
+- `error` holds the last error type (or `None` after success)
+
+---
+
+## Python integration
+
+Inline expression:
+
+```chemql
+[1 + 2 * 3]              // 7
+[x * 2]
+```
+
+Multiline Python block:
+
+```chemql
+[[[
+for x in range(3):
+    print(x)
+]]]
+```
+
+Embedded queries inside Python:
+
+```chemql
+let m = [len({{ search molecules molecular_weight < 20 }})]
+```
+
+Attribute access, `{{ }}` queries, and `::` namespace paths are rewritten before evaluation.
+
+> **Safety reminder:** all of the above runs with your user's permissions.
+
+---
+
+## Shell integration
+
+Inline:
+
+```chemql
+`ls -la`
+```
+
+Multiline:
+
+````
+```bash
+cd /tmp
+ls
+```
+````
+
+- **POSIX:** persistent Bash via a PTY with a unique prompt handshake
+- **Windows:** persistent PowerShell request/marker loop
+- `clear` / `cls` bypass the shell
+
+---
+
+## CodecQL — the terminal editor
+
+**A small terminal editor built for ChemQL.** Syntax highlighting, inline suggestions, a built-in terminal pane, and one-key execution — nothing to configure to get started.
+
+| | |
+|---|---|
+| Version | 0.1.1 |
+| Ships with | `chemql-python` |
+| Files | `.cql` (ChemQL), `.py`, `cqlpackage.json` / `cqlpackage.toml`, and any plain-text file |
+
+### Starting CodecQL
+
+```bash
+chemql edit FILE                       # open (or create) a file
+python -m chemql.codecql FILE          # equivalent
+chemql edit --main-highlighting        # edit the highlighting.json shipped with the package
+chemql edit --local-highlighting       # edit ./highlighting.json (created as {} if missing)
+chemql edit --version
+```
+
+If your installation also registers a `codecql` console script, `codecql FILE` accepts the same options.
+
+Opening a path that does not exist starts an empty buffer; it is created on the first save.
+
+**Requirements:** the same as ChemQL (Python 3.12+), plus a terminal that understands ANSI escape sequences and 256 colours. On Windows, `colorama` is used when installed; otherwise virtual-terminal mode is enabled directly. Copying to the system clipboard needs one of `clip` (Windows), `clip.exe` (WSL), `pbcopy` (macOS), or `wl-copy` / `xclip` / `xsel` (Linux).
+
+### Key bindings
+
+| Key | Action |
+|---|---|
+| `Ctrl+S` | Save |
+| `Ctrl+Q` | Quit. With unsaved changes, press it a second time to quit without saving |
+| `Ctrl+Z` / `Ctrl+Y` | Undo / redo (last 200 edits) |
+| `Ctrl+F` | Search |
+| `Ctrl+R` | Save, then run the file |
+| `Ctrl+T` | Open a terminal pane |
+| `Tab` | Accept the inline suggestion; with none showing, insert a tab |
+| `Enter` | New line, keeping the current indentation |
+| Arrow keys, `Home`, `End` | Move |
+| `Shift` + movement | Select |
+| `Ctrl`/`Alt` + `←` `→` | Move by word |
+| `Ctrl` + `↑` `↓` | Scroll the view without moving the text |
+| `Backspace`, `Delete` | Delete a character, or the selection |
+| `Ctrl+Backspace` / `Alt+Backspace` | Delete the word to the left |
+| `Ctrl+Delete` / `Alt+Delete` | Delete the word to the right |
+| `Ctrl+C` / `Ctrl+Insert` | Copy the selection (editor + system clipboard when available). It does **not** quit |
+| `Ctrl+X` | Cut the selection |
+| `Ctrl+V` / `Shift+Insert` | Paste the editor's clipboard |
+
+Pasting from your terminal or OS clipboard also works: CodecQL enables bracketed paste, so multi-line pastes arrive as a single insertion.
+
+**Auto-indent.** After a line that opens a block (`func`, `define NAME{}`, `struct`, `record`, `enum`, `namespace`, `if`, `elif`, `else`, `for`, `while`) or ends in a `\` continuation, the next line is indented with a tab. Pressing Enter after `endnamespace` removes one level of indentation. Other `end...` keywords do not dedent automatically.
+
+**Status bar and footer.** The bar shows the file name, `Ln`/`Col`, the line count, `Unsaved` when the buffer is dirty, and search status. The footer shows messages and a reminder of the main shortcuts.
+
+### Search
+
+Press `Ctrl+F` and type; matches are highlighted as you type.
+
+| Key | Action |
+|---|---|
+| `Enter`, `↓`, `→` | Next match |
+| `↑`, `←` | Previous match |
+| `Esc`, `Ctrl+C` | Close search |
+
+A plain query is a **literal, case-insensitive** search. Add a flag prefix followed by `:` to change that:
+
+| Flag | Meaning |
+|---|---|
+| `r` | Treat the query as a regular expression |
+| `l` | Treat the query as literal text (the default; cannot be combined with `r`) |
+| `w` | Match whole words only |
+| `i` | Ignore case |
+
+Once any flag is given, matching becomes case-sensitive unless `i` is included.
+
+```text
+water            literal, case-insensitive
+l:Water          literal, case-sensitive
+r:^search\s      regular expression, case-sensitive
+ri:^search\s     regular expression, case-insensitive
+wi:set           whole word "set", case-insensitive
+```
+
+An invalid regular expression is reported in the status bar.
+
+### Running code and the terminal pane
+
+**`Ctrl+R`** saves the file (if it has unsaved changes) and runs the command configured for its extension. The default for `.cql` is:
+
+```text
+chemql -f $absoluteName
+```
+
+`$absoluteName` is replaced by the shell-quoted absolute path. Set your own with `run-command` in `highlighting.json`; the bundled configuration also runs `.py` files with `python -u` and `.rs` files with `cargo run`. The file must have a name before it can be run.
+
+**`Ctrl+T`** opens a plain terminal without running anything.
+
+| Platform | Behaviour |
+|---|---|
+| Linux, macOS, WSL | A pane opens in the bottom third of the screen running your `$SHELL` (`-i`). `Ctrl+↑` / `Ctrl+↓` resize it. `Ctrl+T`, `Ctrl+Q` or `Esc` closes it and returns to the editor. |
+| Windows Terminal | The command runs in a new split pane beside the editor. Close it by exiting the shell. |
+| Other Windows consoles | The command runs in a separate console window. |
+
+### Syntax highlighting
+
+What is coloured depends on the file:
+
+| File | Highlighting |
+|---|---|
+| `.cql` | Comments (`//`, `#`), strings, numbers (including units such as `25C`, `1atm`), chemical formulas (`H2O`, `NaCl`), operators, delimiters (`{{ }}`, `[[[ ]]]`, brackets), commands, control keywords, word operators (`and`, `like`, `sort`, ...), sources, reaction conditions, field names, Python built-ins, `True`/`False`/`None`, and the name after `enum`/`struct`/`record`/`namespace` |
+| `.py` | Python keywords, built-ins and constants, plus comments, strings, numbers and operators |
+| `cqlpackage.json`, `cqlpackage.toml` | Keys, strings, numbers, booleans, TOML tables and comments |
+| anything else | Comments, strings, numbers, operators and delimiters only |
+
+Highlighting is purely lexical and line-based: it never changes the file. Extensions are matched case-insensitively.
+
+### Inline suggestions
+
+While you type at the **end of a line**, CodecQL shows a grey "ghost" completion. Press `Tab` to accept it. Suggestions are context-aware: they depend on what comes before the cursor on the line (and, for queries, on the most recent `source` command above it).
+
+```text
+se|                              ->  search
+search |                         ->  search elements
+search elements na|              ->  search elements name
+search elements atomic_mass |    ->  search elements atomic_mass >
+search elements phase = |        ->  search elements phase = "Gas"
+```
+
+Suggestions are driven entirely by the `suggestions` rules in `highlighting.json`, so you can change or extend them without touching Python. They are only offered when the cursor is at the end of the line and nothing is selected.
+
+### Configuration: `highlighting.json`
+
+CodecQL loads configuration from two places, in this order:
+
+1. `highlighting.json` in the package directory (`chemql edit --main-highlighting` opens it)
+2. `highlighting.json` in the current working directory (`chemql edit --local-highlighting` opens it)
+
+> **Each extension's profile is replaced as a whole.** If the local file defines `".cql"`, it completely replaces the main file's `.cql` profile, including its `run-command` and `suggestions`. Copy what you want to keep.
+
+#### Profile format
+
+The top level maps file extensions to profiles. A leading dot is added if you omit it, and extensions are lower-cased.
+
+```json
+{
+    ".cql": {
+        "run-command": "chemql -f $absoluteName",
+        "rules": [],
+        "suggestions": []
+    },
+    ".py": {
+        "run-command": "python -u $absoluteName",
+        "rules": []
+    }
+}
+```
+
+| Field | Description |
+|---|---|
+| `run-command` | Command run by `Ctrl+R`. `$absoluteName` is replaced by the quoted path. |
+| `rules` | Highlighting rules (below). |
+| `suggestions` | Suggestion rules (below). |
+
+An older format, where an extension maps directly to a list of rules, is still accepted. Unknown profile fields and duplicate extensions are rejected, and a configuration error is reported when the file is loaded.
+
+#### Highlighting rules
+
+```json
+{
+    "name": "my-keywords",
+    "type": "keywords",
+    "values": ["alpha", "beta"],
+    "style": "keyword"
+}
+```
+
+| Field | Description |
+|---|---|
+| `name` | Non-empty label |
+| `type` | `keywords` or `regex` |
+| `values` | For `keywords`: a non-empty list of words. Matching is case-insensitive |
+| `pattern`, `case_sensitive` | For `regex`: a valid regular expression, and whether it is case-sensitive (default `true`) |
+| `style` | A style string, below |
+
+Rules are checked in order and the first matching keyword wins. A keyword rule takes priority over CodecQL's built-in categories for that extension, so with an empty `rules` list for `.cql` the built-in ChemQL highlighting applies unchanged.
+
+> ⚠️ Currently only `keywords` rules affect how text is drawn. `regex` rules are validated but **not yet applied**.
+
+**Style strings** combine space-separated parts:
+
+| Part | Effect |
+|---|---|
+| `keyword` `command` `operator` `string` `comment` `number` `constant` `type` `source` `condition` `property` `builtin` | A colour from the current theme |
+| `bold` `dim` `italic` `underline` `reverse` `strike` | Text attributes |
+| `#rrggbb` | 24-bit foreground colour |
+| `bg:#rrggbb` | 24-bit background colour |
+
+```json
+"style": "bold #ff8800"
+```
+
+An unknown part is an error, so stick to this list.
+
+#### Example: highlighting a new language
+
+```json
+{
+    ".toml": {
+        "run-command": "cat $absoluteName",
+        "rules": [
+            {"name": "booleans", "type": "keywords", "values": ["true", "false"], "style": "constant"}
+        ]
+    }
+}
+```
+
+### Suggestion rules in depth
+
+A suggestion rule says: *when the text before the cursor looks like this, offer these completions.*
+
+```json
+{
+    "name": "second-word",
+    "pattern": "(?:^|;|\\{\\{)\\s*search\\s+$",
+    "min-prefix": 0,
+    "suggestions": ["elements", "molecules", "reactions"]
+}
+```
+
+| Field | Description |
+|---|---|
+| `name` | Unique, non-empty. Used by `$name$` references |
+| `pattern` | Regular expression, searched **case-insensitively** in the *context* (below) |
+| `suggestions` | Non-empty list of completions |
+| `min-prefix` | Minimum number of characters already typed in the current word before the rule applies (default `0`) |
+
+#### How a rule is chosen
+
+1. The line up to the cursor is split into a **prefix** (the run of non-whitespace characters just before the cursor) and a **context** (everything before that prefix, including whitespace).
+2. Rules are tried **in order**. The **first** rule whose pattern matches the context wins, and no later rule is consulted, even if the winner offers nothing for the current prefix.
+3. From the winner's `suggestions`, the first entry that starts with the prefix (case-insensitively) and is longer than it is chosen. The untyped remainder is shown as ghost text, and `Tab` inserts it.
+
+Practical consequences:
+
+- **Order matters. Put specific rules before general ones.** A broad rule placed early will shadow everything after it.
+- **Anchor with `$`.** To mean "the cursor follows this word", end the pattern with `\s+$`. The context always ends with the whitespace before the prefix.
+- **Prefixes are whitespace-delimited.** In `help{ab`, the prefix is the whole `help{ab`, so completions after punctuation without a space are not possible. Design completions around spaces.
+- **A suggestion may contain spaces.** `"{{ search elements"` is offered once the prefix is `{`, and it is inserted as a whole.
+- **Use `min-prefix: 1` for free-form positions**, so a ghost does not appear (and `Tab` still inserts a tab) before you have typed anything.
+- **Remember JSON escaping.** Every regex backslash is doubled: `\s` is written `"\\s"`.
+
+#### References
+
+| Syntax | In a `pattern` | In a `suggestions` entry |
+|---|---|---|
+| `$rule-name$` | Replaced by an alternation of that rule's suggestions, e.g. `(?:search\|source\|...)` | Replaced by all of that rule's suggestions |
+| `$active-source-fields$` | *(not supported)* | Field names of the active source: the source in the current `search` statement if it names one, otherwise the most recent `source` command above the line. Empty if there is none |
+| `$query-start-options$` | *(not supported)* | The active source's fields, or the three sources when there is no active source |
+| `$query-operators$` | *(not supported)* | `= != > < >= <= like like! likep has and or sort limit count return first last` |
+
+A `$rule-name$` reference must point at a rule defined **earlier** in the list, which also rules out cycles. References are expanded one level: a referenced rule's own `$...$` entries are not expanded further.
+
+#### Reference-only rules
+
+A rule whose pattern is `(?!)` can never match, so it never fires. The bundled configuration uses this to hold named lists, such as all field names or all operators, which later rules splice into their patterns and suggestions:
+
+```json
+{ "name": "operators", "pattern": "(?!)", "min-prefix": 0,
+  "suggestions": ["=", "!=", ">", "<", ">=", "<=", "like", "like!", "likep", "has"] }
+```
+
+A later rule can then recognise "a field name followed by an operator" with `\\s(?:$all-fields$)\\s+(?:$operators$)\\s+$`.
+
+#### Testing a rule
+
+The engine is plain Python, so you can try rules without opening the editor:
+
+```python
+from chemql.highlighting import HighlightProfiles
+
+profiles = HighlightProfiles("highlighting.json")
+line = "search elements atomic_mass "
+suffix = profiles.get_suggestion_suffix("x.cql", line, len(line), previous_lines=[])
+print(line + suffix)          # search elements atomic_mass >
+```
+
+`previous_lines` supplies the lines above, which is how the active `source` is found.
+
+### What the bundled rules complete
+
+The shipped `highlighting.json` defines about 70 rules for `.cql`. In summary:
+
+| Context | Suggests |
+|---|---|
+| Start of a line, or after `;` (after 1 character) | Every ChemQL command and block keyword |
+| After `{{` | Query commands (`search`, `findel`, `findmol`, `findre`, ...) |
+| `search ` | Sources, `first`/`last`/`all`, and the active source's fields |
+| `search SOURCE ` | That source's fields, plus `not`, `sort`, `limit`, `count` |
+| After a field | Operators that suit its type: numeric (`>` `<` `=` ...), text (`like` `=` `has` ...), collection (`has`), boolean (`=` `!=`) |
+| After `not` | Operators, or fields when negating a whole condition |
+| After an operator | Known values for `phase`, `category`, `block`, `state` and `reversible` |
+| After a complete condition | `and`, `or`, `sort`, `limit`, `count`, `return`, `union`, `intersection` |
+| After `and`, `or`, `not`, `(` | Fields |
+| After `sort`, `limit` | Fields, `asc`/`desc`, then `limit`/`count`/`return`; common limits |
+| After `return` | Fields |
+| After `union` / `intersection` | `search elements` / `molecules` / `reactions` |
+| `findel`, `findmol`, `findre` | `return`, then that source's fields |
+| `balance` | `+`, `->`, `<->` as appropriate |
+| `set`, `add`, `remove` | Settings, `catalyst`, common temperature, pressure and catalyst values |
+| `source`, `list`, `dump`, `help`, `load`, `install` | Their arguments, including standard-library modules and built-in names |
+| `let` | `=`, then query, built-in and constant starters |
+| `public`, `private`, `static`, `struct`, `record` | Declaration keywords, `from` |
+| `for` | `in`, then `range(` or a query |
+
+Value suggestions for `phase`, `category` and `block` reflect the standard periodic-table dataset. If your data uses different spellings, adjust the `value-...` rules.
+
+### Colours: `colors.json`
+
+CodecQL reads its theme from `colors.json` next to `codecql.py`. If the file is missing, a built-in palette is used.
+
+```json
+{
+    "syntax": {
+        "comment":   {"ansi256": 244},
+        "string":    {"ansi256": 114},
+        "number":    {"ansi256": 179},
+        "formula":   {"ansi256": 117},
+        "operator":  {"ansi256": 213},
+        "delimiter": {"ansi256": 250},
+        "command":   {"ansi256": 81},
+        "keyword":   {"ansi256": 141},
+        "constant":  {"ansi256": 215},
+        "type":      {"ansi256": 150},
+        "source":    {"ansi256": 110},
+        "condition": {"ansi256": 180},
+        "property":  {"ansi256": 116},
+        "builtin":   {"ansi256": 222}
+    },
+    "ui": {
+        "line_numbers":      {"ansi256": 244},
+        "status_background": {"ansi256": 24, "channel": "background"},
+        "status_foreground": {"ansi256": 255}
+    }
+}
+```
+
+Each entry needs an `ansi256` number from 0 to 255, and an optional `channel` of `foreground` (default) or `background`. If you provide the file, include **every** category shown above.
+
+### CodecQL known limitations
+
+- Files are saved with `\n` line endings and **no trailing newline**.
+- Inline suggestions appear only when the cursor is at the end of the line.
+- `regex` highlighting rules are validated but **not yet applied**.
+- Auto-dedent applies only after `endnamespace`.
+- One file per session: there are no tabs or split editors.
+- Tabs are drawn four columns wide.
+- CodecQL's Windows Backspace / Ctrl+Backspace are intentionally inverted relative to POSIX.
+
+---
+
+## Standard library
+
+Load with `load <pkg>`; call as `<pkg>::name{…}`.
+
+| Package | Purpose |
+|---|---|
+| `math` | Constants, trigonometry, logarithms, number theory |
+| `math::statistics` | Mean, median, mode, variance, standard deviation, quantiles |
+| `text` | String transforms, splitting/joining, regex helpers |
+| `collections` | Uniqueness, flattening, pairing, frequency counts, product |
+| `datetime` | Dates, timestamps, local/UTC time, date arithmetic |
+| `json` | JSON encode/decode helpers |
+| `random` | Pseudo-random numbers and sequence sampling |
+| `decimal` | Base-10 decimal arithmetic and quantization |
+| `fractions` | Exact rational numbers and fraction arithmetic |
+| `pathlib` | Path inspection and UTF-8 text file operations |
+
+`help{stdlib}` lists them; `help{math}` and `help{math::sqrt}` document each.
+
+---
+
+## Built-in functions
+
+General: `abs round min max sum len type str int float bool upper lower contains replace split join first last unique sort reversed read_text read_lines read_json read_csv write_text write_csv write_json file_exists list_files help`
+
+Chemistry: `element count_atoms molar_mass empirical_formula`
+
+`help` with a topic is documented from `_BUILTIN_HELP`.
+
+---
+
+## Package manager
+
+```bash
+chemql install <name> [--version V]
+chemql upgrade <name> [--version V]
+chemql uninstall <name>
+chemql list
+chemql search <query>
+chemql info <name>
+chemql build            # requires cqlpackage.json / cqlpackage.toml
+chemql upload           # publish to the registry
+chemql init [name] [-d dir]
+```
+
+Inside the REPL: `install <name> [--version V]`.
+
+Package layout:
+
+```
+~/.chemql/packages/<name>/<version>/
+```
+
+## License and attribution
+
+[MIT License](https://github.com/rakibulofficial1017/ChemQL/blob/main/LICENSE)
+
+Created by [Mohammad Rakibul Islam](https://github.com/rakibulofficial1017).
+Source code: [rakibulofficial1017/ChemQL](https://github.com/rakibulofficial1017/ChemQL).
+
+------------------------------------------------------------------------
+
+For the command reference that matches your installed build, type `help`
+inside ChemQL. Use `list all` to inspect fields available in your
+bundled datasets.

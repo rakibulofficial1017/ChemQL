@@ -11,7 +11,7 @@ import subprocess
 import time
 from .highlighting import HighlightProfiles
 
-VERSION = "0.1.0"
+VERSION = "0.1.1"
 
 
 def _write_system_clipboard(text):
@@ -34,6 +34,84 @@ def _write_system_clipboard(text):
             )
             return True
     return False
+
+
+def _read_system_clipboard():
+    """Read text from the host system clipboard, or None if unavailable.
+
+    Symmetric with _write_system_clipboard(): tries the clipboard first so
+    Ctrl+V pastes whatever is actually on the OS clipboard (not just text
+    the editor itself copied earlier), falling back to the editor's own
+    clipboard when no system tool is available.
+    """
+    if os.name == "nt":
+        try:
+            import ctypes
+            CF_UNICODETEXT = 13
+            user32 = ctypes.windll.user32
+            kernel32 = ctypes.windll.kernel32
+            if not user32.OpenClipboard(0):
+                return None
+            try:
+                handle = user32.GetClipboardData(CF_UNICODETEXT)
+                if not handle:
+                    return None
+                pointer = kernel32.GlobalLock(handle)
+                if not pointer:
+                    return None
+                try:
+                    text = ctypes.wstring_at(pointer)
+                finally:
+                    kernel32.GlobalUnlock(handle)
+            finally:
+                user32.CloseClipboard()
+            return text.replace("\r\n", "\n").replace("\r", "\n")
+        except OSError:
+            return None
+
+    if "WSL_DISTRO_NAME" in os.environ and shutil.which("clip.exe"):
+        # clip.exe can only write; WSL has no native clipboard reader, so ask
+        # the host's PowerShell for it instead.
+        try:
+            result = subprocess.run(
+                ["powershell.exe", "-NoProfile", "-Command", "Get-Clipboard"],
+                capture_output=True, text=True, encoding="utf-8", timeout=3,
+            )
+        except (OSError, subprocess.SubprocessError):
+            return None
+        return result.stdout.replace("\r\n", "\n").rstrip("\n") if result.returncode == 0 else None
+
+    if sys.platform == "darwin":
+        commands = [["pbpaste"]]
+    else:
+        commands = [
+            ["wl-paste", "-n"],
+            ["xclip", "-selection", "clipboard", "-o"],
+            ["xsel", "--clipboard", "--output"],
+        ]
+    for command in commands:
+        if not shutil.which(command[0]):
+            continue
+        try:
+            result = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", timeout=3)
+        except (OSError, subprocess.SubprocessError):
+            continue
+        if result.returncode == 0:
+            return result.stdout.replace("\r\n", "\n")
+    return None
+
+
+def _is_paste_burst(buffer):
+    """True if a batch of already-queued bytes looks like a paste.
+
+    Windows delivers a Ctrl+V / right-click paste as a very fast burst of
+    synthesized keystrokes rather than as one chunk of text (there is no
+    bracketed-paste signal for raw console apps there). A held-down key also
+    queues up several bytes, so a burst is only treated as a paste when it
+    contains more than one distinct byte; genuine pasted text is never just
+    one character repeating, but an auto-repeating key always is.
+    """
+    return len(buffer) > 1 and len(set(buffer)) > 1
 
 
 def _decode_escape_sequence(sequence):
@@ -147,6 +225,24 @@ if os.name == 'nt':
         if ch in (b'\x00', b'\xe0'): # Arrow key prefixes on Windows
             ch2 = msvcrt.getch()
             return WINDOWS_KEYS.get(ch2[0], f"arrow_{ch2.hex()}")
+        # No bracketed-paste signal exists here (see _is_paste_burst): drain
+        # whatever is already queued and, if it looks like a paste rather
+        # than a held key, deliver it as one "paste:" chunk so it is inserted
+        # in a single fast operation with its newlines kept literal, the same
+        # way a POSIX terminal's bracketed paste is handled below.
+        burst = bytearray(ch)
+        while msvcrt.kbhit():
+            next_ch = msvcrt.getch()
+            if next_ch in (b'\x00', b'\xe0'):
+                try:
+                    msvcrt.ungetch(next_ch)
+                except (ValueError, OSError):
+                    pass  # rare: drop this one extended-key event rather than crash
+                break
+            burst.extend(next_ch)
+        if _is_paste_burst(burst):
+            text = bytes(burst).decode('utf-8', errors='ignore')
+            return "paste:" + text.replace('\r\n', '\n').replace('\r', '\n')
         return ch.decode('utf-8', errors='ignore')
 else:
     import fcntl
@@ -601,6 +697,8 @@ class Editor:
         self.undo_stack = []
         self.redo_stack = []
         self.diagnostic_panel = None
+        self._diagnostic_error_lines = set()
+        self._diagnostic_warning_lines = set()
         self._tab_states = None
         self._active_tab = 0
 
@@ -670,7 +768,14 @@ class Editor:
         self.message = f"Opened {path}"
 
     def _diagnostics(self, kind):
-        """Return lightweight, line-aware editor diagnostics."""
+        """Return lightweight, line-aware editor diagnostics.
+
+        These checks encode ChemQL syntax/semantics (the `warn` statement,
+        division-by-zero as a query condition, etc.), so they only make sense
+        for .cql files; anything else reports no diagnostics.
+        """
+        if os.path.splitext(self.filename or "")[1].casefold() != ".cql":
+            return []
         found = []
         pairs = {"(": ")", "[": "]", "{": "}"}
         stack = []
@@ -747,7 +852,14 @@ class Editor:
         cols = max(cols, 20)
         rows = max(rows, 4)
         gutter_width = len(str(max(len(self.lines), self.cursor_y + 1))) + 2
-        panel_items = self._diagnostics(self.diagnostic_panel) if self.diagnostic_panel else []
+        error_diagnostics = self._diagnostics("error")
+        warning_diagnostics = self._diagnostics("warning")
+        self._diagnostic_error_lines = {item[0] for item in error_diagnostics}
+        self._diagnostic_warning_lines = {item[0] for item in warning_diagnostics}
+        panel_items = (
+            (warning_diagnostics if self.diagnostic_panel == "warning" else error_diagnostics)
+            if self.diagnostic_panel else []
+        )
         panel_height = min(5, len(panel_items) + 1) if self.diagnostic_panel else 0
         terminal_height = min(max(0, terminal_height), rows - 2 - panel_height)
         viewport_height = rows - terminal_height - panel_height - 2
@@ -769,7 +881,7 @@ class Editor:
                     ghost_column = visual_cursor_x - self.scroll_x
                     available = max(0, viewport_width - ghost_column)
                     if suffix and available:
-                        ghost = "\x1b[90m" + suffix[:available] + RESET
+                        ghost = DIM + MUTED + suffix[:available] + RESET
                 output.extend((
                     DIM, MUTED, line_number, RESET,
                     self._highlight_line(visible_text, line_y), ghost, "\x1b[K\r\n",
@@ -865,10 +977,14 @@ class Editor:
         return self._apply_diagnostic_underline("".join(parts), line_y)
 
     def _apply_diagnostic_underline(self, rendered, line_y):
-        """Underline source lines that contain editor diagnostics."""
+        """Underline source lines that contain editor diagnostics.
+
+        Reads the sets draw_screen() computed once for this redraw (see
+        there) instead of rescanning the whole file for every visible line.
+        """
         line_number = line_y + 1
-        error_lines = {item[0] for item in self._diagnostics("error")}
-        warning_lines = {item[0] for item in self._diagnostics("warning")}
+        error_lines = getattr(self, "_diagnostic_error_lines", None) or set()
+        warning_lines = getattr(self, "_diagnostic_warning_lines", None) or set()
 
         # Errors take precedence if a line has both diagnostics. SGR 4:3 is
         # the standardized wavy underline; SGR 58 sets its colour independently
@@ -993,8 +1109,9 @@ class Editor:
                 self.message = "Cut selection"
             return False
         if key in ("\x16", "shift+insert", "ctrl+v"):
-            if self.clipboard:
-                self._insert_text(self.clipboard)
+            text = _read_system_clipboard() or self.clipboard
+            if text:
+                self._insert_text(text)
             return False
 
         modifiers = set(key.split("+")[:-1])
@@ -1545,20 +1662,6 @@ class Editor:
         self._record_history()
         self._remove_selection()
         text = text.replace("\r\n", "\n").replace("\r", "\n")
-        if text in {"=", ">", "<", "-", "!", "~"} and self.cursor_x:
-            line = self.lines[self.cursor_y]
-            left = line[:self.cursor_x]
-            replacements = {
-                ">=": "≥", "<=": "≤", "!=": "≠", "->": "→",
-                "<-": "←", "=>": "⇒", "~=": "≈",
-            }
-            for source, target in sorted(replacements.items(), key=lambda item: -len(item[0])):
-                prefix = source[:-1]
-                if prefix and left.endswith(prefix):
-                    left = left[:-len(prefix)]
-                    self.lines[self.cursor_y] = left + line[self.cursor_x:]
-                    text = target
-                    break
         current_line = self.lines[self.cursor_y]
         left_side = current_line[:self.cursor_x]
         right_side = current_line[self.cursor_x:]

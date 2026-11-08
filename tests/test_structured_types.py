@@ -23,6 +23,54 @@ def test_enum_members_support_auto_values_and_explicit_values(monkeypatch):
     assert chemql.process_inline("TestLevels.HIGH") is levels.HIGH
 
 
+def test_enum_inherits_members_and_continues_auto_values(monkeypatch):
+    for name in ("TestBaseLevels", "TestExtendedLevels"):
+        monkeypatch.delitem(chemql.python_globals, name, raising=False)
+        monkeypatch.delitem(chemql.ENUMS, name, raising=False)
+
+    chemql.process_lines(
+        [
+            "enum TestBaseLevels",
+            "    LOW",
+            "    MEDIUM = 50",
+            "endenum",
+            "enum TestExtendedLevels from TestBaseLevels",
+            "    HIGH",
+            "endenum",
+        ]
+    )
+
+    levels = chemql.python_globals["TestExtendedLevels"]
+    assert [member.name for member in levels] == ["LOW", "MEDIUM", "HIGH"]
+    assert [member.value for member in levels] == [1, 50, 51]
+    assert chemql.process_inline("TestExtendedLevels.LOW") is levels.LOW
+
+
+def test_definitions_and_macros_expand_nestedly(monkeypatch, capsys):
+    for name in ("TestA", "TestB", "TestInner", "TestOuter"):
+        monkeypatch.delitem(chemql.DEFINITIONS, name, raising=False)
+        monkeypatch.delitem(chemql.MACROS, name, raising=False)
+        monkeypatch.delitem(chemql.python_globals, name, raising=False)
+        chemql.CHEMQL_VARIABLES.discard(name)
+
+    chemql.process_lines(
+        [
+            "define TestA 9",
+            "define TestB @TestA",
+            "define TestInner{}",
+            "    let nested = @TestB",
+            "enddefine",
+            "define TestOuter{}",
+            "    @TestInner{}",
+            "enddefine",
+        ]
+    )
+
+    chemql.process_lines(["@TestB", "@TestOuter{}"])
+    assert "9" in capsys.readouterr().out
+    assert chemql.python_globals["nested"] == 9
+
+
 def test_struct_inherits_fields_defaults_and_methods(monkeypatch):
     for name in ("TestAnimal", "TestDog"):
         monkeypatch.delitem(chemql.python_globals, name, raising=False)
@@ -57,6 +105,40 @@ def test_struct_inherits_fields_defaults_and_methods(monkeypatch):
     assert cat.name == "Milo"
     with pytest.raises(TypeError, match="missing required field"):
         dog_type("Rex")
+
+
+def test_struct_can_override_inherited_field_default(monkeypatch):
+    for name in ("TestDefaultBase", "TestDefaultChild"):
+        monkeypatch.delitem(chemql.python_globals, name, raising=False)
+        monkeypatch.delitem(chemql.STRUCTS, name, raising=False)
+
+    chemql.process_lines(
+        [
+            "struct TestDefaultBase",
+            "    r = 1",
+            "endstruct",
+            "struct TestDefaultChild from TestDefaultBase",
+            "    r = 4",
+            "endstruct",
+        ]
+    )
+
+    child = chemql.process_inline("TestDefaultChild{}")
+    assert child.r == 4
+    assert chemql.python_globals["TestDefaultChild"]._chemql_fields == ("r",)
+
+
+def test_constructor_can_chain_instance_method_call(monkeypatch):
+    monkeypatch.delitem(chemql.python_globals, "TestDisplay", raising=False)
+    monkeypatch.delitem(chemql.STRUCTS, "TestDisplay", raising=False)
+    chemql.process_lines(
+        ["struct TestDisplay", "    r = 4", "endstruct"]
+    )
+    display = chemql.python_globals["TestDisplay"]
+    monkeypatch.setattr(display, "display", lambda self: self.r, raising=False)
+
+    assert chemql.process_inline("TestDisplay{}.display{}") == 4
+    assert chemql.process_inline("TestDisplay{2}.display{}") == 2
 
 
 def test_record_inherits_from_record_and_remains_a_tuple(monkeypatch):

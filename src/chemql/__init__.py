@@ -69,7 +69,7 @@ __all__ = [
     "__version__"
 ]
 
-__version__ = "1.6.6"
+__version__ = "1.6.7"
 
 # Persistent preprocessor/function state for the current ChemQL session.
 DEFINITIONS = {}
@@ -87,8 +87,18 @@ def _expand_definitions(line):
     if not DEFINITIONS:
         return line
     pattern = re.compile(r"@(" + _DEFINITION_NAME + r")")
-    # One substitution pass only: replacement text is not recursively expanded.
-    return pattern.sub(lambda match: DEFINITIONS.get(match.group(1), match.group(0)), line)
+
+    def expand(source, expanding):
+        def replace(match):
+            name = match.group(1)
+            value = DEFINITIONS.get(name)
+            if value is None or name in expanding:
+                return match.group(0)
+            return expand(value, expanding | {name})
+
+        return pattern.sub(replace, source)
+
+    return expand(line, set())
 
 def _split_function_arguments(source):
     """Split comma-separated arguments while respecting nested delimiters and strings."""
@@ -411,7 +421,7 @@ _BUILTIN_HELP = {
 }
 
 _HELP_TOPICS = {
-    "syntax": ("ChemQL Syntax", ["Function calls use braces: `name{arg1, arg2}`.", "Quote text containing spaces: `upper{\"hello world\"}`.", "Separate arguments with commas, not spaces.", "Python statements/expressions can be embedded in `[ ... ]`.", "Multiline Python uses `[[[ ... ]]]`; embedded queries use `{{ ... }}`.", "Enums use `enum Name`, member declarations, and `endenum`; omitted values are generated automatically.", "Structs and records may use `from Base`; structs inherit from structs, records, or Python classes, while records inherit only from records.", "Definitions are defined like `define MAX 9` and used like `@MAX * 2`, which returns 18", "Macros are defined like define Macro{} with the body text under it and ended by `enddefine` and called like @Macro{}"]),
+    "syntax": ("ChemQL Syntax", ["Function calls use braces: `name{arg1, arg2}`.", "Quote text containing spaces: `upper{\"hello world\"}`.", "Separate arguments with commas, not spaces.", "Python statements/expressions can be embedded in `[ ... ]`.", "Multiline Python uses `[[[ ... ]]]`; embedded queries use `{{ ... }}`.", "Enums use `enum Name [from Base]`, member declarations, and `endenum`; omitted values are generated automatically.", "Structs and records may use `from Base`; structs inherit from structs, records, or Python classes, while records inherit only from records.", "Definitions are defined like `define MAX 9` and used like `@MAX * 2`, which returns 18", "Macros are defined like define Macro{} with the body text under it and ended by `enddefine` and called like @Macro{}"]),
     "errors": ("ChemQL Error Signals", ["SyntaxError — the input could not be parsed as valid syntax.", "TooFewArguments — a function received fewer arguments than required.", "TooManyArguments — a function received more arguments than allowed.", "InvalidArgumentType — an argument has an unsupported type.", "InvalidArgumentValue — an argument's value is invalid.", "FileReadError — reading a file failed.", "FileWriteError — writing a file failed.", "NameError — a name or function is unknown.", "PermissionError — a private namespace function was called externally."]),
     "files": ("File Functions", ["read_text{path, encoding?}", "read_lines{path, encoding?}", "read_csv{path, delimiter?, encoding?, header?}", "read_json{path, encoding?}", "write_text{path, content, encoding?}", "write_csv{path, rows, delimiter?, encoding?}", "write_json{path, value, encoding?, indent?}", "file_exists{path}", "list_files{directory?, pattern?}"]),
     "chemistry": ("Chemistry Functions", ["molar_mass{formula}", "count_atoms{formula, element_symbol}", "empirical_formula{formula}", "element{symbol, field?}"]),
@@ -1175,6 +1185,34 @@ def _expand_function_calls(text):
                 continue
             if ch in ("'", '"'):
                 quote = ch; i += 1; continue
+            if ch.isalpha() or ch == "_":
+                method_match = re.match(r"([A-Za-z_][A-Za-z0-9_]*)\{", text[i:])
+                if method_match and i and text[i - 1] == ".":
+                    owner_end = i - 1
+                    depth = 0
+                    owner_start = owner_end - 1
+                    while owner_start >= 0:
+                        owner_char = text[owner_start]
+                        if owner_char == ")":
+                            depth += 1
+                        elif owner_char == "(":
+                            depth -= 1
+                        elif depth == 0 and owner_char in " \t\r\n,+-*/%=<>!&|":
+                            break
+                        owner_start -= 1
+                    owner_start += 1
+                    opening = i + method_match.end() - 1
+                    end = find_matching(text, opening, "{", "}")
+                    owner = evaluate_python(text[owner_start:owner_end])
+                    callable_attribute = getattr(owner, method_match.group(1))
+                    if not callable(callable_attribute):
+                        raise ChemQLError(f"`{method_match.group(1)}` is not callable")
+                    values = [evaluate_python(arg) for arg in _split_function_arguments(text[opening + 1:end])]
+                    value = callable_attribute(*values)
+                    replacement = repr(value) if isinstance(value, str) else ("None" if value is None else str(value))
+                    text = text[:owner_start] + replacement + text[end + 1:]
+                    changed = True
+                    break
             if i and re.match(r"[A-Za-z0-9_.:]", text[i - 1]):
                 i += 1
                 continue
@@ -1354,6 +1392,15 @@ def _expand_function_calls(text):
                     text = text[:i] + replacement + text[end + 1:]
                     changed = True
                     break
+                elif "." in resolved_name:
+                    # Resolve an instance/class attribute as a ChemQL brace-call.
+                    owner_expression, attribute_name = resolved_name.rsplit(".", 1)
+                    owner = evaluate_python(owner_expression)
+                    callable_attribute = getattr(owner, attribute_name)
+                    if not callable(callable_attribute):
+                        raise ChemQLError(f"`{name}` is not callable")
+                    values = [evaluate_python(arg) for arg in args]
+                    value = callable_attribute(*values)
                 else:
                     raise ChemQLError((f"Unknown function `{name}`" if NO_ANSI else f"Unknown function \033[1m{name}\033[22m"))
                 replacement = repr(value) if isinstance(value, str) else ("None" if value is None else str(value))
@@ -4179,6 +4226,52 @@ def _run_python_in_active_namespace(compiled, mode):
                 python_globals[name] = old_value
 
 
+class _ChemQLStringAddition(ast.NodeTransformer):
+    """Make mixed string concatenation readable in ChemQL expressions."""
+    @staticmethod
+    def _is_string_expression(node):
+        if isinstance(node, ast.Constant):
+            return isinstance(node.value, str)
+        if isinstance(node, ast.JoinedStr):
+            return True
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "str"
+        ):
+            return True
+        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+            return (
+                _ChemQLStringAddition._is_string_expression(node.left)
+                or _ChemQLStringAddition._is_string_expression(node.right)
+            )
+        return False
+
+    def visit_BinOp(self, node):
+        self.generic_visit(node)
+        if isinstance(node.op, ast.Add) and (
+            self._is_string_expression(node.left)
+            or self._is_string_expression(node.right)
+        ):
+            node.left = ast.Call(func=ast.Name(id="str", ctx=ast.Load()), args=[node.left], keywords=[])
+            node.right = ast.Call(func=ast.Name(id="str", ctx=ast.Load()), args=[node.right], keywords=[])
+        return node
+
+
+def _normalize_constructor_arguments(source):
+    """Allow positional constructor arguments after keyword arguments."""
+    arguments = _split_function_arguments(source)
+    positional, keywords = [], []
+    for argument in arguments:
+        if not argument:
+            continue
+        if re.match(r"^[A-Za-z_]\w*\s*=(?!=)", argument):
+            keywords.append(argument)
+        else:
+            positional.append(argument)
+    return ", ".join(positional + keywords)
+
+
 def evaluate_python(code):
     """Evaluate Python, with {{ query }} expressions available inside it.
 
@@ -4186,6 +4279,12 @@ def evaluate_python(code):
     Otherwise it is executed and None is returned.
     """
     code = code.strip()
+    code = re.sub(
+        r'("(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\')'
+        r'((?:this|[A-Za-z_]\w*)(?:\.[A-Za-z_]\w*)+)',
+        r'\1 + str(\2)',
+        code,
+    )
     query_values = {}
     rewritten = []
     i = 0
@@ -4210,8 +4309,11 @@ def evaluate_python(code):
 
     rewritten = "".join(rewritten)
     for type_name in (*STRUCTS.keys(), *RECORDS.keys()):
-        rewritten = re.sub(r"\b" + re.escape(type_name) + r"\s*\{([^{}]*)\}",
-                           lambda m, n=type_name: n + "(" + m.group(1) + ")", rewritten)
+        rewritten = re.sub(
+            r"\b" + re.escape(type_name) + r"\s*\{([^{}]*)\}",
+            lambda m, n=type_name: n + "(" + _normalize_constructor_arguments(m.group(1)) + ")",
+            rewritten,
+        )
     rewritten = _expand_function_calls(rewritten)
     # ChemQL uses :: for namespace qualification; Python uses attribute dots.
     rewritten = re.sub(r"\b([A-Za-z_]\w*(?:::[A-Za-z_]\w*)+)",
@@ -4221,8 +4323,12 @@ def evaluate_python(code):
 
     try:
         tree = ast.parse(rewritten, mode="eval")
+        tree = _ChemQLStringAddition().visit(tree)
+        ast.fix_missing_locations(tree)
     except SyntaxError:
         module = ast.parse(rewritten, mode="exec")
+        module = _ChemQLStringAddition().visit(module)
+        ast.fix_missing_locations(module)
 
         for node in ast.walk(module):
             if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
@@ -5252,9 +5358,13 @@ def process_lines(lines):
             i = block_end + 1
             continue
 
-        enum_match = re.fullmatch(r"enum\s+([A-Za-z_]\w*)", stripped, re.IGNORECASE)
+        enum_match = re.fullmatch(
+            r"enum\s+([A-Za-z_]\w*)(?:\s+from\s+([A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*))?",
+            stripped,
+            re.IGNORECASE,
+        )
         if enum_match:
-            type_name = enum_match.group(1)
+            type_name, base_name = enum_match.groups()
             end = i + 1
             while end < len(lines) and lines[end].strip().casefold() != "endenum":
                 end += 1
@@ -5262,6 +5372,26 @@ def process_lines(lines):
                 raise SyntaxError((f"Missing `endenum` for enum `{type_name}`" if NO_ANSI else f"Missing \033[1mendenum\033[22m for enum \033[1m{type_name}\033[22m"))
             members = []
             member_names = set()
+            parent = None
+            if base_name:
+                base_reference = base_name.strip()
+                if "." in base_reference:
+                    parent = evaluate_python(base_reference)
+                else:
+                    local_base_key = (
+                        f"{_CURRENT_NAMESPACE._chemql_name}::{base_reference}"
+                        if _CURRENT_NAMESPACE is not None else base_reference
+                    )
+                    parent = (
+                        ENUMS.get(local_base_key)
+                        or ENUMS.get(base_reference)
+                        or python_globals.get(base_reference)
+                    )
+                if not isinstance(parent, type) or not issubclass(parent, Enum):
+                    raise SyntaxError((f"Unknown base enum `{base_reference}` for enum `{type_name}`" if NO_ANSI else f"Unknown base enum \033[1m{base_reference}\033[22m for enum \033[1m{type_name}\033[22m"))
+                for member in parent:
+                    members.append((member.name, member.value))
+                    member_names.add(member.name)
             for member_line in lines[i + 1:end]:
                 member_line = remove_comments(member_line).strip()
                 if not member_line:
@@ -5376,6 +5506,7 @@ def process_lines(lines):
                     tuple_fields = tuple(getattr(parent, "_chemql_tuple_fields", ()))
 
             required_fields, optional_fields = [], []
+            declared_fields, overridden_fields = [], []
             for field_line in lines[i + 1:end]:
                 field_line = remove_comments(field_line).strip()
                 if not field_line:
@@ -5393,24 +5524,31 @@ def process_lines(lines):
                         raise SyntaxError(f"Invalid {kind} field declaration: {field_line}")
                     field, default = match.groups()
                     is_required = False
-                if field in base_fields or field in required_fields or field in optional_fields:
+                if field in required_fields or field in optional_fields or field in overridden_fields:
                     raise SyntaxError((f"Duplicate field `{field}` in {type_name}" if NO_ANSI else f"Duplicate field \033[1m{field}\033[22m in {type_name}"))
-                if is_required:
-                    required_fields.append(field)
-                else:
-                    optional_fields.append(field)
-                    if default is not None:
+                if field in base_fields:
+                    overridden_fields.append(field)
+                    if is_required or default is None:
+                        defaults.pop(field, None)
+                    else:
                         defaults[field] = evaluate_python(_expand_definitions(default))
+                    if is_required:
+                        required_fields.append(field)
+                else:
+                    declared_fields.append(field)
+                    if is_required:
+                        required_fields.append(field)
+                    else:
+                        optional_fields.append(field)
+                        if default is not None:
+                            defaults[field] = evaluate_python(_expand_definitions(default))
             declared_fields = required_fields + optional_fields if kind == "struct" else optional_fields
-            duplicate_fields = set(base_fields) & set(declared_fields)
-            if duplicate_fields:
-                raise SyntaxError((f"Field `{sorted(duplicate_fields)[0]}` is already inherited by {type_name}" if NO_ANSI else f"Field \033[1m{sorted(duplicate_fields)[0]}\033[22m is already inherited by {type_name}"))
             fields = base_fields + declared_fields
             if not fields and parent is None:
                 raise SyntaxError((f"{kind.title()} `{type_name}` must declare fields" if NO_ANSI else f"{kind.title()} \033[1m{type_name}\033[22m must declare fields"))
             if kind == "struct":
-                all_required = base_required + required_fields
-                own_fields = tuple(declared_fields)
+                all_required = [field for field in base_required if field not in overridden_fields] + required_fields
+                own_fields = tuple(overridden_fields + declared_fields)
                 native_constructor_base = parent in (
                     int, float, complex, str, bytes, tuple, frozenset,
                 ) if parent is not None else False
@@ -5670,9 +5808,14 @@ def process_lines(lines):
             i += 1
             continue
 
-        remove_definition = re.fullmatch(r"remove\s+definition\s+(" + _DEFINITION_NAME + r")", stripped, re.IGNORECASE)
+        remove_definition = re.fullmatch(r"remove\s+definition\s+@?(" + _DEFINITION_NAME + r")", stripped, re.IGNORECASE)
         if remove_definition:
             DEFINITIONS.pop(remove_definition.group(1), None)
+            i += 1
+            continue
+        remove_macro = re.fullmatch(r"remove\s+macro\s+@?(" + _DEFINITION_NAME + ")", stripped, re.IGNORECASE)
+        if remove_macro:
+            MACROS.pop(remove_macro.group(1), None)
             i += 1
             continue
 
@@ -6753,6 +6896,7 @@ HELP = (
     "  \x1b[95m@MAX                         \x1b[0m \x1b[90m│\x1b[0m Use a definition\n"
     "  \x1b[95mdefinitions                  \x1b[0m \x1b[90m│\x1b[0m List definitions\n"
     "  \x1b[95mremove definition MAX        \x1b[0m \x1b[90m│\x1b[0m Remove a definition\n"
+    "  \x1b[95mremove macro MAX             \x1b[0m \x1b[90m│\x1b[0m Remove a macro\n"
     "    \x1b[95mdefine MAX 9\x1b[0m\n"
     "    \x1b[95msearch elements number <= @MAX\x1b[0m\n"
     "\n"
@@ -6795,7 +6939,7 @@ HELP = (
     "  \x1b[2mThe variable error contains the error type, or None after success.\x1b[0m\n"
     "\n"
     "\x1b[1;93m\x1b[1m◆  STRUCTS & METHODS\x1b[0m\n"
-    "  \x1b[95menum Name ... endenum        \x1b[0m \x1b[90m│\x1b[0m Define named values; omitted values auto-increment\n"
+    "  \x1b[95menum Name [from Base] ... endenum\x1b[0m \x1b[90m│\x1b[0m Define named values; omitted values auto-increment\n"
     "  \x1b[95mstruct Name                  \x1b[0m \x1b[90m│\x1b[0m Define a structured data type\n"
     "  \x1b[95mstruct Name from Base        \x1b[0m \x1b[90m│\x1b[0m Inherit from structs, records, or Python classes\n"
     "  \x1b[95mrecord Name [from Base]      \x1b[0m \x1b[90m│\x1b[0m Define a record; records inherit from records\n"
@@ -7171,11 +7315,13 @@ class ChemqlCompleter(Completer):
                 }.get(setting, [])
         elif command in {"add", "remove"}:
             if len(command_words) == 1:
-                suggestions = ["catalyst", "definition"] if command == "remove" else ["catalyst"]
+                suggestions = ["catalyst", "definition", "macro"] if command == "remove" else ["catalyst"]
             elif command == "remove" and command_words[1].casefold() == "catalyst":
                 suggestions = list(reaction_state["catalysts"])
             elif command == "remove" and command_words[1].casefold() == "definition":
                 suggestions = sorted(names["definitions"])
+            elif command == "remove" and command_words[1].casefold() == "macro":
+                suggestions = sorted(names["macros"])
         elif command == "variables":
             suggestions = sorted(names["variables"])
         elif command == "definitions":
@@ -8077,7 +8223,7 @@ def run_interactive():
                 closer = "]]]" if first == "[[[" else "```"
                 return not (len(source_lines) > 1 and last == closer)
 
-            if re.fullmatch(r"(?:(?:static\s+func|func\s+static|func)\s+)" + _DEFINITION_NAME + "(?:\\." + _DEFINITION_NAME + ")?" , first, re.IGNORECASE):
+            if re.fullmatch(r"(?:(?:(?:public|private)\s+)?(?:static\s+func|func\s+static|func)\s+)" + _DEFINITION_NAME + "(?:\\." + _DEFINITION_NAME + ")?" , first, re.IGNORECASE):
                 return last.casefold() != "endfunc"
 
             if re.fullmatch(r"define\s+" + _DEFINITION_NAME + r"\s*\{\s*\}", first):
@@ -8109,7 +8255,7 @@ def run_interactive():
                     stack.append("record")
                 elif re.fullmatch(r"enum\s+[A-Za-z_]\w*", declaration_line, re.IGNORECASE):
                     stack.append("enum")
-                elif re.fullmatch(r"func\s+[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)?", stripped, re.IGNORECASE):
+                elif re.fullmatch(r"(?:(?:public|private)\s+)?func\s+[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)?", stripped, re.IGNORECASE):
                     stack.append("func")
                 elif re.fullmatch(r"define\s+[A-Za-z_]\w*\s*\{\s*\}", stripped, re.IGNORECASE):
                     stack.append("macro")
@@ -8203,7 +8349,7 @@ def run_interactive():
                 continue
 
             # Collect function and macro declarations as complete REPL units.
-            if lines and re.fullmatch(r"(?:(?:static\s+func|func\s+static|func)\s+)" + _DEFINITION_NAME, lines[0].strip(), re.IGNORECASE):
+            if lines and re.fullmatch(r"(?:(?:(?:public|private)\s+)?(?:static\s+func|func\s+static|func)\s+)" + _DEFINITION_NAME, lines[0].strip(), re.IGNORECASE):
                 while lines[-1].strip().casefold() != "endfunc":
                     try:
                         lines.append(session.prompt("... "))
