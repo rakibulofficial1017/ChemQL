@@ -5,9 +5,12 @@ src/chemql/__init__.py
 src/chemql/__main__.py
 src/chemql/build.py
 src/chemql/codecql.py
+src/chemql/codecql_gui_core.py
+src/chemql/codecqlx.py
 src/chemql/colors.json
 src/chemql/highlighting.json
 src/chemql/highlighting.py
+src/chemql/logo64.png
 src/chemql/data/BondEnergies.json
 src/chemql/data/MoleculeBonds.json
 src/chemql/data/Molecules.json

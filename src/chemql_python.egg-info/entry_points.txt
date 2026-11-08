@@ -1,3 +1,4 @@
 [console_scripts]
 chemql = chemql:main
 codecql = chemql.codecql:main
+codecqlx = chemql.codecqlx:main

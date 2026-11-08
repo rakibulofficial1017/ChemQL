@@ -2,12 +2,13 @@
 
 > A Python-embedded query language and terminal toolchain for chemistry data — with a purpose-built editor, package manager, and standard library.
 
-ChemQL is a small language for querying, computing with, and simulating chemistry data (elements, molecules, reactions), layered on a Python runtime. It ships with an interactive REPL, a terminal editor (CodecQL), a type system (structs, records, enums), namespaces, modules, a macro/preprocessor system, a package manager, and a standard library.
+ChemQL is a small language for querying, computing with, and simulating chemistry data (elements, molecules, reactions), layered on a Python runtime. It ships with an interactive REPL, a terminal editor (CodecQL), a desktop editor (CodecQLX), a type system (structs, records, enums), namespaces, modules, a macro/preprocessor system, a package manager, and a standard library.
 
 - **Distribution name:** `chemql-python`
 - **Import / CLI name:** `chemql`
-- **Language version:** `1.6.7` (per `chemql.__version__`)
+- **Language version:** `1.6.9` (per `chemql.__version__`)
 - **Editor version:** `codecql 0.1.1`
+- **GUI Editor version:** `CodecQLX 1.0.0`
 - **Python import / CLI name:** `chemql`
 - **Author:** Mohammad Rakibul Islam
 - **Minimum Python:** **3.12+** (verified with `vermin`)
@@ -804,6 +805,60 @@ Each entry needs an `ansi256` number from 0 to 255, and an optional `channel` of
 - One file per session: there are no tabs or split editors.
 - Tabs are drawn four columns wide.
 - CodecQL's Windows Backspace / Ctrl+Backspace are intentionally inverted relative to POSIX.
+
+## CodecQLX — the desktop editor
+
+**CodecQLX** is the Tkinter desktop editor for ChemQL. It complements the
+terminal-based CodecQL with a multi-file workspace, graphical diagnostics,
+ChemQL-aware tools, and configurable themes.
+
+### Starting CodecQLX
+
+```bash
+codecqlx FILE_OR_FOLDER ...
+python -m chemql.codecqlx FILE_OR_FOLDER ...
+codecqlx --version
+```
+
+Paths are optional. A new empty file is opened when no path is supplied;
+files and folders passed on the command line are opened in the editor. The
+`codecqlx` command is installed with `chemql-python`.
+
+CodecQLX uses Python's standard-library Tkinter GUI toolkit. On Linux, install
+the platform Tk package if it is not already available (for example,
+`python3-tk` on Debian/Ubuntu). The optional ChemQL panels are disabled when
+the `chemql` package cannot be imported.
+
+### Features
+
+- Syntax highlighting and context-aware autocomplete for `.cql` files
+- Hoverable diagnostics, gutter markers, a Problems panel, and an overview ruler
+- File tree sidebar with multiple editor tabs
+- Query Console that executes ChemQL in-process and displays table or card results
+- Interactive Periodic Table lookup
+- Balance Equation panel
+- Find and replace, bookmarks, zoom controls, and run-file/run-selection actions
+- Dark and light themes, font settings, autocomplete/minimap toggles, and
+  per-token color preferences
+
+Use **View** to toggle the file tree, Chemistry panel, and bottom panels.
+CodecQLX stores its preferences in `.codecql_gui/settings.json` under the
+user profile (`%APPDATA%` on Windows).
+
+### Keyboard shortcuts
+
+| Key | Action |
+|---|---|
+| `Ctrl+N` / `Ctrl+O` | New file / open file |
+| `Ctrl+Shift+O` | Open folder |
+| `Ctrl+S` / `Ctrl+Shift+S` | Save / save as |
+| `Ctrl+W` | Close tab |
+| `Ctrl+F` | Find and replace |
+| `Ctrl+R` / `Ctrl+Shift+R` | Run file / run selection |
+| `Tab` / `Enter` | Accept the selected autocomplete suggestion |
+| `Up` / `Down` / `Esc` | Navigate or dismiss autocomplete |
+| `Ctrl+F2` / `F2` / `Shift+F2` | Toggle / next / previous bookmark |
+| `Ctrl+=` / `Ctrl+-` / `Ctrl+0` | Zoom in / out / reset |
 
 ---
 
