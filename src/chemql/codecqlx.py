@@ -1645,7 +1645,7 @@ def main() -> None:
         import ctypes
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID('chemql.codecqlx.1.0.0')
     if len(sys.argv) > 1 and sys.argv[1] in ("--version", "-v"):
-        print("CodecQLX 1.0.0")
+        print("CodecQLX 1.1.0")
     else:
         app = App(sys.argv[1:])
         app.mainloop()

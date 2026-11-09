@@ -6,9 +6,9 @@ ChemQL is a small language for querying, computing with, and simulating chemistr
 
 - **Distribution name:** `chemql-python`
 - **Import / CLI name:** `chemql`
-- **Language version:** `1.6.9` (per `chemql.__version__`)
+- **Language version:** `1.6.10` (per `chemql.__version__`)
 - **Editor version:** `codecql 0.1.1`
-- **GUI Editor version:** `CodecQLX 1.0.0`
+- **GUI Editor version:** `CodecQLX 1.1.0`
 - **Python import / CLI name:** `chemql`
 - **Author:** Mohammad Rakibul Islam
 - **Minimum Python:** **3.12+** (verified with `vermin`)
