@@ -30,6 +30,15 @@ Verify:
 chemql --version
 ```
 
+If the `chemql` command is unavailable or fails to start, use
+`python -m chemql` with the same arguments instead:
+
+```bash
+python -m chemql --version
+python -m chemql -c 'search elements symbol = "Fe" return name symbol number'
+python -m chemql -f script.cql
+```
+
 Python **3.12+** is required. The project's minimum version is checked with [`vermin`](https://github.com/netromdk/vermin).
 
 ---
@@ -467,7 +476,9 @@ chemql edit --local-highlighting       # edit ./highlighting.json (created as {}
 chemql edit --version
 ```
 
-If your installation also registers a `codecql` console script, `codecql FILE` accepts the same options.
+If the `codecql` command is unavailable or fails to start, run
+`python -m chemql.codecql FILE` instead. It accepts the same options as
+`chemql edit`, including the highlighting configuration options.
 
 Opening a path that does not exist starts an empty buffer; it is created on the first save.
 
@@ -820,6 +831,14 @@ python -m chemql.codecqlx FILE_OR_FOLDER ...
 codecqlx --version
 ```
 
+If the `codecqlx` command is unavailable or fails to start, use
+`python -m chemql.codecqlx` with the same arguments:
+
+```bash
+python -m chemql.codecqlx FILE_OR_FOLDER ...
+python -m chemql.codecqlx --version
+```
+
 Paths are optional. A new empty file is opened when no path is supplied;
 files and folders passed on the command line are opened in the editor. The
 `codecqlx` command is installed with `chemql-python`.
@@ -833,7 +852,8 @@ the `chemql` package cannot be imported.
 
 - Syntax highlighting and context-aware autocomplete for `.cql` files
 - Hoverable diagnostics, gutter markers, a Problems panel, and an overview ruler
-- File tree sidebar with multiple editor tabs
+- File tree sidebar, recent files, and multiple editor tabs
+- Side-by-side editor panes for working with different files
 - Query Console that executes ChemQL in-process and displays table or card results
 - Interactive Periodic Table lookup
 - Balance Equation panel
@@ -842,6 +862,9 @@ the `chemql` package cannot be imported.
   per-token color preferences
 
 Use **View** to toggle the file tree, Chemistry panel, and bottom panels.
+Enable **View > Split Editor**, then choose **File > Open File in Other Pane**
+to work with a second file side by side. Close all tabs in the second pane
+before turning split view off.
 CodecQLX stores its preferences in `.codecql_gui/settings.json` under the
 user profile (`%APPDATA%` on Windows).
 

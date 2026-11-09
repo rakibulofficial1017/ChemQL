@@ -20,8 +20,9 @@ structurally cannot do:
     of hand-editing JSON.
   - An overview ruler (a mini error/warning map down the scrollbar) and
     bookmarks for fast navigation in long files.
+  - Recent files and side-by-side panes for working across multiple files.
 
-Run with:  python codecql_gui.py [file_or_folder ...]
+Run with:  python -m chemql.codecqlx [file_or_folder ...]
 Needs only the standard library; chemql-specific panels disable
 themselves gracefully if the `chemql` package isn't installed.
 """
@@ -296,6 +297,11 @@ class EditorTab(ttk.Frame):
         self.text.bind("<Button-4>", self._on_mousewheel)        # Linux scroll up
         self.text.bind("<Button-5>", self._on_mousewheel)        # Linux scroll down
         self.text.bind("<Control-MouseWheel>", self._on_ctrl_mousewheel)
+        self.text.bind(
+            "<FocusIn>",
+            lambda _event: self.app.set_active_notebook(self.master),
+            add="+",
+        )
         self.gutter.bind("<Button-1>", self._on_gutter_click)
         self.ruler.bind("<Button-1>", self._on_ruler_click)
         self.gutter.bind("<Configure>", lambda _e: self._redraw_gutter())
@@ -611,6 +617,12 @@ class EditorTab(ttk.Frame):
             target = filedialog.asksaveasfilename(defaultextension=".cql", filetypes=[("ChemQL", "*.cql"), ("All files", "*.*")])
             if not target:
                 return False
+        if any(
+            tab is not self and tab.path and os.path.abspath(tab.path) == os.path.abspath(target)
+            for tab in self.app._iter_tabs()
+        ):
+            messagebox.showerror(APP_TITLE, "That file is already open in another tab.")
+            return False
         try:
             Path(target).write_text(self.text.get("1.0", "end-1c"), encoding="utf-8")
         except OSError as error:
@@ -619,6 +631,7 @@ class EditorTab(ttk.Frame):
         self.path = target
         self.mark_clean()
         self.app.settings.remember_file(target)
+        self.app.refresh_recent_files()
         self._schedule_diagnostics()
         return True
 
@@ -1121,7 +1134,7 @@ class App(tk.Tk):
                 self.open_folder(path)
             elif os.path.isfile(path):
                 self.open_file(path)
-        if not self.notebook.tabs():
+        if not self._iter_tabs():
             self.new_file()
 
         self.protocol("WM_DELETE_WINDOW", self.on_close)
@@ -1136,7 +1149,11 @@ class App(tk.Tk):
         file_menu = tk.Menu(menubar, tearoff=False)
         file_menu.add_command(label="New File", command=self.new_file, accelerator="Ctrl+N")
         file_menu.add_command(label="Open File...", command=self.open_file_dialog, accelerator="Ctrl+O")
+        file_menu.add_command(label="Open File in Other Pane...", command=self.open_file_in_other_pane)
         file_menu.add_command(label="Open Folder...", command=self.open_folder_dialog, accelerator="Ctrl+Shift+O")
+        self.recent_files_menu = tk.Menu(file_menu, tearoff=False)
+        self.recent_files_menu.configure(postcommand=self.refresh_recent_files)
+        file_menu.add_cascade(label="Recent Files", menu=self.recent_files_menu)
         file_menu.add_separator()
         file_menu.add_command(label="Save", command=self.save_current, accelerator="Ctrl+S")
         file_menu.add_command(label="Save As...", command=self.save_current_as, accelerator="Ctrl+Shift+S")
@@ -1165,9 +1182,11 @@ class App(tk.Tk):
         self.show_sidebar_var = tk.BooleanVar(value=True)
         self.show_right_var = tk.BooleanVar(value=True)
         self.show_bottom_var = tk.BooleanVar(value=True)
+        self.split_editor_var = tk.BooleanVar(value=False)
         view_menu.add_checkbutton(label="File Tree", variable=self.show_sidebar_var, command=self._toggle_sidebar)
         view_menu.add_checkbutton(label="Chemistry Panel", variable=self.show_right_var, command=self._toggle_right_panel)
         view_menu.add_checkbutton(label="Bottom Panel", variable=self.show_bottom_var, command=self._toggle_bottom_panel)
+        view_menu.add_checkbutton(label="Split Editor", variable=self.split_editor_var, command=self._toggle_split_editor)
         view_menu.add_separator()
         view_menu.add_command(label="Zoom In", command=lambda: self.zoom(1), accelerator="Ctrl+=")
         view_menu.add_command(label="Zoom Out", command=lambda: self.zoom(-1), accelerator="Ctrl+-")
@@ -1197,9 +1216,14 @@ class App(tk.Tk):
         self.center_pane = ttk.PanedWindow(center, orient="vertical")
         self.center_pane.pack(fill="both", expand=True)
 
-        self.notebook = ttk.Notebook(self.center_pane)
-        self.notebook.bind("<<NotebookTabChanged>>", lambda _e: self.update_status_bar())
-        self.center_pane.add(self.notebook, weight=4)
+        self.editor_pane = ttk.PanedWindow(self.center_pane, orient="horizontal")
+        self.center_pane.add(self.editor_pane, weight=4)
+        self.notebook = ttk.Notebook(self.editor_pane)
+        self.secondary_notebook = ttk.Notebook(self.editor_pane)
+        self._active_notebook = self.notebook
+        self._bind_editor_notebook(self.notebook)
+        self._bind_editor_notebook(self.secondary_notebook)
+        self.editor_pane.add(self.notebook, weight=1)
 
         self.bottom_notebook = ttk.Notebook(self.center_pane)
         self.center_pane.add(self.bottom_notebook, weight=1)
@@ -1248,29 +1272,94 @@ class App(tk.Tk):
 
     # -- tab management -----------------------------------------------------
 
+    def _bind_editor_notebook(self, notebook: ttk.Notebook) -> None:
+        notebook.bind(
+            "<<NotebookTabChanged>>",
+            lambda _event, pane=notebook: self.set_active_notebook(pane),
+        )
+        notebook.bind(
+            "<Button-1>",
+            lambda _event, pane=notebook: self.set_active_notebook(pane),
+            add="+",
+        )
+
+    def set_active_notebook(self, notebook: ttk.Notebook) -> None:
+        self._active_notebook = notebook
+        self.update_status_bar()
+        self.refresh_problems_panel()
+
+    def _iter_tabs(self):
+        for notebook in (self.notebook, self.secondary_notebook):
+            for tab_id in notebook.tabs():
+                yield notebook.nametowidget(tab_id)
+
     def current_tab(self) -> Optional[EditorTab]:
-        tabs = self.notebook.tabs()
-        if not tabs:
-            return None
-        selected = self.notebook.select()
-        return self.notebook.nametowidget(selected) if selected else None
+        for notebook in (self._active_notebook, self.notebook, self.secondary_notebook):
+            selected = notebook.select()
+            if selected:
+                return notebook.nametowidget(selected)
+        return None
 
-    def new_file(self) -> None:
-        tab = EditorTab(self.notebook, self, None)
-        self.notebook.add(tab, text=tab.display_name)
-        self.notebook.select(tab)
+    def new_file(self, in_other_pane: bool = False) -> None:
+        notebook = self.secondary_notebook if in_other_pane else self._active_notebook
+        if in_other_pane:
+            self.split_editor_var.set(True)
+            self._toggle_split_editor()
+        tab = EditorTab(notebook, self, None)
+        notebook.add(tab, text=tab.display_name)
+        notebook.select(tab)
+        self.set_active_notebook(notebook)
 
-    def open_file(self, path: str) -> None:
+    def open_file(self, path: str, in_other_pane: bool = False) -> None:
         path = os.path.abspath(path)
-        for tab_id in self.notebook.tabs():
-            tab = self.notebook.nametowidget(tab_id)
-            if tab.path and os.path.abspath(tab.path) == path:
-                self.notebook.select(tab)
-                return
-        tab = EditorTab(self.notebook, self, path)
-        self.notebook.add(tab, text=tab.display_name)
-        self.notebook.select(tab)
+        for notebook in (self.notebook, self.secondary_notebook):
+            for tab_id in notebook.tabs():
+                tab = notebook.nametowidget(tab_id)
+                if tab.path and os.path.abspath(tab.path) == path:
+                    notebook.select(tab)
+                    self.set_active_notebook(notebook)
+                    return
+        notebook = self.secondary_notebook if in_other_pane else self._active_notebook
+        if in_other_pane:
+            self.split_editor_var.set(True)
+            self._toggle_split_editor()
+        tab = EditorTab(notebook, self, path)
+        notebook.add(tab, text=tab.display_name)
+        notebook.select(tab)
+        self.set_active_notebook(notebook)
         self.settings.remember_file(path)
+        self.refresh_recent_files()
+
+    def open_file_in_other_pane(self) -> None:
+        path = filedialog.askopenfilename(filetypes=[("ChemQL", "*.cql"), ("All files", "*.*")])
+        if path:
+            self.open_file(path, in_other_pane=True)
+
+    def open_recent_file(self, path: str) -> None:
+        if not os.path.isfile(path):
+            recent_files = self.settings.data.get("recent_files", [])
+            if not isinstance(recent_files, list):
+                recent_files = []
+            self.settings.data["recent_files"] = [item for item in recent_files if item != path]
+            self.settings.save()
+            self.refresh_recent_files()
+            messagebox.showerror(APP_TITLE, f"Recent file no longer exists:\n{path}")
+            return
+        self.open_file(path)
+
+    def refresh_recent_files(self) -> None:
+        menu = self.recent_files_menu
+        menu.delete(0, "end")
+        recent_files = self.settings.data.get("recent_files", [])
+        if not isinstance(recent_files, list):
+            recent_files = []
+        valid_files = [path for path in recent_files if isinstance(path, str)]
+        if not valid_files:
+            menu.add_command(label="No recent files", state="disabled")
+            return
+        for path in valid_files[:12]:
+            label = f"{Path(path).name} - {Path(path).parent}"
+            menu.add_command(label=label, command=lambda item=path: self.open_recent_file(item))
 
     def open_file_dialog(self) -> None:
         path = filedialog.askopenfilename(filetypes=[("ChemQL", "*.cql"), ("All files", "*.*")])
@@ -1292,20 +1381,28 @@ class App(tk.Tk):
         tab = self.current_tab()
         if tab is None:
             return
+        notebook = tab.master
         if tab.dirty:
             answer = messagebox.askyesnocancel(APP_TITLE, f"Save changes to {tab.display_name.lstrip('* ')}?")
             if answer is None:
                 return
             if answer and not tab.save():
                 return
-        self.notebook.forget(tab)
-        if not self.notebook.tabs():
+        notebook.forget(tab)
+        if notebook is self.secondary_notebook and not notebook.tabs():
+            self.split_editor_var.set(False)
+            self._toggle_split_editor()
+            self.set_active_notebook(self.notebook)
+            if not self.notebook.tabs():
+                self.new_file()
+        elif notebook is self.notebook and not notebook.tabs() and not self.secondary_notebook.tabs():
             self.new_file()
 
     def refresh_tab_titles(self) -> None:
-        for tab_id in self.notebook.tabs():
-            tab = self.notebook.nametowidget(tab_id)
-            self.notebook.tab(tab_id, text=tab.display_name)
+        for notebook in (self.notebook, self.secondary_notebook):
+            for tab_id in notebook.tabs():
+                tab = notebook.nametowidget(tab_id)
+                notebook.tab(tab_id, text=tab.display_name)
 
     def save_current(self) -> None:
         tab = self.current_tab()
@@ -1328,24 +1425,26 @@ class App(tk.Tk):
             tab.save(as_path=new_path)
 
     def on_close(self) -> None:
-        for tab_id in self.notebook.tabs():
-            tab = self.notebook.nametowidget(tab_id)
-            if tab.dirty:
-                self.notebook.select(tab)
-                answer = messagebox.askyesnocancel(APP_TITLE, f"Save changes to {tab.display_name.lstrip('* ')}?")
-                if answer is None:
-                    return
-                if answer and not tab.save():
-                    return
+        for notebook in (self.notebook, self.secondary_notebook):
+            for tab_id in notebook.tabs():
+                tab = notebook.nametowidget(tab_id)
+                if tab.dirty:
+                    notebook.select(tab)
+                    self.set_active_notebook(notebook)
+                    answer = messagebox.askyesnocancel(APP_TITLE, f"Save changes to {tab.display_name.lstrip('* ')}?")
+                    if answer is None:
+                        return
+                    if answer and not tab.save():
+                        return
         self.settings.save()
         self.destroy()
+
 
     # -- theming -----------------------------------------------------------
 
     def apply_theme(self) -> None:
         self.editor_font = (_pick_font_family(self.settings.data["font_family"]), self.settings.data["font_size"])
-        for tab_id in self.notebook.tabs():
-            tab = self.notebook.nametowidget(tab_id)
+        for tab in self._iter_tabs():
             tab._configure_tags()
             tab.rehighlight_all()
 
@@ -1385,6 +1484,21 @@ class App(tk.Tk):
         else:
             if str(self.bottom_notebook) in panes:
                 self.center_pane.forget(self.bottom_notebook)
+
+    def _toggle_split_editor(self) -> None:
+        panes = self.editor_pane.panes()
+        if self.split_editor_var.get():
+            if str(self.secondary_notebook) not in panes:
+                self.editor_pane.add(self.secondary_notebook, weight=1)
+        elif self.secondary_notebook.tabs():
+            self.split_editor_var.set(True)
+            messagebox.showinfo(
+                APP_TITLE,
+                "Close the tabs in the other pane before turning split view off.",
+            )
+        elif str(self.secondary_notebook) in panes:
+            self.editor_pane.forget(self.secondary_notebook)
+            self.set_active_notebook(self.notebook)
 
     # -- status bar / problems ----------------------------------------------
 
