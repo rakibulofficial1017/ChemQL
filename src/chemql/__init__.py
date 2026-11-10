@@ -69,7 +69,7 @@ __all__ = [
     "__version__"
 ]
 
-__version__ = "1.6.10"
+__version__ = "1.6.11"
 
 # Persistent preprocessor/function state for the current ChemQL session.
 DEFINITIONS = {}
@@ -3985,8 +3985,28 @@ def interpolate_query(text):
     """Evaluate [Python] expressions inside a query."""
     result = []
     i = 0
+    quote = None
+    escaped = False
 
     while i < len(text):
+        if quote is not None:
+            char = text[i]
+            result.append(char)
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == quote:
+                quote = None
+            i += 1
+            continue
+
+        if text[i] in ("'", '"'):
+            quote = text[i]
+            result.append(text[i])
+            i += 1
+            continue
+
         if text[i] == "[":
             end = find_matching(text, i, "[", "]")
             code = text[i + 1:end]

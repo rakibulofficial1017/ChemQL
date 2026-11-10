@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "chemql-python"
-version = "1.6.10"
+version = "1.6.11"
 authors = [
     { name = "Mohammad Rakibul Islam", email = "rakibulofficial1017@gmail.com" }
 ]
@@ -34,6 +34,7 @@ where = ["src"]
 chemql = [
     "colors.json",
 	"logo64.png",
+    "logo64-macos.png",
     "highlighting.json",
     "data/*.json",
     "data/THIRD_PARTY_LICENSES/*.txt",

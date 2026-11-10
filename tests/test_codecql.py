@@ -103,11 +103,31 @@ def test_ctrl_scroll_clamps_at_document_ends(monkeypatch):
     assert editor.cursor_y == 25
 
 
-def test_ctrl_backspace_and_delete_remove_words():
+def test_backspace_variants_have_distinct_delete_behavior():
     editor = codecql.Editor(None)
     editor.lines = ["one two"]
-    editor.cursor_x = 0
+    editor.cursor_x = len(editor.lines[0])
 
+    editor.handle_key("backspace")
+    assert editor.lines == ["one tw"]
+
+    editor.lines = ["one two"]
+    editor.cursor_x = len(editor.lines[0])
+    editor.handle_key("ctrl+backspace")
+    assert editor.lines == ["one "]
+
+    editor.lines = ["one two"]
+    editor.cursor_x = len(editor.lines[0])
+    editor.handle_key("alt+backspace")
+    assert editor.lines == ["one "]
+
+    editor.lines = ["one two"]
+    editor.cursor_x = 4
+    editor.handle_key("super+backspace")
+    assert editor.lines == ["two"]
+
+    editor.lines = ["one two"]
+    editor.cursor_x = 0
     editor.handle_key("ctrl+delete")
 
     assert editor.lines == ["two"]
@@ -117,16 +137,19 @@ def test_ctrl_backspace_and_delete_remove_words():
 
     assert editor.lines == ["two"]
 
-    editor.cursor_x = len(editor.lines[0])
-    editor.handle_key("\x08")
-
-    assert editor.lines == [""]
-
 
 def test_ctrl_delete_terminal_sequences_are_decoded():
     assert codecql._decode_escape_sequence(b"[3;5~") == "ctrl+delete"
     assert codecql._decode_escape_sequence(b"[27;5;127~") == "ctrl+backspace"
     assert codecql._decode_escape_sequence(b"[127;5u") == "ctrl+backspace"
+    assert codecql._decode_escape_sequence(b"[127;9u") == "super+backspace"
+
+
+def test_backspace_byte_uses_terminal_erase_setting():
+    assert codecql._decode_backspace_byte(b"\x08", b"\x08") == "backspace"
+    assert codecql._decode_backspace_byte(b"\x7f", b"\x08") == "ctrl+backspace"
+    assert codecql._decode_backspace_byte(b"\x08", b"\x7f") == "ctrl+backspace"
+    assert codecql._decode_backspace_byte(b"\x7f", b"\x7f") == "backspace"
 
 
 def test_search_query_flags_select_regex_case_and_whole_word():

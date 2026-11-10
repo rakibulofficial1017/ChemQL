@@ -11,7 +11,7 @@ import subprocess
 import time
 from .highlighting import HighlightProfiles
 
-VERSION = "0.1.1"
+VERSION = "0.1.2"
 
 
 def _write_system_clipboard(text):
@@ -134,6 +134,8 @@ def _decode_escape_sequence(sequence):
             modifiers.append("alt")
         if modifier_bits & 1:
             modifiers.append("shift")
+        if modifier_bits & 8:
+            modifiers.append("super")
 
         arrow_keys = {
             b"A": "arrow_up", b"B": "arrow_down",
@@ -173,6 +175,15 @@ def _decode_escape_sequence(sequence):
             b"H": "arrow_home", b"F": "arrow_end",
         }[sequence[-1:]]
     return "\x1b"
+
+
+def _decode_backspace_byte(key_byte, erase_char):
+    """Distinguish plain Backspace from Ctrl+Backspace using the tty erase key."""
+    if isinstance(erase_char, int):
+        erase_char = bytes((erase_char,))
+    if erase_char not in (b"\x08", b"\x7f"):
+        erase_char = b"\x7f"
+    return "backspace" if key_byte == erase_char else "ctrl+backspace"
 
 
 def _parse_search_query(query):
@@ -295,6 +306,9 @@ else:
                             return "alt+" + char
                     return "\x1b"
                 return "\x1b"
+            if first in (b"\x08", b"\x7f"):
+                erase_char = old_settings[6][termios.VERASE]
+                return _decode_backspace_byte(first, erase_char)
             if not first:
                 return ""
             char_length = (
@@ -1126,18 +1140,18 @@ class Editor:
                 self._scroll_view(-1 if base_key == "arrow_up" else 1)
             else:
                 self._move_cursor(base_key, shift=shift, wordwise=wordwise)
-        elif key in ("\x08", "ctrl+backspace", "alt+backspace"):
-            if os.name == "nt":
-                if not self._delete_selection(): # For some reason on windows it is the opposit
-                    self._backspace()            # I have no idea why just stick to it
-            else:
-                self._delete_word("left")
-        elif key in ("\x7f", "backspace"):
-            if os.name == "nt":
-                self._delete_word("left")        # same here
-            else:
-                if not self._delete_selection():
-                    self._backspace()
+        elif os.name == "nt" and key in ("\x08", "ctrl+backspace", "alt+backspace"):
+            if not self._delete_selection():
+                self._backspace()
+        elif os.name == "nt" and key == "\x7f":
+            self._delete_word("left")
+        elif key in ("backspace", "\x08", "\x7f"):
+            if not self._delete_selection():
+                self._backspace()
+        elif key in ("ctrl+backspace", "alt+backspace"):
+            self._delete_word("left")
+        elif key in ("super+backspace", "cmd+backspace", "command+backspace"):
+            self._delete_to_line_start()
         elif key in ("ctrl+delete", "alt+delete"):
             self._delete_word("right")
         elif key in ("delete", "\x1b[3~"):
@@ -1601,6 +1615,17 @@ class Editor:
         self.selection_anchor = original
         self.cursor_x, self.cursor_y = destination
         self._remove_selection()
+        self.dirty = True
+        self._refresh_search_matches()
+
+    def _delete_to_line_start(self):
+        if self._delete_selection():
+            return
+        if self.cursor_x == 0:
+            return
+        self._record_history()
+        self.lines[self.cursor_y] = self.lines[self.cursor_y][self.cursor_x:]
+        self.cursor_x = 0
         self.dirty = True
         self._refresh_search_matches()
 

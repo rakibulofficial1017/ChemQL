@@ -10,6 +10,7 @@ src/chemql/codecqlx.py
 src/chemql/colors.json
 src/chemql/highlighting.json
 src/chemql/highlighting.py
+src/chemql/logo64-macos.png
 src/chemql/logo64.png
 src/chemql/data/BondEnergies.json
 src/chemql/data/MoleculeBonds.json
@@ -37,6 +38,8 @@ src/chemql_python.egg-info/entry_points.txt
 src/chemql_python.egg-info/requires.txt
 src/chemql_python.egg-info/top_level.txt
 tests/test_codecql.py
+tests/test_codecqlx_fonts.py
+tests/test_codecqlx_icon.py
 tests/test_external_molecule_lookup.py
 tests/test_public_api.py
 tests/test_reactions.py

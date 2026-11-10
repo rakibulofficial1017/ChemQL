@@ -41,17 +41,32 @@ from typing import Optional
 from . import codecql_gui_core as core
 
 APP_TITLE = "CodecQLX"
-APP_ICON = (Path(__file__).resolve().parent / "logo64.png")
+
+
+def _app_icon_path(platform: str) -> Path:
+    filename = "logo64-macos.png" if platform == "darwin" else "logo64.png"
+    return Path(__file__).resolve().parent / filename
+
+
+APP_ICON = _app_icon_path(sys.platform)
 FONT_MONO_FALLBACKS = ["Consolas", "Menlo", "DejaVu Sans Mono", "Courier New", "monospace"]
+FONT_LIGATURE_FAMILIES = (
+    "Fira Code", "JetBrains Mono", "Cascadia Code", "Iosevka",
+    "Victor Mono", "Monaspace Neon",
+)
+DEFAULT_FONT_FAMILIES = {"Consolas", "Menlo", "DejaVu Sans Mono"}
 
 
-def _pick_font_family(preferred: str) -> str:
+def _pick_font_family(preferred: str, ligatures_enabled: bool = True) -> str:
     try:
         import tkinter.font as tkfont
         available = set(tkfont.families())
     except Exception:
         return preferred
-    for candidate in [preferred, *FONT_MONO_FALLBACKS]:
+    candidates = [preferred, *FONT_MONO_FALLBACKS]
+    if ligatures_enabled and preferred in DEFAULT_FONT_FAMILIES:
+        candidates = [*FONT_LIGATURE_FAMILIES, *candidates]
+    for candidate in dict.fromkeys(candidates):
         if candidate in available:
             return candidate
     return preferred
@@ -465,13 +480,11 @@ class EditorTab(ttk.Frame):
         for tag in self._all_syntax_tags():
             self.text.tag_remove(tag, "1.0", "end")
         lines = self.get_lines()
-        ligatures = self.app.active_ligatures()
         for line_index, line in enumerate(lines, start=1):
             for token in self.app.tokenizer.tokenize_line(line):
                 start = f"{line_index}.{token.start}"
                 end = f"{line_index}.{token.end}"
                 self.text.tag_add(token.tag, start, end)
-        self._apply_ligature_display(ligatures)
         self._redraw_gutter()
         self._redraw_ruler()
 
@@ -482,14 +495,6 @@ class EditorTab(ttk.Frame):
         line = self.text.get(f"{line_no}.0", f"{line_no}.end")
         for token in self.app.tokenizer.tokenize_line(line):
             self.text.tag_add(token.tag, f"{line_no}.{token.start}", f"{line_no}.{token.end}")
-
-    def _apply_ligature_display(self, ligatures: dict[str, str]) -> None:
-        """Visual-only: Tkinter can't substitute display glyphs without
-        changing the buffer, so ligatures are shown as a highlighted span
-        with a tooltip-free hint via the 'operator' tag's own color; a true
-        glyph swap would require editing the stored text, which must never
-        happen (see settings: ligatures only affect color emphasis here)."""
-        return  # intentionally a no-op placeholder; see docstring
 
     # -- gutter / overview ruler --------------------------------------------
 
@@ -951,7 +956,7 @@ class PreferencesDialog(tk.Toplevel):
         ttk.Spinbox(general, from_=8, to=32, textvariable=self.font_size_var, width=5).grid(row=2, column=1, sticky="w")
 
         self.ligatures_var = tk.BooleanVar(value=settings.data.get("ligatures_enabled", True))
-        ttk.Checkbutton(general, text="Highlight comparison operators (>=, <=, ...) distinctly",
+        ttk.Checkbutton(general, text="Prefer a programming font with ligatures when available",
                          variable=self.ligatures_var).grid(row=3, column=0, columnspan=3, sticky="w", padx=6, pady=(10, 2))
         self.autocomplete_var = tk.BooleanVar(value=settings.data.get("autocomplete_enabled", True))
         ttk.Checkbutton(general, text="Autocomplete suggestions", variable=self.autocomplete_var).grid(
@@ -1119,7 +1124,13 @@ class App(tk.Tk):
         self.suggestion_engine = core.default_suggestion_engine()
         self.tokenizer = core.tokenizer_for(self.suggestion_engine, ".cql")
         self.bridge = core.ChemQLBridge()
-        self.editor_font = (_pick_font_family(self.settings.data["font_family"]), self.settings.data["font_size"])
+        self.editor_font = (
+            _pick_font_family(
+                self.settings.data["font_family"],
+                self.settings.data.get("ligatures_enabled", True),
+            ),
+            self.settings.data["font_size"],
+        )
 
         self._run_proc = None
         self._run_queue: "queue.Queue[tuple[str, str]]" = queue.Queue()
@@ -1443,13 +1454,16 @@ class App(tk.Tk):
     # -- theming -----------------------------------------------------------
 
     def apply_theme(self) -> None:
-        self.editor_font = (_pick_font_family(self.settings.data["font_family"]), self.settings.data["font_size"])
+        self.editor_font = (
+            _pick_font_family(
+                self.settings.data["font_family"],
+                self.settings.data.get("ligatures_enabled", True),
+            ),
+            self.settings.data["font_size"],
+        )
         for tab in self._iter_tabs():
             tab._configure_tags()
             tab.rehighlight_all()
-
-    def active_ligatures(self) -> dict[str, str]:
-        return core.DEFAULT_LIGATURES if self.settings.data.get("ligatures_enabled", True) else {}
 
     def zoom(self, delta: int, reset: bool = False) -> None:
         size = 13 if reset else max(8, min(32, self.settings.data["font_size"] + delta))
@@ -1645,7 +1659,7 @@ def main() -> None:
         import ctypes
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID('chemql.codecqlx.1.0.0')
     if len(sys.argv) > 1 and sys.argv[1] in ("--version", "-v"):
-        print("CodecQLX 1.1.0")
+        print("CodecQLX 1.1.1")
     else:
         app = App(sys.argv[1:])
         app.mainloop()

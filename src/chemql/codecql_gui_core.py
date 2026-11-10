@@ -562,10 +562,6 @@ class DiagnosticsEngine:
 # colors.json, which the CLI editor owns and which this app must not alter)
 # --------------------------------------------------------------------------
 
-DEFAULT_LIGATURES = {
-    "<->": "\u21cc", "->": "\u2192", ">=": "\u2265", "<=": "\u2264", "!=": "\u2260",
-}
-
 DARK_THEME = {
     "background": "#1e1e1e", "foreground": "#d4d4d4", "gutter": "#858585",
     "gutter_bg": "#252526", "selection": "#264f78", "current_line": "#2a2d2e",

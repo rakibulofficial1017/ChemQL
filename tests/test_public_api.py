@@ -19,6 +19,12 @@ def test_adjacent_function_calls_compose_as_an_expression():
     assert chemql.process_inline("int{1}+int{1}") == 2
 
 
+def test_python_call_can_print_a_string_containing_an_opening_bracket(capsys):
+    chemql.process_inline('print("[")')
+
+    assert capsys.readouterr().out == "[\n"
+
+
 def test_function_positional_parameters_interpolate_in_strings(monkeypatch):
     monkeypatch.delitem(chemql.FUNCTIONS, "greet", raising=False)
     monkeypatch.delitem(chemql.python_globals, "greet", raising=False)

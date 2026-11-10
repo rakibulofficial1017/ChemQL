@@ -6,9 +6,9 @@ ChemQL is a small language for querying, computing with, and simulating chemistr
 
 - **Distribution name:** `chemql-python`
 - **Import / CLI name:** `chemql`
-- **Language version:** `1.6.10` (per `chemql.__version__`)
-- **Editor version:** `codecql 0.1.1`
-- **GUI Editor version:** `CodecQLX 1.1.0`
+- **Language version:** `1.6.11` (per `chemql.__version__`)
+- **Editor version:** `codecql 0.1.2`
+- **GUI Editor version:** `CodecQLX 1.1.1`
 - **Python import / CLI name:** `chemql`
 - **Author:** Mohammad Rakibul Islam
 - **Minimum Python:** **3.12+** (verified with `vermin`)
@@ -462,7 +462,7 @@ ls
 
 | | |
 |---|---|
-| Version | 0.1.1 |
+| Version | 0.1.2 |
 | Ships with | `chemql-python` |
 | Files | `.cql` (ChemQL), `.py`, `cqlpackage.json` / `cqlpackage.toml`, and any plain-text file |
 
@@ -502,12 +502,16 @@ Opening a path that does not exist starts an empty buffer; it is created on the 
 | `Ctrl` + `↑` `↓` | Scroll the view without moving the text |
 | `Backspace`, `Delete` | Delete a character, or the selection |
 | `Ctrl+Backspace` / `Alt+Backspace` | Delete the word to the left |
+| `Command+Backspace` (macOS, when sent as CSI-u) | Delete to the start of the line |
 | `Ctrl+Delete` / `Alt+Delete` | Delete the word to the right |
 | `Ctrl+C` / `Ctrl+Insert` | Copy the selection (editor + system clipboard when available). It does **not** quit |
 | `Ctrl+X` | Cut the selection |
 | `Ctrl+V` / `Shift+Insert` | Paste the editor's clipboard |
 
-Pasting from your terminal or OS clipboard also works: CodecQL enables bracketed paste, so multi-line pastes arrive as a single insertion.
+Pasting from your terminal or OS clipboard also works: CodecQL enables bracketed paste, so
+multi-line pastes arrive as a single insertion. The terminal must forward macOS Command-key
+combinations using the CSI-u keyboard protocol; otherwise it may consume or remap them before
+CodecQL receives them.
 
 **Auto-indent.** After a line that opens a block (`func`, `define NAME{}`, `struct`, `record`, `enum`, `namespace`, `if`, `elif`, `else`, `for`, `while`) or ends in a `\` continuation, the next line is indented with a tab. Pressing Enter after `endnamespace` removes one level of indentation. Other `end...` keywords do not dedent automatically.
 
@@ -815,7 +819,6 @@ Each entry needs an `ansi256` number from 0 to 255, and an optional `channel` of
 - Auto-dedent applies only after `endnamespace`.
 - One file per session: there are no tabs or split editors.
 - Tabs are drawn four columns wide.
-- CodecQL's Windows Backspace / Ctrl+Backspace are intentionally inverted relative to POSIX.
 
 ## CodecQLX — the desktop editor
 
@@ -860,6 +863,12 @@ the `chemql` package cannot be imported.
 - Find and replace, bookmarks, zoom controls, and run-file/run-selection actions
 - Dark and light themes, font settings, autocomplete/minimap toggles, and
   per-token color preferences
+
+When enabled, CodecQLX prefers an installed programming font with ligature
+support (such as Fira Code, JetBrains Mono, or Cascadia Code) over its default
+monospace font. Install a ligature font on your system; the native Tk text
+renderer and font must support shaping for ligature glyphs to appear. A custom
+font family selected in **Preferences > General** is kept as-is.
 
 Use **View** to toggle the file tree, Chemistry panel, and bottom panels.
 Enable **View > Split Editor**, then choose **File > Open File in Other Pane**
