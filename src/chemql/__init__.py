@@ -11,6 +11,7 @@ import inspect
 import io
 import importlib
 import json
+import keyword
 import math
 from math import gcd
 import os
@@ -23,6 +24,7 @@ from prompt_toolkit.document import Document
 from prompt_toolkit.lexers import Lexer
 from prompt_toolkit.styles import Style
 from prompt_toolkit.completion import Completer, Completion
+from prompt_toolkit.history import FileHistory
 import queue
 import re
 import shlex
@@ -39,6 +41,30 @@ import uuid
 import urllib.parse
 import urllib.request
 import urllib.error
+
+from .data_analysis import Spreadsheet, Vector, image_to_terminal, print_image
+from .data_analysis.visualization import (
+    AreaChart,
+    AreaChartGUI,
+    BarChart,
+    BarChartGUI,
+    BoxPlot,
+    BoxPlotGUI,
+    BoxStats,
+    CandlestickChart,
+    CandlestickChartGUI,
+    HeatMap,
+    HeatMapGUI,
+    Histogram,
+    HistogramGUI,
+    LineChart,
+    LineChartGUI,
+    PieChart,
+    PieChartGUI,
+    ScatterPlot,
+    ScatterPlotGUI,
+    describe,
+)
 
 __all__ = [
     "ChemQLError",
@@ -69,7 +95,7 @@ __all__ = [
     "__version__"
 ]
 
-__version__ = "1.6.11"
+__version__ = "1.7.0"
 
 # Persistent preprocessor/function state for the current ChemQL session.
 DEFINITIONS = {}
@@ -77,6 +103,15 @@ FUNCTIONS = {}
 MACROS = {}
 EXECUTION_HISTORY = []
 _DEFINITION_NAME = r"[A-Za-z_][A-Za-z0-9_]*"
+_FUNCTION_NAME = (
+    _DEFINITION_NAME
+    + r"(?:::" + _DEFINITION_NAME + r")*(?:\." + _DEFINITION_NAME + r")?"
+)
+_FUNCTION_HEADER_PATTERN = (
+    r"(?:(?:(?:public|private)\s+)?(?:static\s+func|func\s+static|func)\s+)"
+    + _FUNCTION_NAME
+    + r"(?:\{.*\})?"
+)
 _NO_RETURN = object()
 NO_ANSI = True
 SUPPRESS_WARNINGS = False
@@ -143,6 +178,66 @@ def _split_function_arguments(source):
     if tail or source.strip():
         args.append(tail)
     return args
+
+
+def _split_keyword_argument(source):
+    match = re.fullmatch(r"\s*([A-Za-z_]\w*)\s*=(?!=)\s*(.*?)\s*", source)
+    if not match:
+        return None, source.strip()
+    return match.group(1), match.group(2)
+
+
+def _evaluate_call_arguments(arguments):
+    positional, keywords, all_values = [], {}, []
+    keyword_started = False
+    for argument in arguments:
+        keyword, expression = _split_keyword_argument(argument)
+        if keyword is None:
+            if keyword_started:
+                raise TypeError("Positional arguments cannot follow keyword arguments.")
+            value = evaluate_python(expression)
+            positional.append(value)
+        else:
+            keyword_started = True
+            if keyword in keywords:
+                raise TypeError(f"Got multiple values for keyword argument {keyword!r}.")
+            value = evaluate_python(expression)
+            keywords[keyword] = value
+        all_values.append(value)
+    return positional, keywords, all_values
+
+
+def _parse_function_parameters(source):
+    parameters = []
+    seen_names = set()
+    has_default = False
+    for declaration in _split_function_arguments(source):
+        match = re.fullmatch(
+            r"\s*([A-Za-z_]\w*)\s*(?:(\?)|=(.*))?\s*",
+            declaration,
+            re.DOTALL,
+        )
+        if not match:
+            raise SyntaxError(f"Invalid function parameter: {declaration!r}")
+        name, optional, default = match.groups()
+        if keyword.iskeyword(name):
+            raise SyntaxError(f"Function parameter cannot be a Python keyword: {name!r}")
+        if name in seen_names:
+            raise SyntaxError(f"Duplicate function parameter: {name!r}")
+        if optional or default is not None:
+            has_default = True
+            default = "None" if optional else default.strip()
+            if not default:
+                raise SyntaxError(f"Missing default value for parameter {name!r}")
+        elif has_default:
+            raise SyntaxError(
+                f"Required parameter {name!r} cannot follow a defaulted parameter."
+            )
+        parameters.append(
+            {"name": name, "default": default, "has_default": has_default}
+        )
+        seen_names.add(name)
+    return parameters
 def is_block_header(line):
     """Return True only for actual ChemQL block headers."""
     if not (line.startswith("[") and line.endswith("]")):
@@ -337,6 +432,91 @@ def _builtin_write_json(path, value, encoding="utf-8", indent=2):
         raise FileWriteError(f"Cannot write JSON file {path!r}: {exc}") from exc
 
 
+def draw_bar_chart(data, category_labels=None):
+    return str(BarChart(data, category_labels, colors=(not NO_ANSI)))
+
+
+def draw_line_chart(data, category_labels=None):
+    return str(LineChart(data, category_labels, colors=(not NO_ANSI)))
+
+
+def draw_area_chart(data, category_labels=None):
+    return str(AreaChart(data, category_labels,colors=(not NO_ANSI)))
+
+
+def draw_pie_chart(data, category_labels=None):
+    return str(PieChart(data, category_labels, colors=(not NO_ANSI)))
+
+
+def draw_scatter_plot(points):
+    return str(ScatterPlot(points, colors=(not NO_ANSI)))
+
+
+def draw_histogram(data):
+    return str(Histogram(data, colors=(not NO_ANSI)))
+
+
+def _box_plot_groups(data):
+    if isinstance(data, list) and data and not isinstance(data[0], list):
+        data = [data]
+    return data
+
+
+def draw_box_plot(data):
+    data = _box_plot_groups(data)
+    return str(BoxPlot(data, colors=(not NO_ANSI)))
+
+
+def draw_heat_map(data, row_labels=None, column_labels=None):
+    return str(HeatMap(data, row_labels, column_labels, colors=(not NO_ANSI)))
+
+
+def draw_candlestick_chart(data, category_labels=None):
+    return str(CandlestickChart(data, category_labels, colors=(not NO_ANSI)))
+
+
+def show_bar_chart(data, category_labels=None, theme="light", colors=True):
+    BarChartGUI(data, category_labels, theme=theme, colors=colors).run()
+
+
+def show_line_chart(data, category_labels=None, theme="light", colors=True):
+    LineChartGUI(data, category_labels, theme=theme, colors=colors).run()
+
+
+def show_area_chart(data, category_labels=None, theme="light", colors=True):
+    AreaChartGUI(data, category_labels, theme=theme, colors=colors).run()
+
+
+def show_pie_chart(data, category_labels=None, theme="light", colors=True):
+    PieChartGUI(data, category_labels, theme=theme, colors=colors).run()
+
+
+def show_scatter_plot(points, point_labels=None, theme="light", colors=True):
+    ScatterPlotGUI(points, point_labels, theme=theme, colors=colors).run()
+
+
+def show_histogram(data, theme="light", colors=True):
+    HistogramGUI(data, theme=theme, colors=colors).run()
+
+
+def show_box_plot(data, category_labels=None, theme="light"):
+    BoxPlotGUI(_box_plot_groups(data), category_labels, theme=theme).run()
+
+
+def show_heat_map(data, row_labels=None, column_labels=None, theme="light"):
+    HeatMapGUI(data, row_labels, column_labels, theme=theme).run()
+
+
+def show_candlestick_chart(data, category_labels=None, theme="light"):
+    CandlestickChartGUI(data, category_labels, theme=theme).run()
+
+
+def run_spreadsheet_gui(source=None, theme="light"):
+    from .data_analysis.visualization.main import run_spreadsheet_gui as open_dashboard
+
+    return open_dashboard(source, theme)
+
+
 # name: (callable, minimum positional arguments, maximum positional arguments)
 # Built-ins are native Python-backed operations; user-defined ChemQL functions
 # retain precedence when a name is defined in FUNCTIONS.
@@ -376,6 +556,26 @@ BUILTIN_FUNCTIONS = {
     "list_files": (_builtin_list_files, 0, 2),
     "write_text": (_builtin_write_text, 2, 3),
     "write_json": (_builtin_write_json, 2, 4),
+    "print_image": (print_image, 1, 3),
+    "draw_bar_chart": (draw_bar_chart, 1, 2),
+    "draw_line_chart": (draw_line_chart, 1, 2),
+    "draw_area_chart": (draw_area_chart, 1, 2),
+    "draw_pie_chart": (draw_pie_chart, 1, 2),
+    "draw_scatter_plot": (draw_scatter_plot, 1, 1),
+    "draw_histogram": (draw_histogram, 1, 1),
+    "draw_box_plot": (draw_box_plot, 1, 1),
+    "draw_heat_map": (draw_heat_map, 1, 3),
+    "draw_candlestick_chart": (draw_candlestick_chart, 1, 2),
+    "show_bar_chart": (show_bar_chart, 1, 3),
+    "show_line_chart": (show_line_chart, 1, 3),
+    "show_area_chart": (show_area_chart, 1, 3),
+    "show_pie_chart": (show_pie_chart, 1, 3),
+    "show_scatter_plot": (show_scatter_plot, 1, 3),
+    "show_histogram": (show_histogram, 1, 2),
+    "show_box_plot": (show_box_plot, 1, 3),
+    "show_heat_map": (show_heat_map, 1, 4),
+    "show_candlestick_chart": (show_candlestick_chart, 1, 3),
+    "run_spreadsheet_gui": (run_spreadsheet_gui, 0, 2),
     "help": (lambda *args: None, 0, 1),
 }
 
@@ -414,6 +614,26 @@ _BUILTIN_HELP = {
     "write_json": ("Files / Data", "write_json{path, value, encoding?, indent?}", "Write a value as JSON. Indentation defaults to 2 spaces.", ['write_json{"output.json", data}']),
     "file_exists": ("Files", "file_exists{path}", "Return true if a file or path exists.", ['file_exists{"data.csv"}']),
     "list_files": ("Files", "list_files{directory?, pattern?}", "List files in a directory, optionally matching a glob pattern.", ['list_files{".", "*.csv"}']),
+    "print_image": ("Data Analysis", "print_image{path, width?, colors?}", "Render an image in the terminal using Pillow. True-colour output is used when the terminal supports it.", ['print_image{"molecule.png", 48}']),
+    "draw_bar_chart": ("Data Analysis", "draw_bar_chart{values, labels?}", "Render a terminal bar chart. For chart options, use BarChart in an embedded Python block.", ['draw_bar_chart{[3, 5, 2], ["A", "B", "C"]}']),
+    "draw_line_chart": ("Data Analysis", "draw_line_chart{values, labels?}", "Render a terminal line chart.", ['draw_line_chart{[3, 5, 2], ["Mon", "Tue", "Wed"]}']),
+    "draw_area_chart": ("Data Analysis", "draw_area_chart{values, labels?}", "Render a terminal area chart.", ['draw_area_chart{[3, 5, 2], ["Mon", "Tue", "Wed"]}']),
+    "draw_pie_chart": ("Data Analysis", "draw_pie_chart{values, labels?}", "Render a terminal pie chart.", ['draw_pie_chart{[3, 5, 2], ["A", "B", "C"]}']),
+    "draw_scatter_plot": ("Data Analysis", "draw_scatter_plot{points}", "Render a terminal scatter plot from (x, y) pairs.", ['draw_scatter_plot{[(1, 2), (2, 4), (3, 3)]}']),
+    "draw_histogram": ("Data Analysis", "draw_histogram{values}", "Render a terminal histogram.", ['draw_histogram{[1, 2, 2, 3, 3, 4]}']),
+    "draw_box_plot": ("Data Analysis", "draw_box_plot{values}", "Render a terminal box plot.", ['draw_box_plot{[1, 2, 2, 3, 8]}']),
+    "draw_heat_map": ("Data Analysis", "draw_heat_map{matrix, row_labels?, column_labels?}", "Render a terminal heat map.", ['draw_heat_map{[[1, 2], [3, 4]], ["North", "South"], ["Q1", "Q2"]}']),
+    "draw_candlestick_chart": ("Data Analysis", "draw_candlestick_chart{ohlc, labels?}", "Render a terminal OHLC candlestick chart.", ['draw_candlestick_chart{[(10, 13, 9, 12)], ["Mon"]}']),
+    "show_bar_chart": ("Data Analysis", "show_bar_chart{values, labels?, theme?}", "Open an interactive bar chart window.", ['show_bar_chart{[3, 5, 2], ["A", "B", "C"]}']),
+    "show_line_chart": ("Data Analysis", "show_line_chart{values, labels?, theme?}", "Open an interactive line chart window.", ['show_line_chart{[3, 5, 2], ["Mon", "Tue", "Wed"], "dark"}']),
+    "show_area_chart": ("Data Analysis", "show_area_chart{values, labels?, theme?}", "Open an interactive area chart window.", ['show_area_chart{[3, 5, 2], ["Mon", "Tue", "Wed"]}']),
+    "show_pie_chart": ("Data Analysis", "show_pie_chart{values, labels?, theme?}", "Open an interactive pie chart window.", ['show_pie_chart{[3, 5, 2], ["A", "B", "C"]}']),
+    "show_scatter_plot": ("Data Analysis", "show_scatter_plot{points, labels?, theme?}", "Open an interactive scatter plot window.", ['show_scatter_plot{[(1, 2), (2, 4), (3, 3)]}']),
+    "show_histogram": ("Data Analysis", "show_histogram{values, theme?}", "Open an interactive histogram window.", ['show_histogram{[1, 2, 2, 3, 3, 4]}']),
+    "show_box_plot": ("Data Analysis", "show_box_plot{values, labels?, theme?}", "Open an interactive box plot window.", ['show_box_plot{[1, 2, 2, 3, 8]}']),
+    "show_heat_map": ("Data Analysis", "show_heat_map{matrix, row_labels?, column_labels?, theme?}", "Open an interactive heat map window.", ['show_heat_map{[[1, 2], [3, 4]], ["N", "S"], ["Q1", "Q2"]}']),
+    "show_candlestick_chart": ("Data Analysis", "show_candlestick_chart{ohlc, labels?, theme?}", "Open an interactive OHLC candlestick window.", ['show_candlestick_chart{[(10, 13, 9, 12)], ["Mon"]}']),
+    "run_spreadsheet_gui": ("Data Analysis", "run_spreadsheet_gui{spreadsheet?, theme?}", "Open the spreadsheet visualization dashboard for a Spreadsheet or DataFrame.", ['run_spreadsheet_gui{sheet}']),
     "element": ("Chemistry", "element{symbol, field?}", "Look up a periodic-table element, optionally returning one field.", ['element{"Na", "atomic_mass"}']),
     "count_atoms": ("Chemistry", "count_atoms{formula, element_symbol}", "Count atoms of an element in a chemical formula.", ['count_atoms{"H2SO4", "O"}  # 4']),
     "molar_mass": ("Chemistry", "molar_mass{formula}", "Calculate the molar mass of a chemical formula.", ['molar_mass{"H2O"}']),
@@ -425,6 +645,31 @@ _HELP_TOPICS = {
     "errors": ("ChemQL Error Signals", ["SyntaxError — the input could not be parsed as valid syntax.", "TooFewArguments — a function received fewer arguments than required.", "TooManyArguments — a function received more arguments than allowed.", "InvalidArgumentType — an argument has an unsupported type.", "InvalidArgumentValue — an argument's value is invalid.", "FileReadError — reading a file failed.", "FileWriteError — writing a file failed.", "NameError — a name or function is unknown.", "PermissionError — a private namespace function was called externally."]),
     "files": ("File Functions", ["read_text{path, encoding?}", "read_lines{path, encoding?}", "read_csv{path, delimiter?, encoding?, header?}", "read_json{path, encoding?}", "write_text{path, content, encoding?}", "write_csv{path, rows, delimiter?, encoding?}", "write_json{path, value, encoding?, indent?}", "file_exists{path}", "list_files{directory?, pattern?}"]),
     "chemistry": ("Chemistry Functions", ["molar_mass{formula}", "count_atoms{formula, element_symbol}", "empirical_formula{formula}", "element{symbol, field?}"]),
+    "data_analysis": ("Data Analysis Tools", [
+        "print_image{path, width?, colors?}",
+        "image_to_terminal(path, width=48, colors=None) inside Python code",
+        "draw_bar_chart{values, labels?}",
+        "draw_line_chart{values, labels?}",
+        "draw_area_chart{values, labels?}",
+        "draw_pie_chart{values, labels?}",
+        "draw_scatter_plot{points}",
+        "draw_histogram{values}",
+        "draw_box_plot{values}",
+        "draw_heat_map{matrix, row_labels?, column_labels?}",
+        "draw_candlestick_chart{ohlc, labels?}",
+        "show_bar_chart{values, labels?, theme?}",
+        "show_line_chart{values, labels?, theme?}",
+        "show_area_chart{values, labels?, theme?}",
+        "show_pie_chart{values, labels?, theme?}",
+        "show_scatter_plot{points, labels?, theme?}",
+        "show_histogram{values, theme?}",
+        "show_box_plot{values, labels?, theme?}",
+        "show_heat_map{matrix, row_labels?, column_labels?, theme?}",
+        "show_candlestick_chart{ohlc, labels?, theme?}",
+        "run_spreadsheet_gui{spreadsheet?, theme?}",
+        "Spreadsheet, Vector, and every chart class are available inside Python code blocks.",
+        "Example: let sheet = Spreadsheet{3, 2}",
+    ]),
 }
 
 _STDLIB_HELP = {
@@ -662,7 +907,7 @@ def _help_text(topic=None):
         for name in names:
             category = _BUILTIN_HELP[name][0]
             categories.setdefault(category, []).append(name)
-        lines = [f"ChemQL {__version__} help", "", "Usage: help{topic} or help topic", "Use help{function_name} for details, or help{syntax}, help{errors}, help{files}, help{chemistry}, help{stdlib}.", ""]
+        lines = [f"ChemQL {__version__} help", "", "Usage: help{topic} or help topic", "Use help{function_name} for details, or help{syntax}, help{errors}, help{files}, help{chemistry}, help{data_analysis}, help{stdlib}.", ""]
         for category, items in categories.items():
             lines.append(f"{category}: " + ", ".join(items))
         lines += ["", "User-defined functions:"]
@@ -747,14 +992,78 @@ def _call_builtin(name, arguments):
         raise InvalidArgumentValue((f"Invalid argument value for `{name}`: {exc}" if NO_ANSI else f"Invalid argument value for \033[1m{name}\033[22m: {exc}")) from exc
 
 
+class _KeywordArguments(dict):
+    def __getattr__(self, name):
+        try:
+            return self[name]
+        except KeyError as error:
+            raise AttributeError(name) from error
+
+
+def _call_function_with_values(name, positional, keywords):
+    temporary_names = []
+    raw_arguments = []
+    try:
+        for value in positional:
+            temporary_name = "__chemql_call_arg_" + uuid.uuid4().hex
+            python_globals[temporary_name] = value
+            temporary_names.append(temporary_name)
+            raw_arguments.append(temporary_name)
+        for keyword_name, value in keywords.items():
+            temporary_name = "__chemql_call_arg_" + uuid.uuid4().hex
+            python_globals[temporary_name] = value
+            temporary_names.append(temporary_name)
+            raw_arguments.append(f"{keyword_name}={temporary_name}")
+        return _call_function(name, raw_arguments)
+    finally:
+        for temporary_name in temporary_names:
+            python_globals.pop(temporary_name, None)
+
+
 def _call_function(name, arguments):
     """Call a ChemQL function, including let assignments and block syntax."""
     global _CURRENT_NAMESPACE
     if name not in FUNCTIONS:
         raise NameError((f"Unknown ChemQL function `{name}`" if NO_ANSI else f"Unknown ChemQL function \033[1m{name}\033[22m"))
 
-    values = [evaluate_python(arg) for arg in arguments]
     definition = FUNCTIONS[name]
+    positional_values, keyword_values, all_values = _evaluate_call_arguments(arguments)
+    parameters = definition.get("parameters", [])
+    if definition.get("parameters_defined", False):
+        if len(positional_values) > len(parameters):
+            raise TypeError(
+                f"{name}() takes at most {len(parameters)} positional argument(s), "
+                f"but {len(positional_values)} were given."
+            )
+        bound_values = dict(zip(
+            (parameter["name"] for parameter in parameters),
+            positional_values,
+        ))
+        parameter_names = {parameter["name"] for parameter in parameters}
+        for parameter_name, value in keyword_values.items():
+            if parameter_name not in parameter_names:
+                raise TypeError(
+                    f"{name}() got an unexpected keyword argument {parameter_name!r}."
+                )
+            if parameter_name in bound_values:
+                raise TypeError(
+                    f"{name}() got multiple values for argument {parameter_name!r}."
+                )
+            bound_values[parameter_name] = value
+        values = []
+        for parameter in parameters:
+            parameter_name = parameter["name"]
+            if parameter_name in bound_values:
+                value = bound_values[parameter_name]
+            elif parameter["has_default"]:
+                value = evaluate_python(parameter["default"])
+            else:
+                raise TypeError(
+                    f"{name}() is missing required argument {parameter_name!r}."
+                )
+            values.append(value)
+    else:
+        values = all_values
 
     # While a namespace function runs, its private members are available to it
     # and to other functions in the same namespace, but not to external callers.
@@ -775,18 +1084,25 @@ def _call_function(name, arguments):
                 python_globals[member_name] = active_namespace.__dict__[member_name]
         python_globals.update(active_namespace._chemql_private) # type: ignore
 
-    had_arguments = "arguments" in python_globals
-    saved_arguments = python_globals.get("arguments")
-
     # Expose arguments through temporary names rather than repr().  ChemQL
     # structs display as `Fruit{...}`, which is not valid Python syntax; using
     # names also preserves object identity and supports lists/dicts/custom types.
     python_globals["arguments"] = list(values)
+    python_globals["kwarguments"] = _KeywordArguments(keyword_values)
+
+    def missing_function_argument(index):
+        raise IndexError(f"Function argument \\{index} is not available.")
+
+    python_globals["__chemql_missing_function_argument"] = missing_function_argument
+
     parameter_names = []
     for value in values:
         parameter_name = "__chemql_func_arg_" + uuid.uuid4().hex
         python_globals[parameter_name] = value
         parameter_names.append(parameter_name)
+    if definition.get("parameters_defined", False):
+        for parameter, value in zip(parameters, values):
+            python_globals[parameter["name"]] = value
 
     def substitute_parameters(source):
         """Replace positional parameters while preserving string semantics."""
@@ -809,8 +1125,12 @@ def _call_function(name, arguments):
                         argument_index = int(match.group(1))
                         if 0 < argument_index <= len(parameter_names):
                             result.append(parameter_names[argument_index - 1])
-                            index += len(match.group(0))
-                            continue
+                        else:
+                            result.append(
+                                f"__chemql_missing_function_argument({argument_index})"
+                            )
+                        index += len(match.group(0))
+                        continue
                     result.append(character)
                     index += 1
                     continue
@@ -903,7 +1223,7 @@ def _call_function(name, arguments):
         i = 0
 
         while i < len(lines):
-            line = lines[i].strip()
+            line = remove_comments(lines[i]).strip()
 
             if not line:
                 i += 1
@@ -1133,10 +1453,6 @@ def _call_function(name, arguments):
         CHEMQL_VARIABLES.clear()
         CHEMQL_VARIABLES.update(saved_chemql_variables)
 
-        if had_arguments:
-            python_globals["arguments"] = saved_arguments
-        else:
-            python_globals.pop("arguments", None)
         _CURRENT_NAMESPACE = previous_namespace
 
 def _resolve_package_qualified_name(name):
@@ -1207,8 +1523,12 @@ def _expand_function_calls(text):
                     callable_attribute = getattr(owner, method_match.group(1))
                     if not callable(callable_attribute):
                         raise ChemQLError(f"`{method_match.group(1)}` is not callable")
-                    values = [evaluate_python(arg) for arg in _split_function_arguments(text[opening + 1:end])]
-                    value = callable_attribute(*values)
+                    positional_values, keyword_values, _ = _evaluate_call_arguments(
+                        _split_function_arguments(text[opening + 1:end])
+                    )
+                    value = callable_attribute(
+                        *positional_values, **keyword_values
+                    )
                     replacement = repr(value) if isinstance(value, str) else ("None" if value is None else str(value))
                     text = text[:owner_start] + replacement + text[end + 1:]
                     changed = True
@@ -1284,8 +1604,10 @@ def _expand_function_calls(text):
                     # need to be callable through the same `name{args}` syntax
                     # as registered ChemQL functions.
                     imported_callable = python_globals[resolved_name]
-                    values = [evaluate_python(arg) for arg in args]
-                    value = imported_callable(*values)
+                    positional_values, keyword_values, _ = _evaluate_call_arguments(args)
+                    value = imported_callable(
+                        *positional_values, **keyword_values
+                    )
                 elif (
                     "::" not in resolved_name
                     and _CURRENT_NAMESPACE is not None
@@ -3876,6 +4198,49 @@ python_globals = {
     "error": None,
     "warnings": None,
     "_": None,
+    "Spreadsheet": Spreadsheet,
+    "Vector": Vector,
+    "image_to_terminal": image_to_terminal,
+    "print_image": print_image,
+    "AreaChart": AreaChart,
+    "AreaChartGUI": AreaChartGUI,
+    "BarChart": BarChart,
+    "BarChartGUI": BarChartGUI,
+    "BoxPlot": BoxPlot,
+    "BoxPlotGUI": BoxPlotGUI,
+    "BoxStats": BoxStats,
+    "CandlestickChart": CandlestickChart,
+    "CandlestickChartGUI": CandlestickChartGUI,
+    "HeatMap": HeatMap,
+    "HeatMapGUI": HeatMapGUI,
+    "Histogram": Histogram,
+    "HistogramGUI": HistogramGUI,
+    "LineChart": LineChart,
+    "LineChartGUI": LineChartGUI,
+    "PieChart": PieChart,
+    "PieChartGUI": PieChartGUI,
+    "ScatterPlot": ScatterPlot,
+    "ScatterPlotGUI": ScatterPlotGUI,
+    "describe": describe,
+    "draw_bar_chart": draw_bar_chart,
+    "draw_line_chart": draw_line_chart,
+    "draw_area_chart": draw_area_chart,
+    "draw_pie_chart": draw_pie_chart,
+    "draw_scatter_plot": draw_scatter_plot,
+    "draw_histogram": draw_histogram,
+    "draw_box_plot": draw_box_plot,
+    "draw_heat_map": draw_heat_map,
+    "draw_candlestick_chart": draw_candlestick_chart,
+    "show_bar_chart": show_bar_chart,
+    "show_line_chart": show_line_chart,
+    "show_area_chart": show_area_chart,
+    "show_pie_chart": show_pie_chart,
+    "show_scatter_plot": show_scatter_plot,
+    "show_histogram": show_histogram,
+    "show_box_plot": show_box_plot,
+    "show_heat_map": show_heat_map,
+    "show_candlestick_chart": show_candlestick_chart,
+    "run_spreadsheet_gui": run_spreadsheet_gui,
 }
 STRUCTS = {}
 RECORDS = {}
@@ -5865,9 +6230,16 @@ def process_lines(lines):
         elif re.match(r"^func\s+static\s+", function_source, re.IGNORECASE):
             static_function = True
             function_source = re.sub(r"^func\s+static\s+", "func ", function_source, count=1, flags=re.IGNORECASE)
-        function_match = re.fullmatch(r"func\s+([A-Za-z_]\w*(?:::[A-Za-z_]\w*)*(?:\.[A-Za-z_]\w*)?)", function_source, re.IGNORECASE)
+        function_match = re.fullmatch(
+            r"func\s+(" + _FUNCTION_NAME + r")"
+            r"(?:\{(.*)\})?",
+            function_source,
+            re.IGNORECASE,
+        )
         if function_match:
             name = function_match.group(1)
+            parameters_defined = function_match.group(2) is not None
+            parameters = _parse_function_parameters(function_match.group(2) or "")
             if _CURRENT_NAMESPACE is not None and "::" not in name and "." not in name:
                 name = _CURRENT_NAMESPACE._chemql_name + "::" + name # type: ignore
             end = i + 1
@@ -5875,20 +6247,18 @@ def process_lines(lines):
                 end += 1
             if end >= len(lines):
                 raise SyntaxError((f"Missing `endfunc` for function `{name}`" if NO_ANSI else f"Missing `endfunc` for function \033[1m{name}\033[22m"))
-            FUNCTIONS[name] = {"body": [_expand_definitions(source_line) for source_line in lines[i + 1:end]], "static": static_function}
+            FUNCTIONS[name] = {
+                "body": [_expand_definitions(source_line) for source_line in lines[i + 1:end]],
+                "static": static_function,
+                "parameters": parameters,
+                "parameters_defined": parameters_defined,
+            }
             if _CURRENT_NAMESPACE is not None and "::" in name and "." not in name:
                 member_name = name.rsplit("::", 1)[-1]
-                def _namespace_function(*args, _function_name=name):
-                    temp_names = []
-                    try:
-                        for arg in args:
-                            temp = "__chemql_ns_arg_" + uuid.uuid4().hex
-                            python_globals[temp] = arg
-                            temp_names.append(temp)
-                        return _call_function(_function_name, temp_names)
-                    finally:
-                        for temp in temp_names:
-                            python_globals.pop(temp, None)
+                def _namespace_function(*args, _function_name=name, **kwargs):
+                    return _call_function_with_values(
+                        _function_name, args, kwargs
+                    )
                 _CURRENT_NAMESPACE._set_member(member_name, _namespace_function, _CURRENT_VISIBILITY == "public")
             if "." in name:
                 owner_name, method_name = name.split(".", 1)
@@ -5896,24 +6266,15 @@ def process_lines(lines):
                 if owner is None:
                     raise NameError((f"Cannot define method `{name}`: struct `{owner_name}` does not exist" if NO_ANSI else f"Cannot define method `{name}`: struct \033[1m{owner_name}\033[22m does not exist"))
                 def _make_struct_method(function_name):
-                    def _method(instance, *args):
+                    def _method(instance, *args, **kwargs):
                         had_this = "this" in python_globals
                         old_this = python_globals.get("this")
-                        # Pass method arguments through temporary Python globals.
-                        # repr(struct_instance) uses ChemQL's `Fruit{...}` display
-                        # syntax, which is not valid Python and breaks nested
-                        # constructor expressions when substituted into a method.
-                        temporary_names = []
                         python_globals["this"] = instance
                         try:
-                            for arg in args:
-                                temp_name = "__chemql_method_arg_" + uuid.uuid4().hex
-                                python_globals[temp_name] = arg
-                                temporary_names.append(temp_name)
-                            return _call_function(function_name, temporary_names)
+                            return _call_function_with_values(
+                                function_name, args, kwargs
+                            )
                         finally:
-                            for temp_name in temporary_names:
-                                python_globals.pop(temp_name, None)
                             if had_this:
                                 python_globals["this"] = old_this
                             else:
@@ -6922,14 +7283,17 @@ HELP = (
     "\n"
     "\x1b[1;93m\x1b[1m◆  FUNCTIONS & MACROS\x1b[0m\n"
     "  \x1b[95mfunc square                  \x1b[0m \x1b[90m│\x1b[0m Start a function definition\n"
+    "  \x1b[95mfunc greet{name, age=10}     \x1b[0m \x1b[90m│\x1b[0m Declare named and default parameters\n"
     "  \x1b[95mreturn [\\1 * \\1]             \x1b[0m \x1b[90m│\x1b[0m Return a value using argument \\1\n"
     "  \x1b[95mendfunc                      \x1b[0m \x1b[90m│\x1b[0m Finish a function definition\n"
     "  \x1b[95msquare{5}                    \x1b[0m \x1b[90m│\x1b[0m Call a function\n"
+    "  \x1b[95mgreet{age=20, name=\"Sam\"}   \x1b[0m \x1b[90m│\x1b[0m Pass arguments by name\n"
     "  \x1b[95mdefine double{}              \x1b[0m \x1b[90m│\x1b[0m Start a macro definition\n"
     "  \x1b[95menddefine                    \x1b[0m \x1b[90m│\x1b[0m Finish a macro definition\n"
     "  \x1b[95m@double{5}                   \x1b[0m \x1b[90m│\x1b[0m Expand and execute a macro\n"
     "  \x1b[95mmacros                       \x1b[0m \x1b[90m│\x1b[0m List defined macros\n"
-    "  \x1b[2mFunction and macro arguments use positional placeholders: \\1, \\2, and so on.\x1b[0m\n"
+    "  \x1b[2mUse `name?` for an optional parameter; `arguments` and `kwarguments` expose call values.\x1b[0m\n"
+    "  \x1b[2mPositional placeholders remain available as \\1, \\2, and so on.\x1b[0m\n"
     "\n"
     "\x1b[1;93m\x1b[1m◆  CONTROL FLOW\x1b[0m\n"
     "  \x1b[95mif condition ... endif         \x1b[0m \x1b[90m│\x1b[0m Conditional execution\n"
@@ -8220,6 +8584,31 @@ def main(ANSI: bool = True):
     else:
         run_interactive()
 
+def _remove_trailing_repl_exit(history_path):
+    history = FileHistory(str(history_path))
+    entries = iter(history.load_history_strings())
+    if next(entries, None) != "exit":
+        return
+
+    content = history_path.read_bytes()
+    offset = 0
+    last_entry_start = 0
+    for line in content.splitlines(keepends=True):
+        if line.startswith(b"# "):
+            last_entry_start = offset
+        offset += len(line)
+
+    with history_path.open("r+b") as history_file:
+        history_file.truncate(last_entry_start)
+
+
+def _create_repl_history():
+    history_path = Path.home() / ".chemql" / ".repl_history"
+    history_path.parent.mkdir(parents=True, exist_ok=True)
+    _remove_trailing_repl_exit(history_path)
+    return FileHistory(str(history_path))
+
+
 def run_interactive():
         global _IN_REPL
         _IN_REPL = True
@@ -8243,7 +8632,7 @@ def run_interactive():
                 closer = "]]]" if first == "[[[" else "```"
                 return not (len(source_lines) > 1 and last == closer)
 
-            if re.fullmatch(r"(?:(?:(?:public|private)\s+)?(?:static\s+func|func\s+static|func)\s+)" + _DEFINITION_NAME + "(?:\\." + _DEFINITION_NAME + ")?" , first, re.IGNORECASE):
+            if re.fullmatch(_FUNCTION_HEADER_PATTERN, first, re.IGNORECASE):
                 return last.casefold() != "endfunc"
 
             if re.fullmatch(r"define\s+" + _DEFINITION_NAME + r"\s*\{\s*\}", first):
@@ -8275,7 +8664,13 @@ def run_interactive():
                     stack.append("record")
                 elif re.fullmatch(r"enum\s+[A-Za-z_]\w*", declaration_line, re.IGNORECASE):
                     stack.append("enum")
-                elif re.fullmatch(r"(?:(?:public|private)\s+)?func\s+[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)?", stripped, re.IGNORECASE):
+                elif re.fullmatch(
+                    r"(?:static\s+func|func\s+static|func)\s+"
+                    + _FUNCTION_NAME
+                    + r"(?:\{.*\})?",
+                    declaration_line,
+                    re.IGNORECASE,
+                ):
                     stack.append("func")
                 elif re.fullmatch(r"define\s+[A-Za-z_]\w*\s*\{\s*\}", stripped, re.IGNORECASE):
                     stack.append("macro")
@@ -8301,6 +8696,7 @@ def run_interactive():
                 buffer.validate_and_handle()
 
         session = PromptSession(
+            history=_create_repl_history(),
             lexer=ChemqlLexer(),
             completer=ChemqlCompleter(),
             style=Style.from_dict({}) if NO_ANSI else chemql_style,
@@ -8369,7 +8765,11 @@ def run_interactive():
                 continue
 
             # Collect function and macro declarations as complete REPL units.
-            if lines and re.fullmatch(r"(?:(?:(?:public|private)\s+)?(?:static\s+func|func\s+static|func)\s+)" + _DEFINITION_NAME, lines[0].strip(), re.IGNORECASE):
+            if lines and re.fullmatch(
+                _FUNCTION_HEADER_PATTERN,
+                lines[0].strip(),
+                re.IGNORECASE,
+            ):
                 while lines[-1].strip().casefold() != "endfunc":
                     try:
                         lines.append(session.prompt("... "))

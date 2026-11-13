@@ -38,6 +38,18 @@ def test_namespace_is_highlighted_and_auto_indented():
     assert codecql._token_style("identifier", "endnamespace") == codecql.HIGHLIGHT_STYLES["keyword"]
 
 
+def test_parameterized_function_headers_auto_indent_and_highlight_arguments():
+    editor = codecql.Editor(None)
+    editor.lines = ["func greet{name, age=10}"]
+    editor.cursor_x = len(editor.lines[0])
+
+    editor._insert_newline()
+
+    assert editor.lines == ["func greet{name, age=10}", "\t"]
+    assert codecql._token_style("identifier", "arguments", filename="script.cql")
+    assert codecql._token_style("identifier", "kwarguments", filename="script.cql")
+
+
 def test_endnamespace_newline_dedents():
     editor = codecql.Editor(None)
     editor.lines = ["\tendnamespace"]

@@ -11,6 +11,7 @@ structurally cannot do:
   - Hoverable diagnostics: the full error/warning message on mouseover,
     plus a clickable Problems panel and gutter markers.
   - A project file tree sidebar for multi-file work.
+  - Pillow-backed image previews and a byte-editable hex view for binary files.
   - A query console that runs ChemQL in-process (via chemql's own Python
     API) and renders results as a real sortable table or a field card,
     instead of a wall of ANSI text.
@@ -23,8 +24,8 @@ structurally cannot do:
   - Recent files and side-by-side panes for working across multiple files.
 
 Run with:  python -m chemql.codecqlx [file_or_folder ...]
-Needs only the standard library; chemql-specific panels disable
-themselves gracefully if the `chemql` package isn't installed.
+Pillow powers image previews; chemql-specific panels disable themselves
+gracefully if the `chemql` package isn't installed.
 """
 from __future__ import annotations
 
@@ -34,13 +35,78 @@ import re
 import sys
 import threading
 import tkinter as tk
+import tkinter.font as tkfont
+import unicodedata
+from io import BytesIO
 from pathlib import Path
 from tkinter import colorchooser, filedialog, messagebox, ttk
 from typing import Optional
 
+from PIL import Image, ImageOps, ImageTk, UnidentifiedImageError
+
 from . import codecql_gui_core as core
 
 APP_TITLE = "CodecQLX"
+_HEX_BYTES_PER_ROW = 16
+
+
+def _read_editor_file(path: str) -> tuple[str, str | bytes | Image.Image]:
+    data = Path(path).read_bytes()
+    try:
+        with Image.open(BytesIO(data)) as image:
+            image.load()
+            return "image", ImageOps.exif_transpose(image).copy()
+    except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError):
+        pass
+
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError:
+        return "hex", data
+    if any(
+        unicodedata.category(character) == "Cc" and character not in "\t\n\r"
+        for character in text
+    ):
+        return "hex", data
+    return "text", text
+
+
+def _format_hex_columns(data: bytes) -> tuple[str, str, str]:
+    offsets, hex_rows, ascii_rows = [], [], []
+    for offset in range(0, len(data), _HEX_BYTES_PER_ROW):
+        chunk = data[offset : offset + _HEX_BYTES_PER_ROW]
+        offsets.append(f"{offset:08X}")
+        hex_rows.append(" ".join(f"{byte:02X}" for byte in chunk))
+        ascii_rows.append(
+            "".join(chr(byte) if 32 <= byte < 127 else "." for byte in chunk)
+        )
+    return "\n".join(offsets), "\n".join(hex_rows), "\n".join(ascii_rows)
+
+
+def _parse_hex_bytes(text: str, expected_length: int) -> bytes:
+    if expected_length < 0:
+        raise ValueError("Expected byte length cannot be negative.")
+    lines = text.splitlines()
+    expected_rows = (expected_length + _HEX_BYTES_PER_ROW - 1) // _HEX_BYTES_PER_ROW
+    if len(lines) != expected_rows:
+        raise ValueError("The hex editor must keep the original number of rows.")
+
+    data = bytearray()
+    for row_index, line in enumerate(lines):
+        tokens = line.split()
+        row_length = min(
+            _HEX_BYTES_PER_ROW,
+            expected_length - row_index * _HEX_BYTES_PER_ROW,
+        )
+        if len(tokens) != row_length:
+            raise ValueError(
+                f"Row {row_index + 1} must contain exactly {row_length} byte values."
+            )
+        for token in tokens:
+            if not re.fullmatch(r"[0-9A-Fa-f]{2}", token):
+                raise ValueError(f"Invalid byte value {token!r} in row {row_index + 1}.")
+            data.append(int(token, 16))
+    return bytes(data)
 
 
 def _app_icon_path(platform: str) -> Path:
@@ -184,6 +250,19 @@ class EditorTab(ttk.Frame):
         super().__init__(parent)
         self.app = app
         self.path = path
+        self.mode = "text"
+        self.image: Image.Image | None = None
+        self._original_bytes: bytes | None = None
+        content = ""
+        if path:
+            self.mode, payload = _read_editor_file(path)
+            if self.mode == "image" and isinstance(payload, Image.Image):
+                self.image = payload
+            elif self.mode == "hex" and isinstance(payload, bytes):
+                self._original_bytes = payload
+                content = _format_hex_columns(payload)[1]
+            elif isinstance(payload, str):
+                content = payload
         self.dirty = False
         self.bookmarks: set[int] = set()       # 1-based line numbers
         self.diagnostics: list[core.Diagnostic] = []
@@ -197,26 +276,29 @@ class EditorTab(ttk.Frame):
         )
         self.gutter = tk.Canvas(self, width=self.GUTTER_WIDTH, highlightthickness=0)
         self.ruler = tk.Canvas(self, width=self.RULER_WIDTH, highlightthickness=0)
-        self.vscroll = ttk.Scrollbar(self, orient="vertical", command=self._on_scrollbar)
-        self.hscroll = ttk.Scrollbar(self, orient="horizontal", command=self.text.xview)
-        self.text.configure(yscrollcommand=self._on_text_yscroll, xscrollcommand=self.hscroll.set)
-
-        self.gutter.grid(row=0, column=0, sticky="ns")
-        self.text.grid(row=0, column=1, sticky="nsew")
-        self.ruler.grid(row=0, column=2, sticky="ns")
-        self.vscroll.grid(row=0, column=3, sticky="ns")
-        self.hscroll.grid(row=1, column=1, sticky="ew")
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(1, weight=1)
 
-        if path and os.path.isfile(path):
-            try:
-                content = Path(path).read_text(encoding="utf-8")
-            except (OSError, UnicodeDecodeError) as error:
-                content = ""
-                messagebox.showerror(APP_TITLE, f"Could not read {path}:\n{error}")
+        if self.mode == "image" and self.image is not None:
+            self._build_image_view()
+        elif self.mode == "hex" and self._original_bytes is not None:
+            self._build_hex_view(self._original_bytes)
+        else:
+            self.vscroll = ttk.Scrollbar(self, orient="vertical", command=self._on_scrollbar)
+            self.hscroll = ttk.Scrollbar(self, orient="horizontal", command=self.text.xview)
+            self.text.configure(
+                yscrollcommand=self._on_text_yscroll,
+                xscrollcommand=self.hscroll.set,
+            )
+            self.gutter.grid(row=0, column=0, sticky="ns")
+            self.text.grid(row=0, column=1, sticky="nsew")
+            self.ruler.grid(row=0, column=2, sticky="ns")
+            self.vscroll.grid(row=0, column=3, sticky="ns")
+            self.hscroll.grid(row=1, column=1, sticky="ew")
+
+        if self.mode != "image":
             self.text.insert("1.0", content)
-            self.text.edit_modified(False)
+        self.text.edit_modified(False)
 
         self._configure_tags()
         self._bind_events()
@@ -224,18 +306,120 @@ class EditorTab(ttk.Frame):
         self.autocomplete = AutocompletePopup(self, self._accept_suggestion)
         self._suggestion_prefix_len = 0
 
-        self.after_idle(self.rehighlight_all)
-        self.after_idle(self._schedule_diagnostics)
+        if self.mode == "text":
+            self.after_idle(self.rehighlight_all)
+            self.after_idle(self._schedule_diagnostics)
+
+    def _build_image_view(self) -> None:
+        image = self.image
+        if image is None:
+            raise ValueError("No image data is available for preview.")
+        theme = self.app.settings.theme()
+        self.text.configure(state="disabled")
+        self.image_canvas = tk.Canvas(
+            self, background=theme["background"], highlightthickness=0,
+            xscrollincrement=20, yscrollincrement=20,
+        )
+        self.vscroll = ttk.Scrollbar(
+            self, orient="vertical", command=self.image_canvas.yview
+        )
+        self.hscroll = ttk.Scrollbar(
+            self, orient="horizontal", command=self.image_canvas.xview
+        )
+        self.image_canvas.configure(
+            xscrollcommand=self.hscroll.set, yscrollcommand=self.vscroll.set
+        )
+        self.image_canvas.grid(row=0, column=0, columnspan=3, sticky="nsew")
+        self.vscroll.grid(row=0, column=3, sticky="ns")
+        self.hscroll.grid(row=1, column=0, columnspan=3, sticky="ew")
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_columnconfigure(2, weight=0)
+        self.image_photo = ImageTk.PhotoImage(image, master=self)
+        self.image_canvas.create_image(0, 0, image=self.image_photo, anchor="nw")
+        self.image_canvas.configure(
+            scrollregion=(0, 0, image.width, image.height)
+        )
+
+    def _build_hex_view(self, data: bytes) -> None:
+        font = self.app.editor_font
+        self.hex_offsets = tk.Text(
+            self, width=10, wrap="none", state="disabled", font=font,
+            padx=4, pady=2, relief="flat", highlightthickness=0,
+        )
+        self.hex_ascii = tk.Text(
+            self, width=_HEX_BYTES_PER_ROW + 2, wrap="none", state="disabled",
+            font=font, padx=4, pady=2, relief="flat", highlightthickness=0,
+        )
+        for column, heading in enumerate(("Offset", "Hex bytes", "ASCII")):
+            ttk.Label(self, text=heading).grid(row=0, column=column, sticky="w")
+        self.hex_offsets.grid(row=1, column=0, sticky="ns")
+        self.text.grid(row=1, column=1, sticky="nsew")
+        self.hex_ascii.grid(row=1, column=2, sticky="ns")
+        self.vscroll = ttk.Scrollbar(
+            self, orient="vertical", command=self._scroll_hex_columns
+        )
+        self.hscroll = ttk.Scrollbar(self, orient="horizontal", command=self.text.xview)
+        self.text.configure(
+            yscrollcommand=self._sync_hex_columns,
+            xscrollcommand=self.hscroll.set,
+        )
+        self.hex_offsets.configure(yscrollcommand=self.vscroll.set)
+        self.hex_ascii.configure(yscrollcommand=self.vscroll.set)
+        self.vscroll.grid(row=1, column=3, sticky="ns")
+        self.hscroll.grid(row=2, column=1, sticky="ew")
+        self.grid_rowconfigure(1, weight=1)
+        self.grid_columnconfigure(2, weight=0)
+        offsets, hex_rows, ascii_rows = _format_hex_columns(data)
+        self.text.insert("1.0", hex_rows)
+        for widget, value in (
+            (self.hex_offsets, offsets),
+            (self.hex_ascii, ascii_rows),
+        ):
+            widget.configure(state="normal")
+            widget.insert("1.0", value)
+            widget.configure(state="disabled")
+
+    def _update_hex_reference_columns(self, data: bytes) -> None:
+        offsets, _, ascii_rows = _format_hex_columns(data)
+        for widget, value in (
+            (self.hex_offsets, offsets),
+            (self.hex_ascii, ascii_rows),
+        ):
+            widget.configure(state="normal")
+            widget.delete("1.0", "end")
+            widget.insert("1.0", value)
+            widget.configure(state="disabled")
+
+    def _sync_hex_columns(self, first: float, last: float) -> None:
+        self.vscroll.set(first, last)
+        self.hex_offsets.yview_moveto(first)
+        self.hex_ascii.yview_moveto(first)
+
+    def _scroll_hex_columns(self, *args) -> None:
+        self.text.yview(*args)
+        self.hex_offsets.yview(*args)
+        self.hex_ascii.yview(*args)
 
     # -- setup -----------------------------------------------------------
 
     def _configure_tags(self) -> None:
         theme = self.app.settings.theme()
+        if self.mode == "image":
+            self.image_canvas.configure(background=theme["background"])
+            return
         self.text.configure(
             background=theme["background"], foreground=theme["foreground"],
             insertbackground=theme["foreground"], selectbackground=theme["selection"],
             font=self.app.editor_font,
         )
+        if self.mode == "hex":
+            for widget in (self.hex_offsets, self.hex_ascii):
+                widget.configure(
+                    background=theme["gutter_bg"],
+                    foreground=theme["gutter"],
+                    font=self.app.editor_font,
+                )
+            return
         self.gutter.configure(background=theme["gutter_bg"])
         self.ruler.configure(background=theme["gutter_bg"])
         for tag in core.TOKEN_TAGS:
@@ -299,6 +483,11 @@ class EditorTab(ttk.Frame):
             self.text.tag_configure(tag_name, foreground=foreground)
 
     def _bind_events(self) -> None:
+        if self.mode == "image":
+            return
+        if self.mode == "hex":
+            self.text.bind("<<Modified>>", self._on_modified)
+            return
         self.text.bind("<KeyRelease>", self._on_key_release)
         self.text.bind("<ButtonRelease-1>", self._on_cursor_moved)
         self.text.bind("<<Modified>>", self._on_modified)
@@ -399,11 +588,20 @@ class EditorTab(ttk.Frame):
             self.autocomplete.accept_selected()
             return "break"
         line_text, col, _ = self.current_line_and_col()
-        indent = re.match(r"[ \t]*", line_text).group()
+        indent_match = re.match(r"[ \t]*", line_text)
+        indent = indent_match.group() if indent_match else ""
+        prefix = line_text[:col].strip()
+        function_header = re.fullmatch(
+            r"(?:(?:public|private)\s+)?(?:(?:static\s+)?func|func\s+static)\s+"
+            r"[A-Za-z_]\w*(?:::[A-Za-z_]\w*)*(?:\.[A-Za-z_]\w*)?"
+            r"(?:\s*\{.*\})?",
+            prefix,
+            re.IGNORECASE,
+        )
         opens_block = bool(re.search(
             r"\b(func|struct|record|enum|namespace|if|elif|else|for|while|risk|fix|cleanup)\b\s*$"
-            r"|\\\s*$", line_text[:col],
-        ))
+            r"|\\\s*$", prefix,
+        ) or function_header)
         extra = "\t" if opens_block else ""
         self.text.insert("insert", "\n" + indent + extra)
         self.after_idle(self._schedule_diagnostics)
@@ -477,6 +675,8 @@ class EditorTab(ttk.Frame):
         return list(core.TOKEN_TAGS) + list(self.app.tokenizer.custom_tag_styles)
 
     def rehighlight_all(self) -> None:
+        if self.mode != "text":
+            return
         for tag in self._all_syntax_tags():
             self.text.tag_remove(tag, "1.0", "end")
         lines = self.get_lines()
@@ -539,6 +739,8 @@ class EditorTab(ttk.Frame):
     # -- diagnostics ------------------------------------------------------
 
     def _schedule_diagnostics(self) -> None:
+        if self.mode != "text":
+            return
         if self._diag_job is not None:
             self.after_cancel(self._diag_job)
         self._diag_job = self.after(400, self._run_diagnostics)
@@ -617,6 +819,11 @@ class EditorTab(ttk.Frame):
     # -- save ------------------------------------------------------------
 
     def save(self, as_path: Optional[str] = None) -> bool:
+        if self.mode == "image":
+            if as_path:
+                messagebox.showinfo(APP_TITLE, "Image previews are read-only.")
+                return False
+            return True
         target = as_path or self.path
         if not target:
             target = filedialog.asksaveasfilename(defaultextension=".cql", filetypes=[("ChemQL", "*.cql"), ("All files", "*.*")])
@@ -629,8 +836,20 @@ class EditorTab(ttk.Frame):
             messagebox.showerror(APP_TITLE, "That file is already open in another tab.")
             return False
         try:
-            Path(target).write_text(self.text.get("1.0", "end-1c"), encoding="utf-8")
-        except OSError as error:
+            if self.mode == "hex":
+                if self._original_bytes is None:
+                    raise ValueError("The original binary data is unavailable.")
+                content = _parse_hex_bytes(
+                    self.text.get("1.0", "end-1c"), len(self._original_bytes)
+                )
+                Path(target).write_bytes(content)
+                self._original_bytes = content
+                self._update_hex_reference_columns(content)
+            else:
+                Path(target).write_text(
+                    self.text.get("1.0", "end-1c"), encoding="utf-8"
+                )
+        except (OSError, ValueError) as error:
             messagebox.showerror(APP_TITLE, f"Could not save {target}:\n{error}")
             return False
         self.path = target
@@ -639,6 +858,27 @@ class EditorTab(ttk.Frame):
         self.app.refresh_recent_files()
         self._schedule_diagnostics()
         return True
+
+
+def _apply_text_widget_theme(widget: tk.Text, theme: dict) -> None:
+    widget.configure(
+        background=theme["background"],
+        foreground=theme["foreground"],
+        insertbackground=theme["foreground"],
+        selectbackground=theme["selection"],
+        selectforeground=theme["foreground"],
+    )
+
+
+def _apply_classic_widget_theme(widget: tk.Misc, theme: dict) -> None:
+    if isinstance(widget, (tk.Tk, tk.Toplevel)):
+        widget.configure(background=theme["background"])
+    elif isinstance(widget, tk.Text):
+        _apply_text_widget_theme(widget, theme)
+    elif isinstance(widget, tk.Canvas):
+        widget.configure(background=theme["background"])
+    for child in widget.winfo_children():
+        _apply_classic_widget_theme(child, theme)
 
 
 # --------------------------------------------------------------------------
@@ -714,6 +954,10 @@ class ProblemsPanel(ttk.Frame):
         self.tree.tag_configure("error", foreground="#f14c4c")
         self.tree.tag_configure("warning", foreground="#cca700")
 
+    def apply_theme(self, theme: dict) -> None:
+        self.tree.tag_configure("error", foreground=theme["error"])
+        self.tree.tag_configure("warning", foreground=theme["warning"])
+
     def set_diagnostics(self, diagnostics: list[core.Diagnostic]) -> None:
         self.tree.delete(*self.tree.get_children(""))
         for diagnostic in diagnostics:
@@ -739,6 +983,10 @@ class ConsolePanel(ttk.Frame):
         self.text.pack(side="left", fill="both", expand=True)
         scroll.pack(side="right", fill="y")
         self.text.tag_configure("stderr", foreground="#f14c4c")
+
+    def apply_theme(self, theme: dict) -> None:
+        _apply_text_widget_theme(self.text, theme)
+        self.text.tag_configure("stderr", foreground=theme["error"])
 
     def clear(self) -> None:
         self.text.configure(state="normal")
@@ -775,6 +1023,9 @@ class QueryConsolePanel(ttk.Frame):
             self.entry.configure(state="disabled")
             self._show_text("chemql is not installed in this Python environment, so the query "
                              "console is disabled. Install chemql-python to enable it.")
+
+    def apply_theme(self, theme: dict) -> None:
+        _apply_text_widget_theme(self.text_result, theme)
 
     def run(self) -> None:
         if not self.bridge.available:
@@ -843,10 +1094,13 @@ class PeriodicTablePanel(ttk.Frame):
         self.canvas.pack(fill="both", expand=True)
         self.tooltip = Tooltip(self)
         self._cells: dict[int, dict] = {}
+        self.unavailable_item = None
         if bridge.available:
             self._draw()
         else:
-            self.canvas.create_text(10, 10, anchor="nw", text="chemql not installed", fill="gray")
+            self.unavailable_item = self.canvas.create_text(
+                10, 10, anchor="nw", text="chemql not installed", fill="gray"
+            )
 
     _CATEGORY_COLORS = {
         "diatomic nonmetal": "#8fd3fe", "noble gas": "#c9a0ff", "alkali metal": "#ff9e9e",
@@ -870,6 +1124,13 @@ class PeriodicTablePanel(ttk.Frame):
                 self.canvas.tag_bind(item, "<Enter>", self._on_enter)
                 self.canvas.tag_bind(item, "<Leave>", lambda _e: self.tooltip.hide())
                 self.canvas.tag_bind(item, "<Button-1>", self._on_click)
+
+    def apply_theme(self, theme: dict) -> None:
+        self.canvas.configure(background=theme["background"])
+        if self.unavailable_item is not None:
+            self.canvas.itemconfigure(
+                self.unavailable_item, fill=theme["foreground"]
+            )
 
     def _on_enter(self, event) -> None:
         item = self.canvas.find_closest(event.x, event.y)[0]
@@ -908,6 +1169,10 @@ class BalancerPanel(ttk.Frame):
             for widget in (self.reactants, self.products):
                 widget.configure(state="disabled")
 
+    def apply_theme(self, theme: dict) -> None:
+        _apply_text_widget_theme(self.result, theme)
+        self.result.tag_configure("error", foreground=theme["error"])
+
     def balance(self) -> None:
         if not self.bridge.available:
             return
@@ -926,6 +1191,42 @@ class BalancerPanel(ttk.Frame):
 # Dialogs
 # --------------------------------------------------------------------------
 
+def _theme_palette(theme_name: str) -> dict[str, str]:
+    return core.DARK_THEME if theme_name == "dark" else core.LIGHT_THEME
+
+
+def _rebase_theme_colors(
+    colors: dict[str, str],
+    old_palette: dict[str, str],
+    new_palette: dict[str, str],
+) -> dict[str, str]:
+    return {
+        key: new_palette.get(key, value) if value == old_palette.get(key) else value
+        for key, value in colors.items()
+    }
+
+
+def _theme_color_overrides(
+    colors: dict[str, str], palette: dict[str, str]
+) -> dict[str, str]:
+    return {
+        key: value
+        for key, value in colors.items()
+        if value != palette.get(key)
+    }
+
+
+def _normalize_theme_color_overrides(
+    colors: dict[str, str], theme_name: str
+) -> dict[str, str]:
+    palette = _theme_palette(theme_name)
+    other_palette = _theme_palette(
+        "light" if theme_name == "dark" else "dark"
+    )
+    rebased = _rebase_theme_colors(colors, other_palette, palette)
+    return _theme_color_overrides(rebased, palette)
+
+
 class PreferencesDialog(tk.Toplevel):
     COLOR_KEYS = ["background", "foreground", "comment", "string", "keyword", "command", "error", "warning"]
 
@@ -943,6 +1244,14 @@ class PreferencesDialog(tk.Toplevel):
         general = ttk.Frame(notebook)
         notebook.add(general, text="General")
         self.theme_var = tk.StringVar(value=settings.data.get("theme", "dark"))
+        self._color_base_theme = _theme_palette(self.theme_var.get())
+        other_palette = _theme_palette(
+            "light" if self.theme_var.get() == "dark" else "dark"
+        )
+        stored_colors = settings.data.get("colors") or {}
+        dialog_colors = _rebase_theme_colors(
+            stored_colors, other_palette, self._color_base_theme
+        )
         ttk.Label(general, text="Theme:").grid(row=0, column=0, sticky="w", padx=6, pady=6)
         ttk.Radiobutton(general, text="Dark", variable=self.theme_var, value="dark").grid(row=0, column=1, sticky="w")
         ttk.Radiobutton(general, text="Light", variable=self.theme_var, value="light").grid(row=0, column=2, sticky="w")
@@ -968,16 +1277,18 @@ class PreferencesDialog(tk.Toplevel):
         colors = ttk.Frame(notebook)
         notebook.add(colors, text="Colors")
         self.color_vars: dict[str, tk.StringVar] = {}
-        theme = settings.theme()
         for row, key in enumerate(self.COLOR_KEYS):
             ttk.Label(colors, text=key.replace("_", " ").title() + ":").grid(row=row, column=0, sticky="w", padx=6, pady=3)
-            var = tk.StringVar(value=settings.data.get("colors", {}).get(key, theme[key]))
+            var = tk.StringVar(
+                value=dialog_colors.get(key, self._color_base_theme[key])
+            )
             self.color_vars[key] = var
             swatch = tk.Label(colors, textvariable=var, width=10, relief="solid", borderwidth=1)
             swatch.grid(row=row, column=1, padx=6)
             swatch.configure(bg=var.get())
             var.trace_add("write", lambda *_a, w=swatch, v=var: w.configure(bg=v.get()))
             ttk.Button(colors, text="Pick...", command=lambda v=var: self._pick_color(v)).grid(row=row, column=2, padx=6)
+        self.theme_var.trace_add("write", self._on_theme_changed)
         ttk.Button(colors, text="Reset to theme defaults", command=self._reset_colors).grid(
             row=len(self.COLOR_KEYS), column=0, columnspan=3, pady=8)
 
@@ -986,13 +1297,25 @@ class PreferencesDialog(tk.Toplevel):
         ttk.Button(buttons, text="Cancel", command=self.destroy).pack(side="right")
         ttk.Button(buttons, text="Apply", command=self._apply).pack(side="right", padx=6)
 
+    def _on_theme_changed(self, *_args) -> None:
+        new_palette = _theme_palette(self.theme_var.get())
+        current_colors = {
+            key: var.get() for key, var in self.color_vars.items()
+        }
+        rebased_colors = _rebase_theme_colors(
+            current_colors, self._color_base_theme, new_palette
+        )
+        for key, var in self.color_vars.items():
+            var.set(rebased_colors[key])
+        self._color_base_theme = new_palette
+
     def _pick_color(self, var: tk.StringVar) -> None:
         _rgb, hex_color = colorchooser.askcolor(color=var.get(), parent=self)
         if hex_color:
             var.set(hex_color)
 
     def _reset_colors(self) -> None:
-        theme = core.DARK_THEME if self.theme_var.get() == "dark" else core.LIGHT_THEME
+        theme = _theme_palette(self.theme_var.get())
         for key, var in self.color_vars.items():
             var.set(theme[key])
 
@@ -1004,7 +1327,10 @@ class PreferencesDialog(tk.Toplevel):
         settings.data["ligatures_enabled"] = self.ligatures_var.get()
         settings.data["autocomplete_enabled"] = self.autocomplete_var.get()
         settings.data["show_minimap"] = self.minimap_var.get()
-        settings.data["colors"] = {key: var.get() for key, var in self.color_vars.items()}
+        palette = _theme_palette(self.theme_var.get())
+        settings.data["colors"] = _theme_color_overrides(
+            {key: var.get() for key, var in self.color_vars.items()}, palette
+        )
         settings.save()
         self.app.apply_theme()
         self.destroy()
@@ -1047,7 +1373,7 @@ class FindReplaceDialog(tk.Toplevel):
 
     def find_next(self) -> None:
         tab = self._tab()
-        if tab is None:
+        if tab is None or tab.mode == "image":
             return
         pattern = self.find_entry.get()
         if not pattern:
@@ -1072,7 +1398,7 @@ class FindReplaceDialog(tk.Toplevel):
 
     def replace_one(self) -> None:
         tab = self._tab()
-        if tab is None:
+        if tab is None or tab.mode == "image":
             return
         ranges = tab.text.tag_ranges("find_match")
         if ranges:
@@ -1082,7 +1408,7 @@ class FindReplaceDialog(tk.Toplevel):
 
     def replace_all(self) -> None:
         tab = self._tab()
-        if tab is None:
+        if tab is None or tab.mode == "image":
             return
         pattern, replacement = self.find_entry.get(), self.replace_entry.get()
         if not pattern:
@@ -1121,6 +1447,10 @@ class App(tk.Tk):
             self.attributes('-zoomed', True)
 
         self.settings = core.Settings()
+        self.settings.data["colors"] = _normalize_theme_color_overrides(
+            self.settings.data.get("colors") or {},
+            self.settings.data.get("theme", "dark"),
+        )
         self.suggestion_engine = core.default_suggestion_engine()
         self.tokenizer = core.tokenizer_for(self.suggestion_engine, ".cql")
         self.bridge = core.ChemQLBridge()
@@ -1214,6 +1544,10 @@ class App(tk.Tk):
         help_menu.add_command(label="Keyboard Shortcuts", command=self._show_shortcuts)
         help_menu.add_command(label="About", command=self._show_about)
         menubar.add_cascade(label="Help", menu=help_menu)
+        self._menus = (
+            menubar, file_menu, self.recent_files_menu,
+            edit_menu, view_menu, run_menu, help_menu,
+        )
 
     def _build_layout(self) -> None:
         self.main_pane = ttk.PanedWindow(self, orient="horizontal")
@@ -1293,6 +1627,11 @@ class App(tk.Tk):
             lambda _event, pane=notebook: self.set_active_notebook(pane),
             add="+",
         )
+        notebook.bind(
+            "<ButtonRelease-1>",
+            lambda event, pane=notebook: self._close_clicked_tab(event, pane),
+            add="+",
+        )
 
     def set_active_notebook(self, notebook: ttk.Notebook) -> None:
         self._active_notebook = notebook
@@ -1317,7 +1656,7 @@ class App(tk.Tk):
             self.split_editor_var.set(True)
             self._toggle_split_editor()
         tab = EditorTab(notebook, self, None)
-        notebook.add(tab, text=tab.display_name)
+        notebook.add(tab, text=self._tab_title(tab))
         notebook.select(tab)
         self.set_active_notebook(notebook)
 
@@ -1334,15 +1673,25 @@ class App(tk.Tk):
         if in_other_pane:
             self.split_editor_var.set(True)
             self._toggle_split_editor()
-        tab = EditorTab(notebook, self, path)
-        notebook.add(tab, text=tab.display_name)
+        try:
+            tab = EditorTab(notebook, self, path)
+        except (OSError, tk.TclError, ValueError) as error:
+            messagebox.showerror(APP_TITLE, f"Could not open {path}:\n{error}")
+            return
+        notebook.add(tab, text=self._tab_title(tab))
         notebook.select(tab)
         self.set_active_notebook(notebook)
         self.settings.remember_file(path)
         self.refresh_recent_files()
 
     def open_file_in_other_pane(self) -> None:
-        path = filedialog.askopenfilename(filetypes=[("ChemQL", "*.cql"), ("All files", "*.*")])
+        path = filedialog.askopenfilename(
+            filetypes=[
+                ("ChemQL", "*.cql"),
+                ("Images", "*.png *.jpg *.jpeg *.gif *.bmp *.tif *.tiff *.webp"),
+                ("All files", "*.*"),
+            ]
+        )
         if path:
             self.open_file(path, in_other_pane=True)
 
@@ -1373,7 +1722,13 @@ class App(tk.Tk):
             menu.add_command(label=label, command=lambda item=path: self.open_recent_file(item))
 
     def open_file_dialog(self) -> None:
-        path = filedialog.askopenfilename(filetypes=[("ChemQL", "*.cql"), ("All files", "*.*")])
+        path = filedialog.askopenfilename(
+            filetypes=[
+                ("ChemQL", "*.cql"),
+                ("Images", "*.png *.jpg *.jpeg *.gif *.bmp *.tif *.tiff *.webp"),
+                ("All files", "*.*"),
+            ]
+        )
         if path:
             self.open_file(path)
 
@@ -1392,6 +1747,31 @@ class App(tk.Tk):
         tab = self.current_tab()
         if tab is None:
             return
+        self._close_tab(tab)
+
+    def _close_clicked_tab(self, event, notebook: ttk.Notebook):
+        try:
+            tab_index = notebook.index(f"@{event.x},{event.y}")
+        except tk.TclError:
+            return
+        tab_box = notebook.bbox(tab_index)
+        if not tab_box:
+            return
+        tab_x, _tab_y, tab_width, _tab_height = tab_box
+        close_area_width = max(
+            18, tkfont.nametofont("TkDefaultFont").measure(" × ") + 8
+        )
+        if event.x < tab_x + tab_width - close_area_width:
+            return
+        tab = notebook.nametowidget(notebook.tabs()[tab_index])
+        self._close_tab(tab)
+        return "break"
+
+    @staticmethod
+    def _tab_title(tab: EditorTab) -> str:
+        return f"{tab.display_name}  ×"
+
+    def _close_tab(self, tab: EditorTab) -> None:
         notebook = tab.master
         if tab.dirty:
             answer = messagebox.askyesnocancel(APP_TITLE, f"Save changes to {tab.display_name.lstrip('* ')}?")
@@ -1413,7 +1793,7 @@ class App(tk.Tk):
         for notebook in (self.notebook, self.secondary_notebook):
             for tab_id in notebook.tabs():
                 tab = notebook.nametowidget(tab_id)
-                notebook.tab(tab_id, text=tab.display_name)
+                notebook.tab(tab_id, text=self._tab_title(tab))
 
     def save_current(self) -> None:
         tab = self.current_tab()
@@ -1423,6 +1803,9 @@ class App(tk.Tk):
     def save_current_as(self) -> None:
         tab = self.current_tab()
         if tab is None:
+            return
+        if tab.mode == "image":
+            messagebox.showinfo(APP_TITLE, "Image previews are read-only.")
             return
         kwargs = {
             "defaultextension": ".cql",
@@ -1454,6 +1837,114 @@ class App(tk.Tk):
     # -- theming -----------------------------------------------------------
 
     def apply_theme(self) -> None:
+        theme = self.settings.theme()
+        background = theme["background"]
+        foreground = theme["foreground"]
+        muted_background = theme["gutter_bg"]
+        style = ttk.Style(self)
+        if "clam" in style.theme_names():
+            style.theme_use("clam")
+        style.configure(".", background=background, foreground=foreground)
+        style.configure("TFrame", background=background)
+        style.configure("TLabel", background=background, foreground=foreground)
+        style.configure(
+            "TButton", background=muted_background, foreground=foreground
+        )
+        style.map(
+            "TButton",
+            background=[("active", theme["selection"]), ("pressed", theme["selection"])],
+            foreground=[("disabled", theme["gutter"]), ("!disabled", foreground)],
+        )
+        style.configure(
+            "TEntry", fieldbackground=background, foreground=foreground
+        )
+        style.map(
+            "TEntry",
+            fieldbackground=[("disabled", muted_background), ("!disabled", background)],
+            foreground=[("disabled", theme["gutter"]), ("!disabled", foreground)],
+        )
+        style.configure(
+            "TNotebook", background=muted_background, borderwidth=0
+        )
+        style.configure(
+            "TNotebook.Tab",
+            background=muted_background,
+            foreground=foreground,
+            padding=(8, 4),
+        )
+        style.map(
+            "TNotebook.Tab",
+            background=[
+                ("selected", background),
+                ("active", theme["selection"]),
+            ],
+            foreground=[("selected", foreground), ("active", foreground)],
+        )
+        style.configure(
+            "Treeview",
+            background=background,
+            fieldbackground=background,
+            foreground=foreground,
+            bordercolor=muted_background,
+            lightcolor=muted_background,
+            darkcolor=muted_background,
+        )
+        style.map(
+            "Treeview",
+            background=[("selected", theme["selection"])],
+            foreground=[("selected", foreground)],
+        )
+        style.configure(
+            "Treeview.Heading",
+            background=muted_background,
+            foreground=foreground,
+        )
+        style.map(
+            "Treeview.Heading",
+            background=[("active", theme["selection"])],
+        )
+        style.configure(
+            "TScrollbar",
+            background=muted_background,
+            troughcolor=background,
+            arrowcolor=foreground,
+        )
+        style.configure(
+            "TPanedwindow", background=muted_background
+        )
+        style.configure(
+            "TCheckbutton", background=background, foreground=foreground
+        )
+        style.map(
+            "TCheckbutton", background=[("active", background)]
+        )
+        style.configure(
+            "TRadiobutton", background=background, foreground=foreground
+        )
+        style.map(
+            "TRadiobutton", background=[("active", background)]
+        )
+        style.configure(
+            "TSpinbox", fieldbackground=background, foreground=foreground
+        )
+
+        self.configure(background=background)
+        for menu in self._menus:
+            menu.configure(
+                background=muted_background,
+                foreground=foreground,
+                activebackground=theme["selection"],
+                activeforeground=foreground,
+                disabledforeground=theme["gutter"],
+            )
+        _apply_classic_widget_theme(self, theme)
+
+        self.problems_panel.apply_theme(theme)
+        self.console_panel.apply_theme(theme)
+        self.query_panel.apply_theme(theme)
+        self.periodic_panel.apply_theme(theme)
+        self.balancer_panel.apply_theme(theme)
+
         self.editor_font = (
             _pick_font_family(
                 self.settings.data["font_family"],
@@ -1520,6 +2011,11 @@ class App(tk.Tk):
         tab = self.current_tab()
         if tab is None:
             return
+        if tab.mode == "image" and tab.image is not None:
+            self.status_position.configure(
+                text=f"Image {tab.image.width} x {tab.image.height}"
+            )
+            return
         line, col = tab.text.index("insert").split(".")
         self.status_position.configure(text=f"Ln {line}, Col {int(col) + 1}")
 
@@ -1529,7 +2025,7 @@ class App(tk.Tk):
 
     def _jump_to_line(self, line_no: int) -> None:
         tab = self.current_tab()
-        if tab is None:
+        if tab is None or tab.mode == "image":
             return
         tab.text.mark_set("insert", f"{line_no}.0")
         tab.text.see("insert")
@@ -1539,26 +2035,26 @@ class App(tk.Tk):
 
     def _toggle_bookmark(self) -> None:
         tab = self.current_tab()
-        if tab is not None:
+        if tab is not None and tab.mode == "text":
             tab.toggle_bookmark()
 
     def _jump_bookmark(self, backwards: bool) -> None:
         tab = self.current_tab()
-        if tab is not None:
+        if tab is not None and tab.mode == "text":
             tab.next_bookmark(backwards)
 
     # -- editing passthroughs -------------------------------------------
 
     def _text_event(self, event_name: str) -> None:
         tab = self.current_tab()
-        if tab is not None:
+        if tab is not None and tab.mode != "image":
             tab.text.event_generate(event_name)
 
     # -- running -----------------------------------------------------------
 
     def run_current_file(self) -> None:
         tab = self.current_tab()
-        if tab is None:
+        if tab is None or tab.mode != "text":
             return
         if tab.dirty and not tab.save():
             return
@@ -1570,7 +2066,7 @@ class App(tk.Tk):
 
     def run_selection(self) -> None:
         tab = self.current_tab()
-        if tab is None:
+        if tab is None or tab.mode != "text":
             return
         try:
             selected = tab.text.get("sel.first", "sel.last")
@@ -1659,7 +2155,7 @@ def main() -> None:
         import ctypes
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID('chemql.codecqlx.1.0.0')
     if len(sys.argv) > 1 and sys.argv[1] in ("--version", "-v"):
-        print("CodecQLX 1.1.1")
+        print("CodecQLX 1.2.1")
     else:
         app = App(sys.argv[1:])
         app.mainloop()

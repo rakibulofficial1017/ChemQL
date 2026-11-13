@@ -386,7 +386,7 @@ COMMANDS = {
     "findmol", "findre", "set", "add", "remove", "react", "balance",
     "conditions", "view", "help", "dump", "version", "let", "unset",
     "variables", "func", "define", "load", "import", "signal", "fix",
-    "cleanup", "arguments"
+    "cleanup", "arguments", "kwarguments"
 }
 CONTROL_KEYWORDS = {
     "if", "elif", "else", "endif", "for", "while", "in", "endfor",
@@ -428,7 +428,9 @@ TOKEN_RE = re.compile(
     re.IGNORECASE,
 )
 AUTO_INDENT = re.compile(
-    r"^\s*(?:(?:func|define)\b.*(?:\{\}|\{)$|"
+    r"^\s*(?:(?:(?:public|private)\s+)?(?:(?:static\s+)?func|func\s+static)\s+"
+    r"[A-Za-z_]\w*(?:::[A-Za-z_]\w*)*(?:\.[A-Za-z_]\w*)?(?:\s*\{.*\})?$|"
+    r"(?:func|define)\b.*(?:\{\}|\{)$|"
     r"(?:struct|record|enum)\s+\w+(?:\s+from\b.*)?$|"
     r"namespace\s+[A-Za-z_]\w*$|"
     r"(?:if|elif|else|for|while)\b.*|.*\\)$",

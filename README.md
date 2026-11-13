@@ -6,7 +6,7 @@ ChemQL is a small language for querying, computing with, and simulating chemistr
 
 - **Distribution name:** `chemql-python`
 - **Import / CLI name:** `chemql`
-- **Language version:** `1.6.11` (per `chemql.__version__`)
+- **Language version:** `1.7.0` (per `chemql.__version__`)
 - **Editor version:** `codecql 0.1.2`
 - **GUI Editor version:** `CodecQLX 1.1.1`
 - **Python import / CLI name:** `chemql`
@@ -22,6 +22,38 @@ ChemQL is a small language for querying, computing with, and simulating chemistr
 
 ```bash
 pip install chemql-python
+```
+
+The data-analysis tools are installed with ChemQL and available in the
+`chemql.data_analysis` package. In the REPL, chart helpers render directly:
+
+```text
+>>> draw_bar_chart{[3, 5, 2], ["A", "B", "C"]}
+>>> help{data_analysis}
+```
+
+ChemQL code can call the same helpers or construct a chart directly:
+
+```chemql
+[[[
+print(draw_bar_chart([3, 5, 2], ["A", "B", "C"]))
+
+chart = BarChart([12, 18, 15], ["Q1", "Q2", "Q3"])
+print(chart)
+
+sheet = Spreadsheet(3, 2)
+sheet["A"] = ["Quarter", "Q1", "Q2"]
+sheet["B"] = ["Sales", 12, 18]
+run_spreadsheet_gui(sheet)
+]]]
+```
+
+The same APIs are also importable from ordinary Python:
+
+```python
+from chemql import BarChart, Spreadsheet, draw_bar_chart, run_spreadsheet_gui
+
+print(draw_bar_chart([3, 5, 2], ["A", "B", "C"]))
 ```
 
 Verify:
@@ -75,6 +107,11 @@ Open a file in the bundled editor:
 ```bash
 chemql edit script.cql
 ```
+
+Interactive REPL commands are saved between sessions in
+`~/.chemql/.repl_history`; press **Up** in a new session to recall previous
+commands. The history file is plain text, so avoid entering secrets at the
+prompt.
 
 ---
 
@@ -193,6 +230,159 @@ Reference conditions are °C at 1 atm (mp/bp), g/cm³ at 25 °C (density), and `
 | `count_atoms{formula, symbol}` | Atoms of one element in a formula (handles nested parentheses) |
 | `molar_mass{formula}` | Molar mass |
 | `empirical_formula{formula}` | Reduced formula |
+
+---
+
+## Data analysis and visualization
+
+ChemQL includes spreadsheet tools and a complete charting toolkit. The
+dependencies for data analysis (pandas, Excel readers, and Pillow for PNG
+export) are installed with `pip install chemql-python`; there is no separate
+extra to enable. Terminal charts work in the REPL, scripts, and redirected
+output. Interactive charts use Tkinter, which may need to be installed
+separately on Linux.
+
+### Chart types
+
+| Chart | Input | Useful options |
+|---|---|---|
+| Bar | A list of values or a dictionary of named series | Grouped/stacked, horizontal, sort, value labels |
+| Line | Values or named series, with optional category labels | Multiple series, axis ranges, smoothing in the GUI |
+| Area | Values or named series | Filled or stacked areas |
+| Pie / donut | Non-negative values and optional labels | Donut hole, sorting, percentage labels |
+| Scatter | `(x, y)` pairs or named point series | Point labels, axis ranges |
+| Histogram | Values or named series | Explicit bin count/edges, density |
+| Box plot | One list, lists of groups, or a dictionary of groups | Quartiles, whiskers, outliers |
+| Heat map | A rectangular matrix | Row/column labels, value scale |
+| Candlestick | `(open, high, low, close)` records | Category labels and OHLC validation |
+
+Chart classes accept more presentation and scale options than the short
+ChemQL helpers. They are available in embedded Python along with `Spreadsheet`
+and `Vector`.
+
+### Print images in the terminal
+
+Pillow can turn an image file into terminal-sized half-block output. Color is
+selected automatically when standard output is a color terminal; pass a width
+to control its size, or `False` for monochrome shading:
+
+```chemql
+print_image{"molecule.png"}
+print_image{"molecule.png", 60}
+print_image{"molecule.png", 40, False}
+```
+
+In Python, `image_to_terminal(path, width=48, colors=None)` returns the
+rendered string, while `print_image(...)` writes it directly to standard
+output. It also accepts a Pillow `Image` object.
+
+### Plot from the REPL or a ChemQL script
+
+Use the `draw_*` helpers for immediate terminal output. Inputs can be ChemQL
+variables, Python-style lists/dictionaries, or values returned by other
+ChemQL expressions:
+
+```chemql
+let months = ["Jan", "Feb", "Mar", "Apr"]
+let sales = [18, 22, 16, 29]
+draw_bar_chart{sales, months}
+draw_line_chart{sales, months}
+draw_area_chart{sales, months}
+draw_pie_chart{sales, months}
+draw_histogram{sales}
+draw_box_plot{sales}
+
+let temperatures = [[12, 14, 17, 15], [8, 10, 13, 11]]
+draw_heat_map{temperatures, ["North", "South"], months}
+
+draw_scatter_plot{[(1, 2), (2, 4), (3, 3)]}
+draw_candlestick_chart{[(10, 13, 9, 12), (12, 14, 10, 11)], ["Mon", "Tue"]}
+```
+
+`help{data_analysis}` lists the helpers, and `help{draw_bar_chart}` gives a
+specific signature and example. The helpers return the rendered chart text, so
+they also work inside ChemQL expressions and Python blocks:
+
+```chemql
+[[[
+print(draw_bar_chart([18, 22, 16, 29], ["Jan", "Feb", "Mar", "Apr"]))
+chart = BarChart([18, 22, 16, 29], ["Jan", "Feb", "Mar", "Apr"], title="Sales")
+print(chart)
+]]]
+```
+
+### Interactive GUI charts from ChemQL
+
+Use a corresponding `show_*` helper to open an interactive window. It accepts
+the same data shape as its `draw_*` counterpart; an optional final `"dark"`
+or `"light"` argument selects the initial theme:
+
+```chemql
+show_bar_chart{sales, months}
+show_line_chart{sales, months, "dark"}
+show_area_chart{sales, months}
+show_pie_chart{sales, months}
+show_histogram{sales}
+show_box_plot{sales}
+show_heat_map{temperatures, ["North", "South"], months}
+show_scatter_plot{[(1, 2), (2, 4), (3, 3)]}
+show_candlestick_chart{[(10, 13, 9, 12), (12, 14, 10, 11)], ["Mon", "Tue"]}
+```
+
+The call opens the window and returns to the REPL after it closes. In the
+window, hover for data tooltips, click legend items to hide/show series,
+double-click a legend item to isolate it, press `t` to toggle light/dark mode,
+and press `r` to restore all series. Right-click for the context menu to export
+the current chart as PNG or print its text version in the terminal.
+
+For chart-specific options, use the GUI classes directly in an embedded Python
+block, then call `.run()`:
+
+```chemql
+[[[
+gui = BarChartGUI(
+    {"Online": [12, 18, 21], "Retail": [9, 14, 17]},
+    ["Q1", "Q2", "Q3"],
+    mode="stacked",
+    theme="dark",
+    chart_title="Quarterly sales",
+)
+gui.run()
+]]]
+```
+
+### Spreadsheet dashboard
+
+`Spreadsheet` stores labeled columns, supports cell/range access and formulas,
+and can be passed directly to the GUI dashboard. The dashboard can also open
+CSV, XLSX, and XLS files, infer numeric columns, and chart selected data as a
+bar, line, area, pie, scatter, histogram, box plot, heat map, or candlestick:
+
+```chemql
+let sheet = Spreadsheet{4, 2}
+[[[
+sheet["A"] = ["Quarter", "Q1", "Q2", "Q3"]
+sheet["B"] = ["Sales", 12, 18, 15]
+]]]
+run_spreadsheet_gui{sheet}
+```
+
+Call `run_spreadsheet_gui{}` with no argument to open the file picker. From a
+terminal, the bundled chart demo can open a spreadsheet directly:
+
+```bash
+python -m chemql.data_analysis.visualization.main --spreadsheet sales.xlsx --theme dark
+```
+
+The same API is available to normal Python programs:
+
+```python
+from chemql import BarChart, BarChartGUI, Spreadsheet
+from chemql.data_analysis.visualization import run_spreadsheet_gui
+
+print(BarChart([12, 18, 15], ["Q1", "Q2", "Q3"], title="Sales"))
+BarChartGUI([12, 18, 15], ["Q1", "Q2", "Q3"], theme="dark").run()
+```
 
 ---
 
@@ -318,17 +508,39 @@ isEven{4}
 ## Functions, arguments, macros
 
 ```chemql
-func square
-    return \1 * \1
+func greet{name, age=10}
+    let value = str{name}
+    return value, age, arguments
 endfunc
+
+greet{"Jacob"}                    // ("Jacob", 10, ["Jacob", 10])
+greet{age=30, name="Jacob"}       // ("Jacob", 30, ["Jacob", 30])
 ```
 
-**Two access forms:**
+Declare parameters inside `{}` after the function name. Parameters can be
+required, have a default (`age=10`), or be optional (`age?`, equivalent to
+`age=None`). Calls may pass values positionally or by name; required
+parameters still need a value.
 
-- `\1`, `\2`, … — 1-indexed positional placeholders, **substituted textually** (works inside strings; `\10` = tenth argument, greedy `\d+`)
-- `arguments` — a per-call `list` of positional arguments, `arguments[0]` indexed from 0, **function scope only**
+`arguments` is a per-call list in declared parameter order, including defaults
+and optional `None` values. `kwarguments` contains explicitly supplied
+keyword arguments and supports both mapping and attribute access:
 
-> ⚠️ `arguments` is not available in macro bodies — macros get `\N` only.
+```chemql
+func describe{name, age?}
+    if age is None
+        return "I am " + str{name}
+    endif
+    return "I am " + str{name} + " and I am " + str{age}
+endfunc
+
+describe{name="Jacob"}             // "I am Jacob"
+```
+
+Legacy functions may omit the parameter list and continue to use `\1`, `\2`,
+and so on. These 1-indexed placeholders also remain available in parameterized
+functions. `arguments` and `kwarguments` are function-scope values; macros
+still use `\N` placeholders and do not receive either value.
 
 ### Definitions (object-like)
 
@@ -856,13 +1068,16 @@ the `chemql` package cannot be imported.
 - Syntax highlighting and context-aware autocomplete for `.cql` files
 - Hoverable diagnostics, gutter markers, a Problems panel, and an overview ruler
 - File tree sidebar, recent files, and multiple editor tabs
+- Pillow-backed, scrollable previews for image files
+- Automatic hex-editor view for binary files; edit byte values and save with
+  `Ctrl+S` (file length is kept fixed; offsets and ASCII are reference columns)
 - Side-by-side editor panes for working with different files
 - Query Console that executes ChemQL in-process and displays table or card results
 - Interactive Periodic Table lookup
 - Balance Equation panel
 - Find and replace, bookmarks, zoom controls, and run-file/run-selection actions
-- Dark and light themes, font settings, autocomplete/minimap toggles, and
-  per-token color preferences
+- Dark and light themes across the editor, file tree, menus, and panels, plus
+  font settings, autocomplete/minimap toggles, and per-token color preferences
 
 When enabled, CodecQLX prefers an installed programming font with ligature
 support (such as Fira Code, JetBrains Mono, or Cascadia Code) over its default
@@ -891,6 +1106,9 @@ user profile (`%APPDATA%` on Windows).
 | `Up` / `Down` / `Esc` | Navigate or dismiss autocomplete |
 | `Ctrl+F2` / `F2` / `Shift+F2` | Toggle / next / previous bookmark |
 | `Ctrl+=` / `Ctrl+-` / `Ctrl+0` | Zoom in / out / reset |
+
+Click the `×` at the right side of any editor tab to close that tab. Unsaved
+changes still prompt before the tab is closed.
 
 ---
 

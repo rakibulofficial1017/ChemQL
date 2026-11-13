@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "chemql-python"
-version = "1.6.11"
+version = "1.7.0"
 authors = [
     { name = "Mohammad Rakibul Islam", email = "rakibulofficial1017@gmail.com" }
 ]
@@ -14,6 +14,10 @@ requires-python = ">=3.12"
 dependencies = [
     "prompt_toolkit>=3.0",
     "rich>=13.7",
+    "pandas>=2.0",
+    "openpyxl>=3.1",
+    "xlrd>=2.0",
+    "pillow>=10.0",
 ]
 
 [project.optional-dependencies]

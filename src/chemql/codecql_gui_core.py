@@ -69,6 +69,7 @@ _BUILTINS = (
     "first", "last", "unique", "sort", "reversed", "read_text",
     "read_lines", "read_json", "read_csv", "write_text", "write_csv",
     "write_json", "file_exists", "list_files", "help",
+    "arguments", "kwarguments",
 )
 
 _TOKEN_RE = re.compile(
